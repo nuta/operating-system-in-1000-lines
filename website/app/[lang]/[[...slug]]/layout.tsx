@@ -1,6 +1,7 @@
 "use client";
 
 import "../../globals.css";
+import { Carter_One } from 'next/font/google'
 import { FaGithub } from "react-icons/fa";
 import { Content, allContents } from "contentlayer/generated";
 import { usePathname } from "next/navigation";
@@ -9,6 +10,8 @@ import { GoSidebarCollapse, GoSidebarExpand } from "react-icons/go";
 import { useMediaQuery } from "usehooks-ts";
 import { BiWorld } from "react-icons/bi";
 import { getLanguageNames } from "@/lib/table-of-contents";
+
+const carterOne = Carter_One({ subsets: ['latin'], weight: "400", style: "normal" });
 
 export default function MdxPageLayout({
   children,
@@ -66,6 +69,7 @@ export default function MdxPageLayout({
     }
   }
 
+
   return (
     <html>
       <body className="flex h-screen w-screen bg-white dark:bg-gray-800 dark:text-gray-200">
@@ -75,9 +79,9 @@ export default function MdxPageLayout({
           }`}
         >
           <div className="p-4">
-            <h1 className="font-bold text-gray-800 dark:text-gray-200 text-base mb-8 text-center">
+            <h1 className={`font-bold text-gray-700 dark:text-gray-200 text-lg mb-8 text-center ${carterOne.className}`}>
               <a href="/" className="hover:text-blue-500">
-                Writing OS
+                Writing an OS
                 <br />
                 in 1,000 Lines
               </a>

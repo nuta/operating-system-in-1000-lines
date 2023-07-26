@@ -76,7 +76,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 
   return {
     metadataBase: new URL("https://operating-system-in-1000-lines.vercel.app"),
-    title: `${content.title} - Writing OS in 1,000 Lines`,
+    title: `${content.title} - Writing an OS in 1,000 Lines`,
     icons: {
       icon: "/favicon.ico",
     },
@@ -84,13 +84,13 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       title: content.title,
       siteName: "operating-system-in-1000-lines.vercel.app",
       type: "website",
-      // url: `https://operating-system-in-1000-lines.vercel.app/blog/${content.slug}`,
+      url: `https://operating-system-in-1000-lines.vercel.app/${content.slug}`,
       images: [
-        // {
-        //   url: `https://operating-system-in-1000-lines.vercel.app/api/og?slug=${content.slug}`,
-        //   width: 1200,
-        //   height: 600,
-        // },
+        {
+          url: `https://operating-system-in-1000-lines.vercel.app/api/og`,
+          width: 1200,
+          height: 600,
+        },
       ],
     },
     twitter: {
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       card: "summary_large_image",
       creator: "@seiyanuta",
       images: [
-        // `https://operating-system-in-1000-lines.vercel.app/api/og?slug=${content.slug}`,
+        `https://operating-system-in-1000-lines.vercel.app/api/og`,
       ],
     },
   };
@@ -111,7 +111,15 @@ export default function Page({
   params: { lang: string; slug: string[] };
 }) {
   const slug = slugFromParams(params);
-  const content = getContentBySlug(slug);
+  let content;
+  try {
+    content = getContentBySlug(slug);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("not found")) {
+      notFound();
+    }
+  }
+
   const MDXContent = useMDXComponent(content.body.code);
 
   return (
