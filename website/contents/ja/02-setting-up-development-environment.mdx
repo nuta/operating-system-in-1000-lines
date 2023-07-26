@@ -1,0 +1,62 @@
+---
+title: 開発環境
+---
+
+本書では、macOSとUbuntuといったUNIX系OSを想定しています。Windowsをお使いの場合は、Windows Subsystem for Linux (WSL2) をインストールしたのち、Ubuntuの手順に従ってください。
+
+## ソフトウェアのインストール
+
+### macOS
+
+[Homebrew](https://brew.sh/index\_ja) をインストールしたのち、次のコマンドで必要なパッケージをインストールします。
+
+```
+brew install llvm qemu
+```
+
+### Ubuntu
+
+次のコマンドで必要なパッケージをインストールします。他のLinuxディストリビューションをお使いの場合は、適宜読み替えてください。
+
+```
+sudo apt update && sudo apt install -y clang llvm qemu
+```
+
+### その他のOS
+
+どうしても他のOSを使いたい場合は、次のコマンドを頑張ってインストールしてください。
+
+* `bash`: コマンドラインシェル。UNIX系OSには基本的に最初から入っている。
+* `tar`: tarアーカイブ操作ツール。UNIX系OSには基本的に最初から入っている。GNU版の`tar`がおすすめ。
+* `clang`: Cコンパイラ。32ビットRISC-V CPUに対応していること (下記参照)。
+* `llvm-objcopy`: オブジェクトファイル編集ツール。よくLLVMパッケージに入っている。(GNU binutilsの`objcopy`でも代用可)。
+* `llvm-objdump`: 逆アセンブラ。`llvm-objcopy`と同様。
+* `llvm-readelf`: ELFファイル解析ツール。`llvm-objcopy`と同様。
+* `qemu-system-riscv32`: 32ビットRISC-V CPUのエミュレータ。QEMUパッケージに入っている。
+
+<Info>
+お使いのclangが32ビットRISC-Vに対応しているかは、次のコマンドで確認できます。
+
+```
+$ clang -print-targets | grep riscv32
+    riscv32     - 32-bit RISC-V
+```
+
+`riscv32`が表示されればOKです。表示されない代表例としては、macOS標準のclangがあります。上記の手順では、Homebrewの全部入りclang (`llvm`パッケージ) を代わりにインストールしています。
+</Info>
+
+## Gitリポジトリの用意 (任意)
+
+もしGitリポジトリ下で作っていく場合は、次の`.gitignore`をあらかじめ用意しておくと便利です。
+
+```plain:gitignore
+/disk/*
+!/disk/.gitkeep
+*.map
+*.tar
+*.o
+*.elf
+*.bin
+*.log
+*.pcap
+```
