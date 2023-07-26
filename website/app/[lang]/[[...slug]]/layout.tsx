@@ -87,7 +87,7 @@ export default function MdxPageLayout({
               </a>
             </h1>
 
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <BiWorld className="text-2xl mr-2" />
               <select className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white ">
                 {languages.map((lang) => (
@@ -96,7 +96,7 @@ export default function MdxPageLayout({
                   </option>
                 ))}
               </select>
-            </div>
+            </div> */}
 
             <ul className="mt-6">
               {sections.map((section) => {
