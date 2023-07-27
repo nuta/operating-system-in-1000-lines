@@ -20,10 +20,9 @@ const Warning = ({ children }) => (
 );
 
 const EnagaBook = ({ chapter, section, title }) => (
-  <div className="inline-block mx-2">
     <a
       href="https://www.shuwasystem.co.jp/book/9784798068718.html"
-      className="hover:no-underline font-normal"
+      className="inline-block mx-2 hover:no-underline font-normal"
       target="_blank"
     >
       <span
@@ -38,7 +37,6 @@ const EnagaBook = ({ chapter, section, title }) => (
         {title && ` (${title})`}
       </span>
     </a>
-  </div>
 );
 
 const MDXComponents = {

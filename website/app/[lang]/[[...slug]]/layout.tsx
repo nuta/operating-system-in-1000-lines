@@ -7,9 +7,9 @@ import { Content, allContents } from "contentlayer/generated";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoSidebarCollapse, GoSidebarExpand } from "react-icons/go";
-import { useMediaQuery } from "usehooks-ts";
 import { BiWorld } from "react-icons/bi";
 import { getLanguageNames } from "@/lib/table-of-contents";
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const carterOne = Carter_One({ subsets: ['latin'], weight: "400", style: "normal" });
 
@@ -19,34 +19,13 @@ export default function MdxPageLayout({
   children: React.ReactNode;
   params: { lang: string };
 }) {
-  const languages = getLanguageNames();
+  // const languages = getLanguageNames();
   const pathname = usePathname();
 
-  const isMobile = useMediaQuery("(max-width: 768px)");
-  const [sidebarOpen, setSideBarOpen] = useState(false);
+  const [sidebarOpen, setSideBarOpen] = useState(true);
   const toggleSidebar = () => {
     setSideBarOpen(!sidebarOpen);
   };
-
-  const clickSidebarLink = () => {
-    if (isMobile) {
-      setSideBarOpen(false);
-    }
-  };
-
-  // Ugly hack to avoid SSR mismatch.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setSideBarOpen(!isMobile);
-    setMounted(true);
-  }, []);
-  if (!mounted) {
-    return (
-      <html>
-        <body></body>
-      </html>
-    );
-  }
 
   const sections = allContents.sort((a, b) =>
     a.filepath.localeCompare(b.filepath)
@@ -104,7 +83,6 @@ export default function MdxPageLayout({
                   <li key={section.slug}>
                     <a
                       href={`/${section.slug}`}
-                      onClick={clickSidebarLink}
                       className={`${
                         section.slug == activeSlug
                           ? "text-blue-500 dark:text-blue-400"
