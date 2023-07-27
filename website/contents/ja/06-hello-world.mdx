@@ -117,7 +117,16 @@ Hello World!
 
 ```
 
-TODO: OpenSBIはなにしてる？シリアルポートドライバ
+<Info>
+SBIが呼ばれると、次のような流れで文字が表示されます。
+
+1. OSが`ecall`命令を実行すると、CPUはM-modeのトラップハンドラ (`mtvec`レジスタ) へジャンプする。トラップハンドラはOpenSBIが起動時に設定している。
+2. レジスタの保存などを済ませたのちに、Cで書かれた [トラップハンドラ](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) が呼ばれる。
+3. `eid` に応じた[SBI処理関数が呼ばれる](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65)。
+4. 8250 UART ([Wikipedia](https://ja.wikipedia.org/wiki/8250_UART)) の[デバイスドライバ](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77) がQEMUへ文字を送信する。
+5. QEMUの8250 UARTエミュレーション実装が文字を受け取り、標準出力に文字を送る。
+6. 端末エミュレータがその文字を表示する。
+</Info>
 
 ## `printf`関数
 
