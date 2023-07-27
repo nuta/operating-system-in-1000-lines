@@ -124,7 +124,7 @@ export default function MdxPageLayout({
                   href={`/${prevPage.slug}`}
                   className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-300 font-bold py-2 px-4 rounded no-underline"
                 >
-                  &lt; {slug2SectionNo[prevPage.slug]} {prevPage.title}
+                  &laquo; {slug2SectionNo[prevPage.slug]} {prevPage.title}
                 </a>
               )) || <div></div>}
               {nextPage && (
@@ -132,7 +132,7 @@ export default function MdxPageLayout({
                   href={`/${nextPage.slug}`}
                   className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-300 font-bold py-2 px-4 rounded no-underline"
                 >
-                  {slug2SectionNo[nextPage.slug]} {nextPage.title} &gt;
+                  {slug2SectionNo[nextPage.slug]} {nextPage.title} &raquo;
                 </a>
               )}
             </div>
