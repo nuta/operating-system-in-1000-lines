@@ -5,11 +5,10 @@ import { Carter_One } from 'next/font/google'
 import { FaGithub } from "react-icons/fa";
 import { Content, allContents } from "contentlayer/generated";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { GoSidebarCollapse, GoSidebarExpand } from "react-icons/go";
 import { BiWorld } from "react-icons/bi";
 import { getLanguageNames } from "@/lib/table-of-contents";
-import useMediaQuery from '@mui/material/useMediaQuery';
 
 const carterOne = Carter_One({ subsets: ['latin'], weight: "400", style: "normal" });
 
@@ -22,7 +21,7 @@ export default function MdxPageLayout({
   // const languages = getLanguageNames();
   const pathname = usePathname();
 
-  const [sidebarOpen, setSideBarOpen] = useState(true);
+  const [sidebarOpen, setSideBarOpen] = useState(false);
   const toggleSidebar = () => {
     setSideBarOpen(!sidebarOpen);
   };
@@ -54,7 +53,7 @@ export default function MdxPageLayout({
       <body className="flex h-screen w-screen bg-white dark:bg-gray-800 dark:text-gray-200">
         <aside
           className={`w-80 h-full bg-gray-50 dark:bg-gray-700 dark:text-gray-200 shadow-md overflow-y-auto text-sm ${
-            sidebarOpen ? "block" : "hidden"
+            sidebarOpen ? "block" : "max-md:hidden"
           }`}
         >
           <div className="p-4">
@@ -110,10 +109,10 @@ export default function MdxPageLayout({
           </a>
         </aside>
 
-        <main className="w-full overflow-y-scroll">
+        <main className="w-full overflow-y-scroll mt-8">
           <button
             onClick={toggleSidebar}
-            className={`flex items-center justify-center h-12 w-12 focus:outline-none text-gray-800 bg-white dark:bg-gray-200 dark:text-gray-900 border-2 rounded-lg sticky top-4 left-4`}
+            className={`md:hidden flex items-center justify-center h-12 w-12 focus:outline-none text-gray-800 bg-white dark:bg-gray-200 dark:text-gray-900 border-2 rounded-lg sticky top-4 left-4`}
           >
             {sidebarOpen ? <GoSidebarExpand /> : <GoSidebarCollapse />}
           </button>
