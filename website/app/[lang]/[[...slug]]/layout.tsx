@@ -53,7 +53,7 @@ export default function MdxPageLayout({
       <body className="flex h-screen w-screen bg-white dark:bg-gray-800 dark:text-gray-200">
         <aside
           className={`w-80 h-full bg-gray-50 dark:bg-gray-700 dark:text-gray-200 shadow-md overflow-y-auto text-sm ${
-            sidebarOpen ? "block" : "max-md:hidden"
+            sidebarOpen ? "block" : "max-lg:hidden"
           }`}
         >
           <div className="p-4">
@@ -112,7 +112,7 @@ export default function MdxPageLayout({
         <main className="w-full overflow-y-scroll mt-8">
           <button
             onClick={toggleSidebar}
-            className={`md:hidden flex items-center justify-center h-12 w-12 focus:outline-none text-gray-800 bg-white dark:bg-gray-200 dark:text-gray-900 border-2 rounded-lg sticky top-4 left-4`}
+            className={`lg:hidden flex items-center justify-center h-12 w-12 focus:outline-none text-gray-800 bg-white dark:bg-gray-200 dark:text-gray-900 border-2 rounded-lg sticky top-4 left-4`}
           >
             {sidebarOpen ? <GoSidebarExpand /> : <GoSidebarCollapse />}
           </button>
