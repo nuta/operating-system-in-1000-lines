@@ -106,7 +106,6 @@ struct virtio_virtq *virtq_init(unsigned index) {
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
     virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
     virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
-    virtio_reg_write32(VIRTIO_REG_QUEUE_READY, 1);
     return vq;
 }
 

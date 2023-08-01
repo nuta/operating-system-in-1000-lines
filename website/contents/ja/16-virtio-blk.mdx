@@ -13,7 +13,7 @@ Virtioは、仮想マシンとホストOS間でデータをやり取りするた
 
 | リングバッファ | 誰が書き込むか | 内容 | 各エントリの内容 |
 | --- | --- | --- | --- |
-| descriptorリング | ドライバ | 処理要求データの格納場所を示す情報 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
+| ディスクリプタリング | ドライバ | 処理要求データの格納場所を示す情報 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
 | availableリング | ドライバ | デバイスへの処理要求 | ディスクリプタチェーンの先頭インデックス |
 | usedリング | デバイス | デバイスによって処理済みの処理要求 |  ディスクリプタチェーンの先頭インデックス |
 
@@ -158,6 +158,7 @@ virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oas
 > 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
 > 8. Set the DRIVER_OK status bit. At this point the device is “live”.
 
+以下がvirtioデバイスの初期化処理の実装です。いくつかの処理を省いている行儀の悪い実装ですが一応動きます。
 
 ```c:kernel.c
 struct virtio_virtq *blk_request_vq;
@@ -198,22 +199,45 @@ void virtio_blk_init(void) {
 
 ## Virtqueueの初期化
 
+virtqueueも初期化する必要があります。以下が仕様書に載っているvirtqueueの初期化処理です。
+
+> The virtual queue is configured as follows:
+>
+> 1. Select the queue writing its index (first queue is 0) to QueueSel.
+> 2. Check if the queue is not already in use: read QueuePFN, expecting a returned value of zero (0x0).
+> 3. Read maximum queue size (number of elements) from QueueNumMax. If the returned value is zero (0x0) the queue is not available.
+> 4. Allocate and zero the queue pages in contiguous virtual memory, aligning the Used Ring to an optimal boundary (usually page size). The driver should choose a queue size smaller than or equal to QueueNumMax.
+> 5. Notify the device about the queue size by writing the size to QueueNum.
+> 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
+> 7. Write the physical number of the first page of the queue to the QueuePFN register.
+
+<Warning>
+上記の「4.2.4 Legacy interface」のvirtqueue初期化処理には、`Queue`
+</Warning>
+
 ```c:kernel.c
 struct virtio_virtq *virtq_init(unsigned index) {
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
+    // 1. Select the queue writing its index (first queue is 0) to QueueSel.
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
+    // 5. Notify the device about the queue size by writing the size to QueueNum.
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
+    // 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
+    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);  
+    // 7. Write the physical number of the first page of the queue to the QueuePFN register.
     virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
-    virtio_reg_write32(VIRTIO_REG_QUEUE_READY, 1);
     return vq;
 }
 ```
 
+ここで指定しているアドレスは、割り当てた `struct virtio_virtq` の領域です。この中にディスクリプタリング、availableリング、usedリングが格納されます。
+
 ## IOリクエストの送信
+
+初期化ができたので、ディスクへのIOリクエストを送信してみましょう。ディスクへのIOリクエストは、以下のように「virtqueueへの処理要求の追加」で行います。
 
 ```c:kernel.c
 // デバイスに新しいリクエストがあることを通知する。desc_indexは、新しいリクエストの
@@ -281,6 +305,14 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 }
 ```
 
+大まかには、以下のような流れでリクエストを送信しています。
+
+1. `blk_req` にリクエストを構築する。アクセスしたいセクタ番号と、読み書きの種類を指定します。
+2. `blk_req` の各領域を指すディスクリプタチェーンを構築する。
+3. ディスクリプタチェーンの先頭ディスクリプタのインデックスを `avail` リングに追加する。
+4. デバイスに「新しい処理すべき処理要求がある」ことを通知する。
+5. デバイスが処理を終えるまで待つ。
+6. デバイスからの応答を確認する。
 
 ここでは、3のディスクリプタから構成されるディスクリプタチェーンを構築しています。3つに分けているのは、次のように各ディスクリプタが異なる属性 (`flags`) を持つためです。
 
@@ -303,6 +335,8 @@ struct virtio_blk_req {
 
 ## デバイスドライバの初期化
 
+最後に必要な処理を追加します。まずは、各プロセスのページテーブルに `virtio-blk` のMMIO領域をマップします。
+
 ```c:kernel.c {8}
 struct process *create_process(const void *image, size_t image_size) {
     /* 省略 */
@@ -313,6 +347,8 @@ struct process *create_process(const void *image, size_t image_size) {
 
     map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
 ```
+
+また、virtioの初期化関数を起動時に呼び出します。
 
 ```c:kernel.c {4}
 void kernel_main(void) {
@@ -326,6 +362,8 @@ void kernel_main(void) {
 
 ## ディスクの読み込みテスト
 
+最後に、ディスクの読み書きができることを確認しましょう。
+
 ```c:kernel.c {3-8}
     virtio_blk_init();
 
@@ -337,12 +375,16 @@ void kernel_main(void) {
     read_write_disk(buf, 0, true);
 ```
 
+ディスクイメージとして `lorem.txt` を指定しているので、ファイルの中身がそのまま表示されるはずです。
+
 ```plain
 $ ./run.sh
 
 virtio-blk: capacity is 1024 bytes
 first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 ```
+
+また、先頭セクタに書き込んだ内容が `lorem.txt` の冒頭に反映されていれば完璧です。
 
 ```plain
 $ head lorem.txt
