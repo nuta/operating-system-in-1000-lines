@@ -7,12 +7,30 @@ title: ディスクの読み書き
 本章は<EnagaBook section="12.3" title="virtioデバイス" />の内容に対応しています。
 </Info>
 
-## 適当なテストファイル
+## Virtio入門
+
+Virtioは、仮想マシンとホストOS間でデータをやり取りするための仕組みです。各virtioデバイスは1つ以上のvirtqueueを持ちます。virtqueueは次の3つのリングバッファから構成されます。
+
+| リングバッファ | 誰が書き込むか | 内容 | 各エントリの内容 |
+| --- | --- | --- | --- |
+| descriptorリング | ドライバ | 処理要求データの格納場所を示す情報 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
+| availableリング | ドライバ | デバイスへの処理要求 | ディスクリプタチェーンの先頭インデックス |
+| usedリング | デバイス | デバイスによって処理済みの処理要求 |  ディスクリプタチェーンの先頭インデックス |
+
+各処理要求 (例: ディスクへの書き込み) は複数のディスクリプタから構成され、ディスクリプタチェーンと呼びます。複数のディスクリプタに分けることで、飛び飛びのメモリデータを指定したり (いわゆる Scatter-Gather IO)、異なるディスクリプタ属性 (デバイスから書き込み可能か) を持たせたりできます。
+
+詳細は [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html) を参照してください。今回実装するのは、virtio-blkというデバイスです。
+
+
+## virtioデバイスの有効化
+
+virtioデバイスドライバを書く前に、適当なテストファイルを作成しておきます。`lorem.txt`というファイルを作成し、その中に適当な文章を書き込んでおきます。
 
 ```bash
 echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In ut magna consequat, cursus velit aliquam, scelerisque odio. Ut lorem eros, feugiat quis bibendum vitae, malesuada ac orci. Praesent eget quam non nunc fringilla cursus imperdiet non tellus. Aenean dictum lobortis turpis, non interdum leo rhoncus sed. Cras in tellus auctor, faucibus tortor ut, maximus metus. Praesent placerat ut magna non tristique. Pellentesque at nunc quis dui tempor vulputate. Vestibulum vitae massa orci. Mauris et tellus quis risus sagittis placerat. Integer lorem leo, feugiat sed molestie non, viverra a tellus." > lorem.txt
 ```
 
+また、QEMUにvirtio-blkデバイスを追加するために、QEMUのオプションを変更します。
 
 ```bash:run.sh {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -27,56 +45,9 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 - `-drive id=drive0`: ディスク`drive0`を定義。`lorem.txt`をディスクイメージとしてQEMUに渡す。ディスクイメージの形式は`raw` (ファイルの内容をそのままディスクデータとして扱う)。
 - `-device virtio-blk-device`: virtio-blkデバイスを追加する。ディスク`drive0`に接続する。`bus=virtio-mmio-bus.0`を指定することで、MMIO領域にデバイスをマップする。
 
-## Virtioデバイスの初期化
+## 雑多な定義
 
-```c:kernel.c
-struct virtio_virtq *blk_request_vq;
-struct virtio_blk_req *blk_req;
-paddr_t blk_req_paddr;
-unsigned blk_capacity;
-
-uint8_t virtio_reg_read8(unsigned offset) {
-    return *((volatile uint8_t *) (VIRTIO_BLK_PADDR + offset));
-}
-
-uint32_t virtio_reg_read32(unsigned offset) {
-    return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
-}
-
-uint64_t virtio_reg_read64(unsigned offset) {
-    return *((volatile uint64_t *) (VIRTIO_BLK_PADDR + offset));
-}
-
-void virtio_reg_write32(unsigned offset, uint32_t value) {
-    *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset)) = value;
-}
-
-void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
-    virtio_reg_write32(offset, virtio_reg_read32(offset) | value);
-}
-
-void virtio_blk_init(void) {
-    if (virtio_reg_read32(VIRTIO_REG_MAGIC) != 0x74726976)
-        PANIC("virtio: invalid magic value");
-    if (virtio_reg_read32(VIRTIO_REG_VERSION) != 1)
-        PANIC("virtio: invalid version");
-    if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
-        PANIC("virtio: invalid device id");
-
-    virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    blk_request_vq = virtq_init(0);
-    virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
-
-    blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
-
-    blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
-    blk_req = (struct virtio_blk_req *) blk_req_paddr;
-}
-```
+まずは雑多な定義を`kernel.h`に追加します。
 
 ```c:kernel.h
 #define SECTOR_SIZE       512
@@ -145,6 +116,84 @@ struct virtio_blk_req {
     uint8_t data[512];
     uint8_t status;
 } __attribute__((packed));
+```
+
+続いてvirtioデバイスのMMIO上のレジスタを操作するための便利な関数を `kernel.c` に追加します。
+
+```c:kernel.c
+uint8_t virtio_reg_read8(unsigned offset) {
+    return *((volatile uint8_t *) (VIRTIO_BLK_PADDR + offset));
+}
+
+uint32_t virtio_reg_read32(unsigned offset) {
+    return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
+}
+
+uint64_t virtio_reg_read64(unsigned offset) {
+    return *((volatile uint64_t *) (VIRTIO_BLK_PADDR + offset));
+}
+
+void virtio_reg_write32(unsigned offset, uint32_t value) {
+    *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset)) = value;
+}
+
+void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
+    virtio_reg_write32(offset, virtio_reg_read32(offset) | value);
+}
+```
+
+## Virtioデバイスの初期化
+
+virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003) に載っています。
+
+> 3.1.1 Driver Requirements: Device Initialization
+> The driver MUST follow this sequence to initialize a device:
+> 
+> 1. Reset the device.
+> 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+> 3. Set the DRIVER status bit: the guest OS knows how to drive the device.
+> 4. Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
+> 5. Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
+> 6. Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
+> 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
+> 8. Set the DRIVER_OK status bit. At this point the device is “live”.
+
+
+```c:kernel.c
+struct virtio_virtq *blk_request_vq;
+struct virtio_blk_req *blk_req;
+paddr_t blk_req_paddr;
+unsigned blk_capacity;
+
+void virtio_blk_init(void) {
+    if (virtio_reg_read32(VIRTIO_REG_MAGIC) != 0x74726976)
+        PANIC("virtio: invalid magic value");
+    if (virtio_reg_read32(VIRTIO_REG_VERSION) != 1)
+        PANIC("virtio: invalid version");
+    if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
+        PANIC("virtio: invalid device id");
+
+    // 1. Reset the device.
+    virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
+    // 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
+    // 3. Set the DRIVER status bit.
+    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
+    // 5. Set the FEATURES_OK status bit.
+    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
+    // 7. Perform device-specific setup, including discovery of virtqueues for the device
+    blk_request_vq = virtq_init(0);
+    // 8. Set the DRIVER_OK status bit.
+    virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
+
+    // ディスクの容量を取得
+    blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
+    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+
+    // デバイスへの処理要求を格納する領域を確保
+    blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
+    blk_req = (struct virtio_blk_req *) blk_req_paddr;
+}
 ```
 
 ## Virtqueueの初期化
@@ -231,6 +280,28 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
         memcpy(buf, blk_req->data, SECTOR_SIZE);
 }
 ```
+
+
+ここでは、3のディスクリプタから構成されるディスクリプタチェーンを構築しています。3つに分けているのは、次のように各ディスクリプタが異なる属性 (`flags`) を持つためです。
+
+```c
+struct virtio_blk_req {
+    // 1つ目のディスクリプタ: デバイスからは読み込み専用
+    uint32_t type;
+    uint32_t reserved;
+    uint64_t sector;
+
+    // 2つ目のディスクリプタ: 読み込み処理の場合は、デバイスから書き込み可 (VIRTQ_DESC_F_WRITE)
+    uint8_t data[512];
+
+    // 3つ目のディスクリプタ: デバイスから書き込み可 (VIRTQ_DESC_F_WRITE)
+    uint8_t status;
+} __attribute__((packed));
+```
+
+今回は処理が終わるまでビジーウェイトしているため、毎回同じディスクリプタを使っています (0から2番目)。
+
+## デバイスドライバの初期化
 
 ```c:kernel.c {8}
 struct process *create_process(const void *image, size_t image_size) {
