@@ -101,7 +101,7 @@ export default function MdxPageLayout({
 
           <a
             className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-900 text-gray-800 dark:text-gray-300 block rounded-lg mx-6 mb-4 text-center px-8 py-2 no-underline"
-            href="https://github.com/nuta/microkernel-from-scratch"
+            href="https://github.com/nuta/operating-system-in-1000-lines"
             target="_blank"
           >
             <FaGithub className="inline-block" />
