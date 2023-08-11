@@ -19,8 +19,23 @@ brew install llvm qemu
 次のコマンドで必要なパッケージをインストールします。他のLinuxディストリビューションをお使いの場合は、適宜読み替えてください。
 
 ```
-sudo apt update && sudo apt install -y clang llvm qemu
+sudo apt update && sudo apt install -y clang llvm lld qemu-system-riscv32 curl
 ```
+
+加えてOpenSBI (PCでいうBIOS/UEFI) を作業用ディレクトリにダウンロードしておきます。
+
+```
+cd <開発用ディレクトリ>
+curl -LO https://github.com/qemu/qemu/raw/master/pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
+```
+
+<Warning>
+QEMUを実行する際に、 `opensbi-riscv32-generic-fw_dynamic.bin` がカレントディレクトリにある必要があります。別の場所にある場合、次の「ファイルが見当たらない」エラーが出ます。
+
+```
+qemu-system-riscv32: Unable to load the RISC-V firmware "opensbi-riscv32-generic-fw_dynamic.bin"
+```
+</Warning>
 
 ### その他のOS
 
