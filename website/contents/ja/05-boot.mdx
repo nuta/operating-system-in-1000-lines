@@ -166,6 +166,10 @@ SECTIONS {
 まずは、最小限のカーネルを作成してみましょう。次のように`kernel.c`という名前のC言語のソースコードを作成しましょう。
 
 ```c:kernel.c
+typedef unsigned char uint8_t;
+typedef unsigned int uint32_t;
+typedef uint32_t size_t;
+
 extern char __bss[], __bss_end[], __stack_top[];
 
 void *memset(void *buf, char c, size_t n) {
@@ -203,7 +207,7 @@ void boot(void) {
 
 `extern char __bbs;`と宣言しても何ら問題ありませんが、`__bss`と書くと「`.bss`領域の先頭アドレス」ではなく「`.bss`領域の0バイト目の値」という意味になってしまいます。そこで、`[]`をつけて`__bss`がアドレスを返すようにすることで、ケアレスミスを防ぐのがおすすめです。
 
-`kernel_main`関数では、まず`memset`関数を使って`.bss`領域をゼロで初期化します。環境によっては`.bss`領域は「ゼロで初期化するだけ」ということで、データが残っていることがあるのです。あとは、無限ループに入って終了です。
+`kernel_main`関数では、まず`memset`関数を使って`.bss`領域をゼロで初期化します。ブートローダが`.bss`領域を認識してゼロクリアしてくれることもありますが、その確証がないため自らの手で初期化するのがおすすめです。最後に無限ループに入って終了です。
 
 ## 動かしてみよう
 

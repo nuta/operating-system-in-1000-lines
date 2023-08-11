@@ -60,7 +60,7 @@ void printf(const char *fmt, ...);
 
 次のメモリ操作関数を実装します。`memcpy`関数は`src`から`n`バイト分を`dst`にコピーします。
 
-`memset`関数は`buf`の先頭から`n`バイト分を`c`で埋めます。この関数は、bssセクションの初期化のために前章で実装済みです。`kernel.c`から`common.c`に移動させましょう。
+`memset`関数は`buf`の先頭から`n`バイト分を`c`で埋めます。この関数は、bssセクションの初期化のために5章で実装済みです。`kernel.c`から`common.c`に移動させましょう。
 
 ```c:common.c
 void *memset(void *buf, char c, size_t n) {
