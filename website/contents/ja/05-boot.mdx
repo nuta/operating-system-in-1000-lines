@@ -213,11 +213,13 @@ void boot(void) {
 
 最後に`run.sh`へカーネルのコンパイルと、QEMUの起動オプション (`-kernel kernel.elf`) を次のように追加しましょう。
 
-```bash:run.sh {5-11,15}
+```bash:run.sh {6-13,15}
 #!/bin/bash
 set -xue
 
 QEMU=qemu-system-riscv32
+
+# clangのパス (Ubuntuの場合は CC=clang)
 CC=/opt/homebrew/opt/llvm/bin/clang
 
 CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
