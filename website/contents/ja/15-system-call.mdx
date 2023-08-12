@@ -130,6 +130,10 @@ int getchar(void) {
 }
 ```
 
+```c:user.h
+int getchar(void);
+```
+
 ```c:kernel.c {3-13}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
