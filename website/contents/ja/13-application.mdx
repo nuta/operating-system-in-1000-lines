@@ -103,8 +103,8 @@ void main(void) {
 
 最後にアプリケーションのビルド処理です。
 
-```bash:run.sh {3-6,10}
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
+```bash:run.sh {1,3-6,10}
+OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
 # シェルをビルド
 $CC $CFLAGS -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf shell.c user.c common.c
