@@ -33,20 +33,16 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
 
     return a0;
 }
-
-void putchar(char ch) {
-    syscall(SYS_PUTCHAR, ch, 0, 0);
-}
 ```
 
 `syscall`関数は、`a3`にシステムコール番号、`a0`〜`a2`レジスタにシステムコールの引数を設定して `ecall` 命令を実行します。`ecall` 命令は、カーネルに処理を委譲するための特殊な命令です。`ecall` 命令を実行すると、例外ハンドラが呼び出され、カーネルに処理が移ります。カーネルからの戻り値は`a0`レジスタに設定されます。
 
-加えて、`putchar`システムコールを呼び出す `putchar` 関数を加えています。第1引数として文字を渡します。第2引数以降は、現在は未使用なので0を渡すことにします。
+最後に、次のように `putchar` 関数で `putchar`システムコールを呼び出しましょう。このシステムコールでは、第1引数として文字を渡します。第2引数以降は、未使用なので0を渡すことにします。
 
-最後に、`user.h`に宣言を追加しておきます。
-
-```c:user.h
-void putchar(char ch);
+```c:user.c {2}
+void putchar(char ch) {
+    syscall(SYS_PUTCHAR, ch, 0, 0);
+}
 ```
 
 ## 例外ハンドラの更新

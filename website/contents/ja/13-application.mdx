@@ -58,6 +58,10 @@ __attribute__((noreturn)) void exit(void) {
     for (;;);
 }
 
+void putchar(char c) {
+    /* 後で実装する */
+}
+
 __attribute__((section(".text.start")))
 __attribute__((naked))
 void start(void) {
@@ -72,6 +76,8 @@ void start(void) {
 
 アプリケーションを終了する`exit`関数も用意しておきます。ただし、ここでは無限ループを行うだけにとどめておきます。
 
+また、`common.c` の `printf` 関数が参照している `putchar` 関数も定義しておきます。のちほど実装します。
+
 カーネルの初期化処理と異なる点として、`.bss`セクションをゼロで埋める処理 (ゼロクリア) をしていません。これは、カーネルがゼロで埋めていることを保証してくるからです (`alloc_pages`関数)。
 
 <Info>
@@ -85,6 +91,7 @@ void start(void) {
 #include "common.h"
 
 __attribute__((noreturn)) void exit(void);
+void putchar(char ch);
 ```
 
 ## 最初のアプリケーション
