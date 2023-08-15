@@ -68,7 +68,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
 2段目のページテーブルを用意して、2段目の設定したいページテーブルエントリへマップ先の物理ページ番号とフラグを設定するだけです。
 
-`paddr / PAGE_SIZE`と`PAGE_SIZE`で割っているのは、エントリに設定するのはページ番号ではなく物理ページ番号だからです。
+`paddr / PAGE_SIZE`と`PAGE_SIZE`で割っているのは、エントリに設定するのは物理アドレスではなく物理ページ番号だからです。
 
 ## カーネルページのマッピング
 
