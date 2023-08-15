@@ -316,7 +316,7 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 
 ここでは、3のディスクリプタから構成されるディスクリプタチェーンを構築しています。3つに分けているのは、次のように各ディスクリプタが異なる属性 (`flags`) を持つためです。
 
-```c
+```c:kernel.h
 struct virtio_blk_req {
     // 1つ目のディスクリプタ: デバイスからは読み込み専用
     uint32_t type;
