@@ -16,8 +16,7 @@ title: システムコール
 ```c:common.h
 #define SYS_PUTCHAR 1
 ```
-
-次にシステムコールを実際に呼び出す関数です。大体は [SBIの呼び出し](/book/kernel/hello-world#%E5%88%9D%E3%82%81%E3%81%A6%E3%81%AEsbi) の実装と同じです。
+次にシステムコールを実際に呼び出す関数です。大体は [SBIの呼び出し](/ja/hello-world#%E5%88%9D%E3%82%81%E3%81%A6%E3%81%AEsbi) の実装と同じです。
 
 ```c:user.c
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -83,7 +82,7 @@ void handle_syscall(struct trap_frame *f) {
             putchar(f->a0);
             break;
         default:
-            PANIC("unexpected syscall a3=%x\n", f->a3);        
+            PANIC("unexpected syscall a3=%x\n", f->a3);
     }
 }
 ```
