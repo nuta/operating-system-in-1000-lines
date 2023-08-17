@@ -403,7 +403,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 }
 
 struct process *create_process(const void *image, size_t image_size) {
-    struct process *proc = &procs[0];
+    struct process *proc = NULL;
     int i;
     for (i = 0; i < PROCS_MAX; i++) {
         if (procs[i].state == PROC_UNUSED) {
@@ -412,7 +412,7 @@ struct process *create_process(const void *image, size_t image_size) {
         }
     }
 
-    if (i == PROCS_MAX)
+    if (!proc)
         PANIC("no free process slots");
 
     uint32_t *sp = (uint32_t *) &proc->stack[sizeof(proc->stack)];
