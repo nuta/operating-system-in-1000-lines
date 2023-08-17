@@ -412,7 +412,7 @@ struct process *create_process(const void *image, size_t image_size) {
         }
     }
 
-    if (!proc)
+    if (i == PROCS_MAX)
         PANIC("no free process slots");
 
     uint32_t *sp = (uint32_t *) &proc->stack[sizeof(proc->stack)];
@@ -532,7 +532,7 @@ void handle_syscall(struct trap_frame *f) {
             break;
         }
         default:
-            PANIC("unexpected syscall a3=%x\n", f->a3);        
+            PANIC("unexpected syscall a3=%x\n", f->a3);
     }
 }
 
