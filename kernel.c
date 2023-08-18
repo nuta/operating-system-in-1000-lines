@@ -403,7 +403,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 }
 
 struct process *create_process(const void *image, size_t image_size) {
-    struct process *proc = &procs[0];
+    struct process *proc = NULL;
     int i;
     for (i = 0; i < PROCS_MAX; i++) {
         if (procs[i].state == PROC_UNUSED) {
@@ -532,7 +532,7 @@ void handle_syscall(struct trap_frame *f) {
             break;
         }
         default:
-            PANIC("unexpected syscall a3=%x\n", f->a3);        
+            PANIC("unexpected syscall a3=%x\n", f->a3);
     }
 }
 

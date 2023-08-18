@@ -81,7 +81,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 ```c:kernel.c
 struct process *create_process(uint32_t pc) {
     // 空いているプロセス管理構造体を探す
-    struct process *proc = &procs[0];
+    struct process *proc = NULL;
     int i;
     for (i = 0; i < PROCS_MAX; i++) {
         if (procs[i].state == PROC_UNUSED) {
@@ -297,7 +297,7 @@ void kernel_entry(void) {
         // 実行中プロセスのカーネルスタックをsscratchから取り出す
         // tmp = sp; sp = sscratch; sscratch = tmp;
         "csrrw sp, sscratch, sp\n"
-        
+
         "addi sp, sp, -4 * 31\n"
         "sw ra,  4 * 0(sp)\n"
         "sw gp,  4 * 1(sp)\n"
