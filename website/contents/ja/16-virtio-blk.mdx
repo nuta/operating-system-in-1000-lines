@@ -211,10 +211,6 @@ virtqueueも初期化する必要があります。以下が仕様書に載っ�
 > 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
 > 7. Write the physical number of the first page of the queue to the QueuePFN register.
 
-<Warning>
-上記の「4.2.4 Legacy interface」のvirtqueue初期化処理には、`Queue`
-</Warning>
-
 ```c:kernel.c
 struct virtio_virtq *virtq_init(unsigned index) {
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
