@@ -81,7 +81,7 @@ struct sbiret {
 <Info>
 呼び出し規約中にある「All registers except `a0` & `a1` must be preserved across an SBI call by the callee.」は、「`a0`と`a1`以外のレジスタの値を呼び出し先 (OpenSBI側) が変更してはならない」という意味です。つまり、カーネルからすると、`a2`から`a7`までのレジスタの値は呼び出し後もそのままであることが保証されています。
 
-ちなみに、callee (呼び出し先) の反対派はcaller (呼び出し元) です。
+ちなみに、callee (呼び出し先) の反対はcaller (呼び出し元) です。
 </Info>
 
 各ローカル変数の宣言に使われている`register`と`__asm__("レジスタ名")`は、指定したレジスタに値を入れるようコンパイラに指示するものです。システムコール呼び出し等でよく登場するイディオムです (例: [Linuxのシステムコール呼び出し処理](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h))。本来であればインラインアセンブラで指定できればいいものなのですが、C言語 (正確にはGCC/clangの独自拡張) ではできないためこのトリックを使うことが多いです。
