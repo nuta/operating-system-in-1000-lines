@@ -41,10 +41,11 @@ void printf(const char *fmt, ...) {
     va_start(vargs, fmt);
     while (*fmt) {
         if (*fmt == '%') {
-            if (*(fmt + 1))
-                fmt++;
+            fmt++;
             switch (*fmt) {
                 case '\0':
+                    putchar('%');
+                    goto end;
                 case '%':
                     putchar('%');
                     break;
@@ -90,5 +91,6 @@ void printf(const char *fmt, ...) {
         fmt++;
     }
 
+end:
     va_end(vargs);
 }
