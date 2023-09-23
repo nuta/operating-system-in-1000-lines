@@ -41,6 +41,8 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 - `cf`: tarファイルを作成する
 - `--format=ustar`: ustar形式のtarファイルを作成する
 
+なお、tarコマンドの行が丸括弧 `(...)` で囲われているのは、囲われたコマンドを独立したシェルで実行する **サブシェル** という機能です。これを使うことで、`cd` コマンドでのディレクトリ移動が括弧外に影響しないようにできます。
+
 ## tarファイルの構造
 
 tarファイルは、次のような構造をしています。
