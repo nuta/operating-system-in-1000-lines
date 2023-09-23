@@ -27,7 +27,7 @@ $ vim disk/meow.txt
 ビルドスクリプトにtarファイルの作成コマンドを追加し、それをディスクイメージとしてQEMUに渡すようにします。
 
 ```bash:run.sh {1,5}
-tar cf disk.tar --format=ustar -C disk .
+(cd disk && tar cf ../disk.tar --format=ustar ./*.txt)
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
@@ -40,7 +40,8 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 - `cf`: tarファイルを作成する
 - `--format=ustar`: ustar形式のtarファイルを作成する
-- `-C disk .`: `disk` ディレクトリ中のファイルを含める
+
+なお、tarコマンドの行が丸括弧 `(...)` で囲われているのは、囲われたコマンドを独立したシェルで実行する **サブシェル** という機能です。これを使うことで、`cd` コマンドでのディレクトリ移動が括弧外に影響しないようにできます。
 
 ## tarファイルの構造
 
@@ -429,7 +430,7 @@ __attribute__((naked)) void user_entry(void) {
 $ ./run.sh
 
 > readfile
-Can you see me? Ah, there you are! You've unlocked the achivement "Virtio Newbie!"
+Can you see me? Ah, there you are! You've unlocked the achievement "Virtio Newbie!"
 ```
 
 ファイルの書き込みも試してみましょう。書き込みが成功すると、次のように書き込んだバイト数が表示されます。

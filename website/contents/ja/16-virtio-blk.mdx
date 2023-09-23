@@ -43,7 +43,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 新たに追加したオプションは次の通りです:
 
 - `-drive id=drive0`: ディスク`drive0`を定義。`lorem.txt`をディスクイメージとしてQEMUに渡す。ディスクイメージの形式は`raw` (ファイルの内容をそのままディスクデータとして扱う)。
-- `-device virtio-blk-device`: virtio-blkデバイスを追加する。ディスク`drive0`に接続する。`bus=virtio-mmio-bus.0`を指定することで、MMIO領域にデバイスをマップする。
+- `-device virtio-blk-device`: virtio-blkデバイスを追加する。ディスク`drive0`に接続する。`bus=virtio-mmio-bus.0`を指定することで、MMIO (Memory Mapped I/O) 領域にデバイスをマップする。
 
 ## 雑多な定義
 
@@ -121,10 +121,6 @@ struct virtio_blk_req {
 続いてvirtioデバイスのMMIO上のレジスタを操作するための便利な関数を `kernel.c` に追加します。
 
 ```c:kernel.c
-uint8_t virtio_reg_read8(unsigned offset) {
-    return *((volatile uint8_t *) (VIRTIO_BLK_PADDR + offset));
-}
-
 uint32_t virtio_reg_read32(unsigned offset) {
     return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
 }

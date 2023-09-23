@@ -48,7 +48,7 @@ void putchar(char ch) {
 
 次に、`ecall` 命令を実行したときに呼び出される例外ハンドラを更新します。
 
-```c:kernel.c {4-6,11}
+```c:kernel.c {5-7,12}
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
     uint32_t stval = READ_CSR(stval);
@@ -206,7 +206,7 @@ Hello world from shell!
 #define SYS_EXIT    3
 ```
 
-```c:user.c {1-2}
+```c:user.c {2-3}
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
     for (;;); // 念のため

@@ -44,6 +44,8 @@ void printf(const char *fmt, ...) {
             fmt++;
             switch (*fmt) {
                 case '\0':
+                    putchar('%');
+                    goto end;
                 case '%':
                     putchar('%');
                     break;
@@ -89,5 +91,6 @@ void printf(const char *fmt, ...) {
         fmt++;
     }
 
+end:
     va_end(vargs);
 }

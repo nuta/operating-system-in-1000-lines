@@ -24,7 +24,7 @@ extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 
 ```c:kernel.c {1-3,5,11,20-26}
 __attribute__((naked)) void user_entry(void) {
-    PANIC("not yet implemeneted"); // 後で実装する
+    PANIC("not yet implemented"); // 後で実装する
 }
 
 struct process *create_process(const void *image, size_t image_size) {

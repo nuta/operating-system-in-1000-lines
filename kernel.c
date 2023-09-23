@@ -65,10 +65,6 @@ struct virtio_blk_req *blk_req;
 paddr_t blk_req_paddr;
 unsigned blk_capacity;
 
-uint8_t virtio_reg_read8(unsigned offset) {
-    return *((volatile uint8_t *) (VIRTIO_BLK_PADDR + offset));
-}
-
 uint32_t virtio_reg_read32(unsigned offset) {
     return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
 }
