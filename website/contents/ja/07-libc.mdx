@@ -117,11 +117,13 @@ int strcmp(const char *s1, const char *s2) {
         s2++;
     }
 
-    return *s1 - *s2;
+    return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 ```
 
-よく文字列が同一であるかを判定したい時に使います。若干ややこしいですが、`!strcmp(s1, s2)` の場合 (ゼロが返ってきた場合に) に文字列が同一になります。
+比較する際に `unsigned char *` にキャストしているのは、比較する際は符号なし整数を使うという[POSIXの仕様](https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char)に合わせるためです。
+
+`strcmp`関数はよく文字列が同一であるかを判定したい時に使います。若干ややこしいですが、`!strcmp(s1, s2)` の場合 (ゼロが返ってきた場合に) に文字列が同一になります。
 
 ```c
 if (!strcmp(s1, s2))
