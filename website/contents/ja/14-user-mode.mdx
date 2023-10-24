@@ -23,7 +23,7 @@ extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 次に、実行イメージをプロセスのアドレス空間にマップする処理を`create_process`関数に追加します。
 
 ```c:kernel.c {1-3,5,11,20-26}
-__attribute__((naked)) void user_entry(void) {
+void user_entry(void) {
     PANIC("not yet implemented"); // 後で実装する
 }
 
@@ -162,7 +162,8 @@ Disassembly of section .text:
 #define SSTATUS_SPIE (1 << 5)
 ```
 
-```c:kernel.c {2-9}
+```c:kernel.c
+// ↓ __attribute__((naked)) が追加されていることに注意
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
         "csrw sepc, %[sepc]\n"
