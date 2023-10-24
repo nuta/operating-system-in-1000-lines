@@ -159,17 +159,19 @@ char _binary_shell_bin_start[] = "shell.binのファイル内容";
 
 ```plain
 $ llvm-nm shell.bin.o | grep _binary_shell_bin_size
-00010260 A _binary_shell_bin_size
-$ ls -al shell.bin.o                               
--rwxr-xr-x 1 seiya staff 66836 Jul 15 23:40 shell.bin.o
-$ python3 -c 'print(int("10260", 16))'
-10260
+00010454 A _binary_shell_bin_size
+
+$ ls -al shell.bin   ← shell.bin.oではなくshell.binであることに注意
+-rwxr-xr-x 1 seiya staff 66644 Oct 24 13:35 shell.bin
+
+$ python3 -c 'print(0x10454)'
+66644
 ```
 
 出力の1列目は、シンボルのアドレスです。この`10260`という値はファイルの大きさと一致しますが、これは偶然ではありません。一般的に、`.o`ファイルの各アドレスの値はリンカによって決定されます。しかし、`_binary_shell_bin_size`は特別なのです。
 
 2列目の`A`は、`_binary_shell_bin_size`のアドレスがリンカによって変更されない種類のシンボル (absolute) であることを示しています。
-`char _binary_shell_bin_size[]`という適当な型の配列として定義することで、`_binary_shell_bin_size`はそのアドレスを格納したポインタとして扱われることになります。ただし、ここではアドレスとしてファイルサイズを埋め込んでいるので、キャストするとファイルサイズになるのです。オブジェクトファイルの仕組みをうまく使った、ちょっとした小技が使われています。
+`char _binary_shell_bin_size[]`という適当な型の配列として定義することで、`_binary_shell_bin_size`はそのアドレスを格納したポインタとして扱われることになります。ただし、ここではファイルサイズをアドレスとして埋め込んでいるので、キャストするとファイルサイズになるのです。オブジェクトファイルの仕組みをうまく使った、ちょっとした小技が使われています。
 
 最後に、カーネルのclangへの引数に、生成した `shell.bin.o` を追加しています。これで、最初に起動すべきアプリケーションの実行ファイルを、カーネルイメージに埋め込めるようになりました。
 
