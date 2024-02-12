@@ -200,11 +200,10 @@ void fs_flush(void) {
         header->type = '0';
 
         int filesz = file->size;
-        int i = 0;
-        do {
-            header->size[i++] = (filesz % 8) + '0';
+        for (int i = sizeof(header->size); i > 0; i--) {
+            header->size[i - 1] = (filesz % 8) + '0';
             filesz /= 8;
-        } while (filesz > 0);
+        }
 
         int checksum = ' ' * sizeof(header->checksum);
         for (unsigned i = 0; i < sizeof(struct tar_header); i++)
