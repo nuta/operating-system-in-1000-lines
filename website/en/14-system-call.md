@@ -4,16 +4,21 @@ layout: chapter
 lang: en
 ---
 
-前章では、ページフォルトをわざと起こすことでユーザーモードへの移行を確認しました。本章では、ユーザーモードで実行されているアプリケーションからカーネルの機能を呼び出す **「システムコール」** を実装します。
+# Implementing system calls
 
-## システムコール呼び出し関数 (ユーザーランド側)
+In the previous chapter, we confirmed the transition to user mode by intentionally causing a page fault. In this chapter, we will implement "system calls" that allow applications running in user mode to invoke kernel functions.
 
-まずはシステムコールを呼び出すユーザーランド側の実装から始めましょう。手始めに、文字を出力する `putchar` 関数をシステムコールとして実装してみます。システムコールを識別するための番号 (`SYS_PUTCHAR`) を`common.h`に定義します。
+## System call library (userland)
+
+Let's start with the user-land implementation for invoking system calls. As a first step, we'll implement the `putchar` function, which outputs a character, as a system call. We'll define a number (`SYS_PUTCHAR`) in `common.h` to identify the system call:
 
 ```c:common.h
 #define SYS_PUTCHAR 1
 ```
-次にシステムコールを実際に呼び出す関数です。大体は [SBIの呼び出し](/ja/hello-world#%E5%88%9D%E3%82%81%E3%81%A6%E3%81%AEsbi) の実装と同じです。
+
+# System call handler (kernel)
+
+Next, let's look at the function that actually invokes the system call. The implementation is quite similar to [the SBI call implementation](/en/05-hello-world#first-sbi-call) we've seen before:
 
 ```c:user.c
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -31,9 +36,11 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
 }
 ```
 
-`syscall`関数は、`a3`にシステムコール番号、`a0`〜`a2`レジスタにシステムコールの引数を設定して `ecall` 命令を実行します。`ecall` 命令は、カーネルに処理を委譲するための特殊な命令です。`ecall` 命令を実行すると、例外ハンドラが呼び出され、カーネルに処理が移ります。カーネルからの戻り値は`a0`レジスタに設定されます。
+# Implementing the syscall function
 
-最後に、次のように `putchar` 関数で `putchar`システムコールを呼び出しましょう。このシステムコールでは、第1引数として文字を渡します。第2引数以降は、未使用なので0を渡すことにします。
+The `syscall` function sets the system call number in the `a3` register and the system call arguments in the `a0` to `a2` registers, then executes the `ecall` instruction. The `ecall` instruction is a special instruction used to delegate processing to the kernel. When the `ecall` instruction is executed, an exception handler is called, and control is transferred to the kernel. The return value from the kernel is set in the `a0` register.
+
+Finally, let's invoke the `putchar` system call in the `putchar` function as follows. In this system call, we pass the character as the first argument. For the second and subsequent unused arguments are set to 0:
 
 ```c:user.c {2}
 void putchar(char ch) {
@@ -41,9 +48,9 @@ void putchar(char ch) {
 }
 ```
 
-## 例外ハンドラの更新
+# Updating the exception handler
 
-次に、`ecall` 命令を実行したときに呼び出される例外ハンドラを更新します。
+Next, we'll update the exception handler that is called when the `ecall` instruction is executed:
 
 ```c:kernel.c {5-7,12}
 void handle_trap(struct trap_frame *f) {
@@ -60,17 +67,18 @@ void handle_trap(struct trap_frame *f) {
     WRITE_CSR(sepc, user_pc);
 }
 ```
-`ecall` 命令が呼ばれたのかどうかは、`scause` の値を確認することで判定できます。`handle_syscall`関数を呼び出す以外にも、`sepc`の値に4を加えています。これは、`sepc`は例外を引き起こしたプログラムカウンタ、つまり`ecall`命令を指しています。変えないままだと、`ecall`命令を無限に繰り返し実行してしまうので、命令のサイズ分 (4バイト) だけ加算することで、ユーザーモードに戻る際に次の命令から実行を再開するようにしています。
 
-最後に `SCAUSE_ECALL` は次の通り8です。
+Whether the `ecall` instruction was called can be determined by checking the value of `scause`. Besides calling the `handle_syscall` function, we also add 4 to the value of `sepc`. This is because `sepc` points to the program counter that caused the exception, which in this case is the `ecall` instruction. If we don't change it, the `ecall` instruction would be executed repeatedly in an infinite loop. By adding the size of the instruction (4 bytes), we ensure that execution resumes from the next instruction when returning to user mode.
+
+Lastly, `SCAUSE_ECALL` is defined as 8:
 
 ```c:kernel.h
 #define SCAUSE_ECALL 8
 ```
 
-## システムコールハンドラ
+# System call handler
 
-例外ハンドラから呼ばれるのが次のシステムコールハンドラです。引数には、例外ハンドラで保存した「例外発生時のレジスタ」の構造体を受け取ります。
+The following system call handler is called from the exception handler. It receives a structure of "registers at the time of exception" that was saved in the exception handler as an argument:
 
 ```c:kernel.c
 void handle_syscall(struct trap_frame *f) {
@@ -84,11 +92,11 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-システムコールの種類に応じて処理を分岐します。今回は、`SYS_PUTCHAR` に対応する処理を実装します。単に`a0`レジスタに入っている文字を出力するだけです。
+We branch the processing according to the type of system call. This time, we will implement the processing corresponding to `SYS_PUTCHAR`, which simply outputs the character stored in the `a0` register.
 
-## システムコールのテスト
+## Test the system call
 
-システムコールを一通り実装したので試してみましょう。`common.c`にある`printf`関数の実装を覚えているでしょうか。この関数は文字を表示する際に`putchar`関数を呼び出しています。たった今ユーザーランド上のライブラリで`putchar`を実装したのでそのまま使えます。
+Now that we have implemented the system call, let's test it. Do you remember the implementation of the `printf` function in `common.c`? This function calls the `putchar` function to display characters. Since we have just implemented `putchar` in the userland library, we can use it as is:
 
 ```c:shell.c {2}
 void main(void) {
@@ -96,16 +104,16 @@ void main(void) {
 }
 ```
 
-次のようにメッセージが表示されれば成功です。
+You'll see the following output when it works perfectly:
 
 ```plain
 $ ./run.sh
 Hello World from shell!
 ```
 
-## 文字入力システムコール (`getchar`)
+## Receive characters from keyboard (`getchar` system call)
 
-次に、文字入力を行うシステムコールを実装しましょう。SBIには「デバッグコンソールへの入力」を読む機能があります。空の場合は-1を返します。
+Let's implement a system call for character input. The SBI has a function to read "input to the debug console". If there is no input, it returns `-1`:
 
 ```c:kernel.c
 long getchar(void) {
@@ -114,7 +122,7 @@ long getchar(void) {
 }
 ```
 
-あとは次の通り`getchar`システムコールを実装します。
+The `getchar` system call is implemented as follows:
 
 ```c:common.h
 #define SYS_GETCHAR 2
@@ -149,11 +157,11 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-`getchar`システムコールの実装は、文字が入力されるまでSBIを繰り返し呼び出します。ただし、単純に繰り返すとCPUを占有してしまうので、`yield`システムコールを呼び出してCPUを他のプロセスに譲るようにしています。
+The implementation of the `getchar` system call repeatedly calls the SBI until a character is input. However, simply repeating this would monopolize the CPU, so we call the `yield` system call to yield the CPU to other processes.
 
-## シェルを書こう
+## Write a shell
 
-文字入力ができるようになったので、シェルを書いてみましょう。手始めに、`Hello world from shell!`と表示する`hello`コマンドを実装します。
+Now that we can input characters, let's write a shell. To begin with, we will implement a `hello` command that displays `Hello world from shell!`:
 
 ```c:shell.c
 void main(void) {
@@ -184,9 +192,9 @@ prompt:
 }
 ```
 
-改行が来るまで文字を読み込んでいき、入力された文字列がコマンド名に完全一致するかをチェックする、非常に単純な実装です。デバッグコンソール上では改行が (`'\r'`) でやってくるので注意してください。
+We will read characters until a newline is encountered and check if the entered string completely matches the command name. Note that on the debug console, the newline character is (`'\r'`).
 
-実際に動かしてみて、文字が入力されるか、そして`hello`コマンドが動くか確認してみましょう。
+Let's run it and verify if characters can be input and if the `hello` command works:
 
 ```plain
 $ ./run.sh
@@ -195,9 +203,9 @@ $ ./run.sh
 Hello world from shell!
 ```
 
-## プロセスの終了 (`exit`システムコール)
+## Process termination (`exit` system call)
 
-最後に、プロセスを終了する`exit`システムコールを実装します。
+Lastly, let's implement `exit` system call, which terminates the process:
 
 ```c:common.h
 #define SYS_EXIT    3
@@ -206,7 +214,7 @@ Hello world from shell!
 ```c:user.c {2-3}
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
-    for (;;); // 念のため
+    for (;;); // Just in case!
 }
 ```
 
@@ -222,18 +230,18 @@ void handle_syscall(struct trap_frame *f) {
             current_proc->state = PROC_EXITED;
             yield();
             PANIC("unreachable");
-        /* 省略 */
+        /* omitted */
     }
 }
 ```
 
-まず、プロセスの状態を`PROC_EXITED`に変更し、`yield`システムコールを呼び出してCPUを他のプロセスに譲ります。スケジューラは`PROC_RUNNABLE`のプロセスしか実行しないため、このプロセスに戻ってくることはありません。ただし念の為、`PANIC`マクロで万が一戻ってきた場合はパニックを起こします。
+First, change the process state to `PROC_EXITED` and call the `yield` system call to give up the CPU to other processes. The scheduler will only execute processes in the `PROC_RUNNABLE` state, so it will never return to this process. However, as a precaution, we use the `PANIC` macro to cause a panic in case it does return.
 
 > [!TIP]
 >
-> 分かりやすさのためにプロセスの状態を変えているだけで、プロセス管理構造体を開放していません。実用的なOSを目指したい時には、ページテーブルや割り当てられたメモリ領域など、プロセスが持つ資源を開放する必要があります。
+> For simplicity, we only mark the process as exited (`PROC_EXITED`) and not free the process management structure. If you are building a practical OS, it is necessary to free resources held by the process, such as page tables and allocated memory regions.
 
-最後に、シェルに`exit`コマンドを追加します。
+Add the `exit` command to the shell:
 
 ```c:shell.c {3-4}
         if (strcmp(cmdline, "hello") == 0)
@@ -244,7 +252,7 @@ void handle_syscall(struct trap_frame *f) {
             printf("unknown command: %s\n", cmdline);
 ```
 
-実際に動かしてみましょう。
+You're done! Let's try running it:
 
 ```plain
 $ ./run.sh
@@ -254,4 +262,4 @@ process 2 exited
 PANIC: kernel.c:333: switched to idle process
 ```
 
-`exit`コマンドを実行するとシェルプロセスが終了し、他に実行可能なプロセスがなくなります。そのため、スケジューラがアイドルプロセスを選ぶという流れになります。
+When the `exit` command is executed, the shell process terminates, and there are no other runnable processes remaining. As a result, the scheduler will select the idle process and cause a panic.

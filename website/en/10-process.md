@@ -349,7 +349,7 @@ The key point here is that "each process has its own independent kernel stack". 
 >
 > Here, we are implementing the switching process for the "kernel" stack. The stack used by applications will be allocated separately from the kernel stack. This will be implemented in later chapters.
 
-## Why Do We Reset the Stack Pointer?
+## Why do we reset the stack pointer?
 
 The above modification is to "not trust the stack pointer at the time of exception". Let's consider why we shouldn't trust it in the first place. In the exception handler, we need to consider the following three patterns:
 
@@ -390,7 +390,7 @@ In the RISC-V version of xv6 (a famous UNIX-like OS for education), there are se
 
 > [!TIP]
 >
-> In Fuchsia, an OS developed by Google, there was a [case where the implementation allowing arbitrary program counter values to be set from the user became a vulnerability](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html). "Not trusting input from users (applications)" is an extremely important habit in implementing a robust kernel.
+> In Fuchsia, an OS developed by Google, there was a case where the implementation allowing arbitrary program counter values to be set from the user became [a vulnerability](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html). "Not trusting input from users (applications)" is an extremely important habit in implementing a robust kernel.
 
 ## Next Steps
 

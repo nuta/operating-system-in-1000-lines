@@ -4,33 +4,34 @@ layout: chapter
 lang: en
 ---
 
-本章では、前章で作ったアプリケーションの実行イメージを動かしてみます。
+In this chapter, we'll try running the application execution image we created in the previous chapter.
 
-## 実行ファイルの展開
+## Expanding the executable file
 
-まずは実行イメージの展開に必要な定義をいくつかしましょう。まずは、実行イメージの基点アドレス (`USER_BASE`) です。これは、`user.ld`で定義されている開始アドレスと合致する必要があります。
+First, let's make some definitions necessary for expanding the execution image. To start with, we have the base address of the execution image (`USER_BASE`). This needs to match the starting address defined in `user.ld`.
 
-ELF形式のような一般的な実行可能ファイルであれば、そのファイルのヘッダ (ELFの場合プログラムヘッダ) にロード先のアドレスが書かれています。しかし、本書のアプリケーションの実行イメージは生バイナリなので、このように決め打ちで用意しておく必要があります。
+For common executable file formats like ELF, the load address would be written in the file header (program header in the case of ELF). However, since our application's execution image in this book is a raw binary, we need to prepare it with a fixed value like this:
 
 ```c:kernel.h
 #define USER_BASE 0x1000000
 ```
 
-次に、`shell.bin.o`に入っている実行イメージへのポインタとイメージサイズのシンボルを定義しておきます。
+Next, let's define the symbols for the pointer to the execution image and the image size contained in `shell.bin.o`:
 
 ```c:kernel.c
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 ```
 
-次に、実行イメージをプロセスのアドレス空間にマップする処理を`create_process`関数に追加します。
+Also, we'll add the process of mapping the execution image to the process's address space in the `create_process` function:
 
 ```c:kernel.c {1-3,5,11,20-26}
 void user_entry(void) {
-    PANIC("not yet implemented"); // 後で実装する
+    PANIC("not yet implemented");
 }
 
 struct process *create_process(const void *image, size_t image_size) {
-    /* 省略 */
+    /* omitted */
+
     *--sp = 0;                      // s3
     *--sp = 0;                      // s2
     *--sp = 0;                      // s1
@@ -39,12 +40,12 @@ struct process *create_process(const void *image, size_t image_size) {
 
     uint32_t *page_table = (uint32_t *) alloc_pages(1);
 
-    // カーネルのページをマッピングする
+    // Map kernel pages.
     for (paddr_t paddr = (paddr_t) __kernel_base;
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
 
-    // ユーザーのページをマッピングする
+    // Map user (application) pages.
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
         memcpy((void *) page, image + off, PAGE_SIZE);
@@ -53,13 +54,13 @@ struct process *create_process(const void *image, size_t image_size) {
     }
 ```
 
-`create_process`関数は、実行イメージへのポインタ (`image`) とイメージサイズ (`image_size`) を引数に取るように変更しました。指定されたサイズ分、実行イメージをページ単位でコピーして、ユーザーモードのページにマッピングしています。また、初回のコンテキストスイッチ時のジャンプ先を`user_entry`に設定しています。今のところは空っぽの関数にしておきます。
+We've modified the `create_process` function to take the pointer to the execution image (`image`) and the image size (`image_size`) as arguments. It copies the execution image page by page for the specified size and maps it to user mode pages. Also, it sets the jump destination for the first context switch to `user_entry`. For now, we'll keep this as an empty function.
 
 > [!WARNING]
 >
-> このとき、実行イメージをコピーせずにそのままマッピングしてしまうと、同じアプリケーションのプロセスたちが同じ物理ページを共有することになります。
+> If you map the execution image directly without copying it, processes of the same application would end up sharing the same physical pages.
 
-最後に `create_process` 関数の呼び出し側の修正と、ユーザープロセスを作成するようにします。
+Lastly, we'll modify the caller of the `create_process` function and make it create a user process:
 
 ```c:kernel.c {8,12}
 void kernel_main(void) {
@@ -80,11 +81,11 @@ void kernel_main(void) {
 }
 ```
 
-実際に動かしてみて、実行イメージが期待通りマッピングされているかQEMUモニタで確認してみましょう。
+Let's actually run it and check with the QEMU monitor if the execution image is mapped as expected.
 
 > [!TIP]
 >
-> まだこの時点ではユーザーモードへの移行処理がないので、アプリケーションは動きません。まずは、実行イメージが正しく展開されているかのみを確認します。
+> At this point, there's no process for transitioning to user mode yet, so the application won't run. For now, we're only checking if the execution image is correctly expanded.
 
 ```plain
 (qemu) info mem
@@ -94,7 +95,7 @@ vaddr    paddr            size     attr
 01001000 0000000080267000 00010000 rwxu---
 ```
 
-仮想アドレス `0x1000000` (`USER_BASE`) に、物理アドレス `0x80265000` がマップされていることがわかります。この物理アドレスの中身を見てみましょう。物理メモリの内容を表示するには、`xp`コマンドを使います。
+We can see that the physical address `0x80265000` is mapped to the virtual address `0x1000000` (`USER_BASE`). Let's take a look at the contents of this physical address. To display the contents of physical memory, we use the `xp` command:
 
 ```plain
 (qemu) xp /32b 0x80265000
@@ -104,7 +105,7 @@ vaddr    paddr            size     attr
 0000000080265018: 0x09 0xca 0xaa 0x86 0x7d 0x16 0x13 0x87
 ```
 
-何かしらデータが入っているようです。`shell.bin`の中身を確認してみると、確かに合致しています。
+It seems some data is present. If we check the contents of `shell.bin`, we can confirm that it indeed matches:
 
 ```plain
 $ hexdump -C shell.bin | head
@@ -120,7 +121,7 @@ $ hexdump -C shell.bin | head
 00000090  6d f2 03 c5 05 00 93 75  f6 0f 33 85 a5 40 82 80  |m......u..3..@..|
 ```
 
-16進数だと分かりづらいので、`xp`コマンドを使ってメモリ上の機械語を逆アセンブルしてみましょう。
+Since it's hard to understand in hexadecimal, let's use the `xp` command to disassemble the machine code in memory:
 
 ```plain
 (qemu) xp /8i 0x80265000
@@ -134,7 +135,7 @@ $ hexdump -C shell.bin | head
 0x80265012:  0000              illegal
 ```
 
-何か計算した結果をスタックポインタに設定し、2回関数を呼び出しています。`shell.elf`の逆アセンブル結果と比較してみると、確かに合致しています。上手く展開できているようです。
+It's calculates/fills the initial stack pointer value, and then calls two different functions. If we compare this with the disassembly results of `shell.elf`, we can confirm that it indeed matches. It seems the expansion has been successful:
 
 ```plain
 $ llvm-objdump -d shell.elf | head -n20
@@ -156,16 +157,16 @@ Disassembly of section .text:
  1000012: 00 00         unimp
 ```
 
-## ユーザーモードへの移行
+## Transition to user mode
 
-実行イメージを展開できたので、最後の処理を実装しましょう。それは「CPUの動作モードの切り替え」です。カーネルはS-Modeと呼ばれる特権モードで動作していますが、ユーザープログラムはU-Modeと呼ばれる非特権モードで動作します。以下がその実装です。
+Now that we've successfully expanded the execution image, let's implement the final process. This is the "switching of CPU operation mode". The kernel operates in a privileged mode called S-Mode, but user programs operate in a non-privileged mode called U-Mode. Here's the implementation:
 
 ```c:kernel.h
 #define SSTATUS_SPIE (1 << 5)
 ```
 
 ```c:kernel.c
-// ↓ __attribute__((naked)) が追加されていることに注意
+// ↓ __attribute__((naked)) is very important!
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
         "csrw sepc, %[sepc]\n"
@@ -177,19 +178,18 @@ __attribute__((naked)) void user_entry(void) {
     );
 }
 ```
+The switch from S-Mode to U-Mode is done with the `sret` instruction. However, before changing the operation mode, we're making two preparations:
 
-S-ModeからU-Modeへの切り替えは、`sret`命令で行います。ただし、動作モードを切り替える前に2つ下準備をしています。
-
-- `sepc`レジスタにU-Modeに移行した際のプログラムカウンタを設定する。
-- `sstatus`レジスタの`SPIE`ビットを立てる。これを設定しておくと、U-Modeに入った際に割り込みが有効化され、例外と同じように`stvec`レジスタに設定しているハンドラが呼ばれるようになる。
+- Set the program counter for when transitioning to U-Mode in the `sepc` register.
+- Set the `SPIE` bit in the `sstatus` register. Setting this enables interrupts when entering U-Mode, and the handler set in the `stvec` register will be called, similar to exceptions.
 
 > [!TIP]
 >
-> 本書では割り込みを使わず代わりにポーリングを使うので、`SPIE`ビットを立てる必要はありません。しかし、有効化していても損はないので立てておきます。黙って割り込みを無視されるよりは分かりやすくて良いでしょう。
+> In this book, we don't use interrupts but use polling instead, so it's not necessary to set the `SPIE` bit. However, there's no harm in enabling it, so we'll set it. It's better to be clear rather than silently ignoring interrupts.
 
-## 動作テスト
+## Try user mode!
 
-では実際に動かしてみてみましょう。といっても、`shell.c`は無限ループするだけなので画面上では上手く動いているのか分かりません。代わりにQEMUモニタで覗いてみましょう。
+Now let's try it. However, since `shell.c` just loops infinitely, we can't tell if it's working properly on the screen. Instead, let's take a look with the QEMU monitor.
 
 ```plain
 (qemu) info registers
@@ -199,20 +199,20 @@ CPU#0
  pc       01000010
 ```
 
-レジスタダンプを見てみると、`0x1000010`をずっと実行しているようです。上手く動いている気がしますが、なんだか納得がいきません。そこで、U-Mode特有の挙動が現れるかを見てみましょう。`shell.c`に一行追加してみます。
+Looking at the register dump, it seems to be continuously executing `0x1000010`. It appears to be working properly, but somehow it doesn't feel satisfying. So, let's see if we can observe behavior specific to U-Mode. We'll add one line to `shell.c`:
 
 ```c:shell.c {4}
 #include "user.h"
 
 void main(void) {
-    *((volatile int *) 0x80200000) = 0x1234;
+    *((volatile int *) 0x80200000) = 0x1234; // New!
     for (;;);
 }
 ```
 
-この`0x80200000`は、ページテーブル上でマップされているカーネルが利用するメモリ領域です。しかし、ページテーブルエントリの`U`ビットが立っていない「カーネル用ページ」であるため、例外 (ページフォルト) が発生するはずです。
+This `0x80200000` is a memory area used by the kernel that is mapped on the page table. However, since it's a "kernel page" where the `U` bit in the page table entry is not set, an exception (page fault) should occur.
 
-実行してみると、期待通り例外が発生しました。
+An exception occurs as expected:
 
 ```plain
 $ ./run.sh
@@ -220,11 +220,11 @@ $ ./run.sh
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
 ```
 
-`0xf = 15`番目の例外を仕様書で確認してみると「Store/AMO page fault」に対応します。期待通りの例外が発生しているようです。また、`sepc`レジスタの例外発生時のプログラムカウンタを見てみると、確かに`shell.c`に追加している行を指しています。
+If we check the 15th exception (`0xf = 15`) in the specification, it corresponds to "Store/AMO page fault". It seems the expected exception is occurring. Also, if we look at the program counter at the time of the exception in the `sepc` register, it indeed points to the line we added to `shell.c`:
 
 ```plain
 $ llvm-addr2line -e shell.elf 0x100001a
 /Users/seiya/dev/os-from-scratch/shell.c:4
 ```
 
-初めてのアプリケーションを実行できました！
+Congrats! You've successfully executed our first application!
