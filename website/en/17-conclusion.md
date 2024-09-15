@@ -3,26 +3,23 @@ title: Next Steps
 layout: chapter
 lang: en
 ---
+This is where the book ends. Although it's less than 1000 lines, it must have been quite challenging.
 
-ここで本書は終わりです。1000行足らずではありますが、なかなか大変だったのではないでしょうか。
+For those who think "I'm not satisfied yet! I want to continue with something," I'll introduce a few "next steps."
 
-「まだ物足りない！まだ何か続けたい」という方のために「次にすること」をいくつか紹介します。
+## Read HinaOS or xv6
 
-## HinaOSやxv6を読もう
+Now that you've learned about implementing unique features like paging and exception handling, which are not seen in application development, the most recommended next step is to "read the implementation of existing OSes." Comparing your implementation with others and learning "how others implement it" is very educational.
 
-ページングや例外処理といった、アプリケーション開発では見られない独特な機能の実装を学んだ今、一番おすすめなのが「既存のOSの実装を読んでみる」ことです。自分の実装と比較して「他の人がどう実装しているのか」を学ぶのは大変勉強になります。
+One of examples is [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv). This is a UNIX-like OS for educational purposes, and it comes with an [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/). It's recommended for those who want to learn about UNIX-specific features like `fork(2)`.
 
-おすすめが2つあります。1つ目は拙作の[HinaOS](https://github.com/nuta/microkernel-book)です。本書と同じくRISC-V 32ビット向けの教育用OSです。マルチプロセッサ対応のマイクロカーネルOSで、TCP/IPプロトコルスタックも実装されています。筆者が書いたOSということもあり、本書を読んだ方なら比較的読みやすいでしょう。
+## Add New Features
 
-2つ目は[RISC-V版 xv6](https://github.com/mit-pdos/xv6-riscv)です。こちらは教育用UNIX風OSで、[解説書 (英語)](https://pdos.csail.mit.edu/6.828/2022/)もあります。`fork(2)`のようなUNIX特有の機能の仕組みを学びたい方におすすめです。
+In this book, we implemented the basic functions of a kernel. However, there are still many features that can be implemented. For example, it would be interesting to implement the following features:
 
-## 新しい機能を追加しよう
+- A proper memory allocator
+- Interrupts
+- A full-fledged file system
+- Network communication (TCP/IP)
 
-本書では、カーネルの基本的な機能を実装しました。しかし、まだまだ実装できる機能はたくさんあります。例えば、次のような機能を実装してみると面白いでしょう。
-
-- まともなメモリアロケータ
-- 割り込み
-- 本格的なファイルシステム
-- ネットワーク通信 (TCP/IP)
-
-[HinaOSの実験テーマ集](https://github.com/nuta/microkernel-book/blob/main/IDEAS.md) もアイデア出しに役立つでしょう。
+Happy your endless OS programming!

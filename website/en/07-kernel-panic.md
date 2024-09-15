@@ -4,7 +4,7 @@ layout: chapter
 lang: en
 ---
 
-カーネルパニックは、カーネルが続行不能なエラーに遭遇したときに発生するもので、GoやRustでいう`panic`に似た概念です。次の`PANIC`マクロがカーネルパニックの実装です。
+A kernel panic occurs when the kernel encounters an unrecoverable error, similar to the concept of `panic` in Go or Rust. The following `PANIC` macro is the implementation of kernel panic:
 
 ```c:kernel.h
 #define PANIC(fmt, ...)                                                        \
@@ -14,15 +14,15 @@ lang: en
     } while (0)
 ```
 
-エラー内容を表示した後に無限ループに入って処理を停止します。ここではマクロとして定義しています。なぜかというと、ソースファイル名 (`__FILE__`) と行番号 (`__LINE__`) を正しく表示するためです。これを関数として定義すると、`__FILE__` と `__LINE__` は、`PANIC`の呼び出し元ではなく、`PANIC`が定義されているファイル名と行番号になってしまいます。
+After displaying the error content, it enters an infinite loop to halt processing. We define it as a macro here. The reason for this is to correctly display the source file name (`__FILE__`) and line number (`__LINE__`). If we defined this as a function, `__FILE__` and `__LINE__` would show the file name and line number where `PANIC` is defined, not where it's called.
 
-このマクロでは、2つの[イディオム](https://ja.wikipedia.org/wiki/%E3%82%A4%E3%83%87%E3%82%A3%E3%82%AA%E3%83%A0_(%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0))が登場しています。
+This macro introduces two [idioms](https://en.wikipedia.org/wiki/Programming_idiom):
 
-1つ目は `do-while` 文です。`while (0)`であることから、このループは必ず1回しか実行されません。これは、複数の文からなるマクロを定義したいときに頻出する書き方です。単に `{ ...}` で括ってしまうと、`if` 文などと組み合わせたときに意図しない動作に繋がる ([分かりやすい例](https://www.jpcert.or.jp/sc-rules/c-pre10-c.html)) ことがあります。また、行末のバックスラッシュ (`\`) にも注意してください。マクロは複数行で定義されていますが、展開時には改行が無視されます。
+The first is the `do-while` statement. Since it's `while (0)`, this loop is only executed once. This is a common way to define macros consisting of multiple statements. Simply enclosing with `{ ...}` can lead to unintended behavior when combined with statements like `if` (see [this clear example](https://www.jpcert.or.jp/sc-rules/c-pre10-c.html)). Also, note the backslash (`\`) at the end of each line. Although the macro is defined over multiple lines, line breaks are ignored when expanded.
 
-2つ目のイディオムは `##__VA_ARGS__` です。これは可変長引数を受け取るマクロを定義するときに便利なコンパイラ拡張機能 (参考: [GCCのドキュメント](https://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html)) です。`##` が付いていることで、可変長引数が空のときに直前の `,` を削除してくれます。これにより、`PANIC("booted!")` のように引数が1つのときにもコンパイルが通るようになります。
+The second idiom is `##__VA_ARGS__`. This is a useful compiler extension for defining macros that accept a variable number of arguments (reference: [GCC documentation](https://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html)). The `##` removes the preceding `,` when the variable arguments are empty. This allows compilation to succeed even when there's only one argument, like `PANIC("booted!")`.
 
-マクロの書き方を理解したところで、`PANIC`を使ってみましょう。使い方は `printf` と同じです。
+Now that we understand how to write macros, let's try using `PANIC`. It's used in the same way as `printf`:
 
 ```c:kernel.c {4-5}
 void kernel_main(void) {
@@ -33,7 +33,7 @@ void kernel_main(void) {
 }
 ```
 
-実際に動かしてみて、正しいファイル名と行番号、そして`PANIC`以後の処理が実行されないこと (`"unreachable here!"`が表示されないこと) を確認してください。
+Try running it and confirm that the correct file name and line number are displayed, and that the processing after `PANIC` is not executed (i.e., `"unreachable here!"` is not displayed):
 
 ```plain
 $ ./run.sh

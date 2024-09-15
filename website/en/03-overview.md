@@ -4,49 +4,47 @@ layout: chapter
 lang: en
 ---
 
-OSを作り始める前に、どんな機能を作るのか、どのようなソースコードの構成になるのかをざっくりと把握しておきましょう。
+## Features to be implemented in this book
 
-## 本書で実装する機能
+The OS we'll build in this book will have the following major features:
 
-本書で作るOSは、大きく分けて次の機能を持ちます。
+- **Multitasking**: A function that switches between processes, making multiple programs appear to run simultaneously
+- **Exception Handler**: A function that handles events requiring OS intervention, such as runtime errors
+- **Paging**: Realizes independent memory spaces for each process
+- **System Calls**: A function that allows applications to call OS features
+- **Device Drivers**: Functions that operate hardware, such as reading and writing to disks
+- **File System**: A function that manages files on disk
+- **Command-line Shell**: A function that allows users to input commands to call OS features
 
-- **マルチタスク**: プロセスの切り替えを行い、複数のプログラムが同時に動作している (ように見せかける) 機能
-- **例外ハンドラ**: 実行時エラーなどのCPUがOSの介入を必要とするイベントを処理する機能
-- **ページング**: 各プロセスごとの独立したメモリ空間を実現
-- **システムコール**: アプリケーションからOSの機能を呼び出す機能
-- **デバイスドライバ**: ディスクの読み書きなど、ハードウェアを操作する機能
-- **ファイルシステム**: ディスク上のファイルを管理する機能
-- **コマンドラインシェル**: 利用者がコマンドを入力してOSの機能を呼び出せる機能
+## Features not implemented in this book
 
-## 本書で実装しない機能
+Conversely, the following major features are omitted:
 
-逆に何が欠けているのかというと、主に次のような主要機能が省かれています。
+- **Interrupt Handling**: Implemented using a polling method that "periodically checks for new data on devices"
+- **Timer Processing**: Preemptive multitasking is not implemented. Cooperative multitasking is implemented where each process voluntarily yields CPU
+- **Inter-process Communication**: Functions for exchanging data between processes are not implemented
+- **Multi-processor Support**: Only single processor is supported
 
-- **割り込み処理**: 「デバイスに新しいデータがないか定期的にチェックする」方式 (ポーリング) で実装されています。
-- **タイマー処理**: プリエンプティブマルチタスクは実装されません。各プロセスが自発的にCPUを譲る、協調的マルチタスクで実装されています。
-- **プロセス間通信**: プロセス間でデータをやり取りする機能は実装されません。
-- **マルチプロセッサ対応**: シングルプロセッサのみ対応です。
+Of course, these features can be implemented later. After completing the implementation in this book, it would be good to try implementing them while referring to projects like [HinaOS](https://github.com/nuta/microkernel-book).
 
-もちろん、これらの機能は後から実装可能です。本書の実装を済ませた後に、[HinaOS](https://github.com/nuta/microkernel-book)などを参考にしながら実装してみると良いでしょう。
+## Source Code Structure
 
-## ソースコードの構成
-
-ゼロからゆっくり作っていきますが、最終的には次のようなファイル構成になります。
+We'll build from scratch gradually, but the final file structure will look like this:
 
 ```
-├── disk/     - ファイルシステムの中身
-├── common.c  - カーネル・ユーザー共通ライブラリ: printf関数やmemset関数など
-├── common.h  - カーネル・ユーザー共通ライブラリ: 各種構造体・定数などの定義
-├── kernel.c  - カーネル: プロセス管理、システムコール、デバイスドライバ、ファイルシステム
-├── kernel.h  - カーネル: 各種構造体・定数などの定義
-├── kernel.ld - カーネル: リンカスクリプト (メモリレイアウトの定義)
-├── shell.c   - コマンドラインシェル
-├── user.c    - ユーザー用ライブラリ: システムコールの呼び出し関数など
-├── user.h    - ユーザー用ライブラリ: 各種構造体・定数などの定義
-├── user.ld   - ユーザー: リンカスクリプト (メモリレイアウトの定義)
-└── run.sh    - ビルドスクリプト
+├── disk/     - File system contents
+├── common.c  - Kernel/user common library: functions like printf, memset, etc.
+├── common.h  - Kernel/user common library: definitions of structures, constants, etc.
+├── kernel.c  - Kernel: process management, system calls, device drivers, file system
+├── kernel.h  - Kernel: definitions of structures, constants, etc.
+├── kernel.ld - Kernel: linker script (memory layout definition)
+├── shell.c   - Command-line shell
+├── user.c    - User library: functions for system calls, etc.
+├── user.h    - User library: definitions of structures, constants, etc.
+├── user.ld   - User: linker script (memory layout definition)
+└── run.sh    - Build script
 ```
 
 > [!TIP]
 >
-> 本書中では「ユーザーランド」を略して「ユーザー」と表記していることがあります。ざっくり「アプリケーション側」という意味で捉えると分かりやすいでしょう。
+> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *applciations*.

@@ -4,9 +4,9 @@ layout: chapter
 lang: en
 ---
 
-## リンカスクリプト
+## Linker script
 
-動的に割り当てるメモリ領域をリンカスクリプトに定義しましょう。
+Let's define the memory regions to be dynamically allocated in the linker script:
 
 ```plain:kernel.ld {5-8}
     . = ALIGN(4);
@@ -20,21 +20,21 @@ lang: en
 }
 ```
 
-`__free_ram`から`__free_ram_end`までの領域を、動的割り当て可能なメモリ領域とします。64MBは筆者が適当に選んだ値です。`. = ALIGN(4096)`とすることで、4KB境界に配置されるようになります。
+We'll designate the area from `__free_ram` to `__free_ram_end` as the memory region available for dynamic allocation. The 64MB is an arbitrary value chosen by the author. Using `. = ALIGN(4096)` ensures that it's aligned to a 4KB boundary.
 
-このように、アドレスを決め打ちで定義せずにリンカスクリプト上に定義することで、カーネルの静的データと被らないようにリンカが位置を決定してくれます。
+By defining this in the linker script instead of hardcoding addresses, the linker can determine the position to avoid overlapping with the kernel's static data.
 
-実用的なOSでは、このようにデバイスごとにメモリサイズを決め打ちで定義する場合の他に、起動時にハードウェアから利用可能なメモリ領域の情報を取得して決定することもあります (例: UEFIの`GetMemoryMap`)。
+In practical operating systems, besides defining memory sizes for each device like this, it's also common to determine available memory regions by obtaining information from hardware at boot time (for example, UEFI's `GetMemoryMap`).
 
-## たぶん世界一シンプルなメモリ割り当てアルゴリズム
+## Probably the world's simplest memory allocation algorithm
 
-動的割り当て領域を定義したところで、実際に動的にメモリを割り当てる関数を実装しましょう。ただし、`malloc`関数のようなバイト単位で割り当てるのではなく「ページ」という、まとまった単位で割り当てます。1ページは一般的に4KB (4096バイト) です。
+Now that we've defined the dynamic allocation area, let's implement a function to actually allocate memory dynamically. However, instead of allocating by byte like the `malloc` function, we'll allocate in larger units called "pages". One page is typically 4KB (4096 bytes).
 
 > [!TIP]
 >
-> 4KB = 4096 = 0x1000 です。16進数では`1000`であることを覚えておくと便利です。
+> 4KB = 4096 = 0x1000. It's useful to remember that in hexadecimal, this is represented as `1000`.
 
-次の`alloc_pages`関数は、`n`ページ分のメモリを動的に割り当てて、その先頭アドレスを返します。
+The following `alloc_pages` function dynamically allocates `n` pages of memory and returns the starting address.
 
 ```c:kernel.c
 extern char __free_ram[], __free_ram_end[];
@@ -52,32 +52,32 @@ paddr_t alloc_pages(uint32_t n) {
 }
 ```
 
-新たに登場する `PAGE_SIZE` は、1ページのサイズを表します。`common.h`に定義しておきます。
+The newly introduced `PAGE_SIZE` represents the size of one page. We'll define it in `common.h`:
 
 ```c:common.h
 #define PAGE_SIZE 4096
 ```
 
-この関数からは、次のような特徴を読み取ることができます。
+We can observe the following characteristics from this function:
 
-- `next_paddr`は`static`変数として定義されている。つまり、ローカル変数とは違い、関数呼び出し間で値が保持される (グローバル変数のような挙動を示す)。
-- `next_paddr`が「次に割り当てられる領域 (空いている領域) の先頭アドレス」を指す。割り当て時には、確保するサイズ分だけ`next_paddr`を進める。
-- `next_paddr`は`__free_ram`のアドレスを初期値として持つ。つまり、`__free_ram`から順にメモリを割り当てていく。
-- `__free_ram`はリンカスクリプトの`ALIGN(4096)`により4KB境界に配置される。つまり、`alloc_pages`関数必ず4KBでアラインされたアドレスを返す。
-- `__free_ram_end`を超えるアドレスに割り当てようとした場合は、カーネルパニックする。`malloc`関数が`NULL`を返すのと同じように`0`を返すのも手だが、返り値チェックし忘れのバグはデバッグが面倒なので、分かりやすさのためパニックさせる。
-- `memset`関数によって、割り当てたメモリ領域が必ずゼロで初期化されている。初期化し忘れのバグはデバッグが面倒なので、ここで初期化しておく。
+- `next_paddr` is defined as a `static` variable. This means, unlike local variables, its value is retained between function calls (behaving similar to a global variable).
+- `next_paddr` points to the start address of the "next area to be allocated" (free area). When allocating, `next_paddr` is advanced by the size being allocated.
+- `next_paddr` initially holds the address of `__free_ram`. This means memory is allocated sequentially starting from `__free_ram`.
+- `__free_ram` is placed on a 4KB boundary due to `ALIGN(4096)` in the linker script. Therefore, the `alloc_pages` function always returns an address aligned to 4KB.
+- If an attempt is made to allocate beyond the `__free_ram_end` address, a kernel panic occurs. While returning `0` (like `malloc` returning `NULL`) is an option, we trigger a panic for easier debugging, as forgotten return value checks can be troublesome to debug.
+- The `memset` function ensures that the allocated memory area is always initialized to zero. This is done to avoid hard-to-debug issues caused by uninitialized memory.
 
-このメモリ割り当ての最大の特徴は個別のメモリページを解放できないことです。つまり、割り当てっぱなしです。ただ、自作OSを長時間動かし続けることはまずないでしょうから、今のところはメモリリークを許容しても差し支えないでしょう。
+The main characteristic of this memory allocation is that individual memory pages cannot be freed. In other words, once allocated, memory is never released. However, since it's unlikely that you'll run your custom OS for extended periods, memory leaks can be tolerated for now.
 
 > [!TIP]
 >
-> ちなみに、この割り当てアルゴリズムのことは**Bumpアロケータ**または**Linearアロケータ**と呼ばれており、解放処理が必要ない場面で実際に使われています。数行に実装できて高速に動作する、魅力的な割り当てアルゴリズムです。
+> This allocation algorithm is known as a **Bump allocator** or **Linear allocator**, and it's actually used in scenarios where deallocation is not necessary. It's an attractive allocation algorithm that can be implemented in just a few lines and operates at high speed.
 >
-> 解放処理を実装する場合は、ビットマップで空き状況を管理したり、バディシステムというアルゴリズムを使ったりすることが多いです。
+> When implementing deallocation, it's common to use a bitmap to manage free space or use an algorithm called the buddy system.
 
-## メモリ割り当てのテスト
+## Try memory allocation
 
-実装したメモリ割り当て関数をテストしてみましょう。
+Let's test the memory allocation function we've implemented.
 
 ```c:kernel.c {4-7}
 void kernel_main(void) {
@@ -92,7 +92,7 @@ void kernel_main(void) {
 }
 ```
 
-次のように、最初のアドレス (`paddr0`) が`__free_ram`のアドレスと一致し、次のアドレス (`paddr1`) が最初のアドレスから2 * 4KB分進んだアドレス (16進数で`0x2000`足した数) と一致することを確認します。
+We'll verify that the first address (`paddr0`) matches the address of `__free_ram`, and that the next address (`paddr1`) matches an address that's 2 * 4KB (or 0x2000 in hexadecimal) ahead of the first address:
 
 ```plain
 $ ./run.sh

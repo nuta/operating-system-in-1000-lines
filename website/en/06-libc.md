@@ -4,15 +4,15 @@ layout: chapter
 lang: en
 ---
 
-Hello Worldを済ませたところで、基本的な型やメモリ操作、文字列操作関数を実装しましょう。一般的にはC言語の標準ライブラリ (例: `stdint.h` や `string.h`) を利用しますが、今回は勉強のためにゼロから作ります。
+Now that we've completed the Hello World, let's implement basic types and memory operations, as well as string manipulation functions. Typically, we would use the C standard library (e.g., `stdint.h` or `string.h`), but for the purpose of learning, we'll create these from scratch.
 
 > [!TIP]
 >
-> 本章で紹介するものはC言語でごく一般的なものなので、ChatGPTに聞くとしっかりと答えてくれる領域です。実装や理解に手こずる部分があった時には試してみてください。便利な時代になりましたね。
+> The concepts introduced in this chapter are very common in C programming, so ChatGPT can provide solid answers if you ask about them. If you struggle with implementation or understanding any part, feel free to try asking it. We're living in convenient times, aren't we?
 
-## 基本的な型
+## Basic Types
 
-まずは基本的な型といくつかのマクロを定義します。
+First, let's define some basic types and a few macros:
 
 ```c:common.h {1-15,21-24}
 typedef int bool;
@@ -42,27 +42,27 @@ int strcmp(const char *s1, const char *s2);
 void printf(const char *fmt, ...);
 ```
 
-ほとんどは標準ライブラリにあるものですが、いくつか便利なものを追加しています。
+Most of these are available in the standard library, but we've added a few useful ones:
 
-- `paddr_t`: 物理メモリアドレスを表す型。
-- `vaddr_t`: 仮想メモリアドレスを表す型。標準ライブラリでいう`uintptr_t`。
-- `align_up`: `value`を`align`の倍数に切り上げる。`align`は2のべき乗である必要がある。
-- `is_aligned`: `value`が`align`の倍数かどうかを判定する。`align`は2のべき乗である必要がある。
-- `offsetof`: 構造体のメンバのオフセット (メンバが構造体の先頭から何バイト目にあるか) を返す。
+- `paddr_t`: A type representing physical memory addresses.
+- `vaddr_t`: A type representing virtual memory addresses. Equivalent to `uintptr_t` in the standard library.
+- `align_up`: Rounds up `value` to the nearest multiple of `align`. `align` must be a power of 2.
+- `is_aligned`: Checks if `value` is a multiple of `align`. `align` must be a power of 2.
+- `offsetof`: Returns the offset of a member within a structure (how many bytes from the start of the structure).
 
-`align_up`と`is_aligned`は、メモリアラインメントを気にする際に便利です。例えば、`align_up(0x1234, 0x1000)`は`0x2000`を返します。また、`is_aligned(0x2000, 0x1000)`は真となります。
+`align_up` and `is_aligned` are useful when dealing with memory alignment. For example, `align_up(0x1234, 0x1000)` returns `0x2000`. Also, `is_aligned(0x2000, 0x1000)` returns true.
 
-各マクロで使われている`__builtin_`から始まる関数はClangの独自拡張 (ビルトイン関数) です。これらの他にも、[さまざまなビルトイン関数・マクロ](https://clang.llvm.org/docs/LanguageExtensions.html) があります。
+The functions starting with `__builtin_` used in each macro are Clang-specific extensions (built-in functions). There are [many other built-in functions and macros](https://clang.llvm.org/docs/LanguageExtensions.html) available.
 
 > [!TIP]
 >
-> なお、これらのマクロはビルトイン関数を使わなくても標準的なCのコードで実装することもできます。特に`offsetof`の実装手法は面白いので、興味のある方は検索してみてください。
+> Note that these macros can also be implemented using standard C code without built-in functions. The implementation technique for `offsetof` is particularly interesting, so feel free to look it up if you're curious.
 
-## メモリ操作
+## Memory Operations
 
-次のメモリ操作関数を実装します。`memcpy`関数は`src`から`n`バイト分を`dst`にコピーします。
+We'll implement the following memory operation functions. The `memcpy` function copies `n` bytes from `src` to `dst`.
 
-`memset`関数は`buf`の先頭から`n`バイト分を`c`で埋めます。この関数は、bssセクションの初期化のために5章で実装済みです。`kernel.c`から`common.c`に移動させましょう。
+The `memset` function fills the first `n` bytes of `buf` with `c`. This function has already been implemented in Chapter 5 for initializing the bss section. Let's move it from `kernel.c` to `common.c`:
 
 ```c:common.c
 void *memset(void *buf, char c, size_t n) {
@@ -81,16 +81,20 @@ void *memcpy(void *dst, const void *src, size_t n) {
 }
 ```
 
-`*p++ = c;`のように、ポインタの間接参照とポインタの操作を一度にしている箇所がいくつかあります。わかりやすく分解すると次のようになります。C言語ではよく使われる表現です。
+> [!TIP]
+>
+> There are several instances where we perform pointer dereferencing and pointer manipulation in a single operation, like `*p++ = c;`. If we break this down for clarity, it would look like this:
+> 
+> ```c
+> *p = c;    // Dereference the pointer
+> p = p + 1; // Advance the pointer after the assignment
+> ```
+> 
+> This is a commonly used expression in C language.
 
-```c
-*p = c;    //ポインタの間接参照を行う
-p = p + 1; // 代入を済ませた後にポインタを進める
-```
+## String Operations
 
-## 文字列操作
-
-まずは、`strcpy`関数です。この関数は`src`の文字列を`dst`にコピーします。
+First, let's look at the `strcpy` function. This function copies the string from `src` to `dst`:
 
 ```c:common.c
 char *strcpy(char *dst, const char *src) {
@@ -104,11 +108,11 @@ char *strcpy(char *dst, const char *src) {
 
 > [!WARNING]
 >
-> `strcpy`関数は`dst`のメモリ領域より`src`の方が長い時でも、`dst`のメモリ領域を越えてコピーを行います。バグや脆弱性に繋がりやすいため、一般的には`strcpy`ではなく代替の関数を使うことが推奨されています。
+> The `strcpy` function continues copying even if `src` is longer than the memory area of `dst`. This can easily lead to bugs and vulnerabilities, so it's generally recommended to use alternative functions instead of `strcpy`.
 >
-> 本書では簡単のため`strcpy`を使いますが、余力があれば代替の関数 (`strcpy_s`) を実装して代わりに使ってみてください。
+> For simplicity, we'll use `strcpy` in this book, but if you have the capacity, try implementing and using an alternative function (`strcpy_s`) instead.
 
-次に`strcmp`関数です。`s1`と`s2`を比較します。`s1`と`s2`が等しい場合は0を、`s1`の方が大きい場合は正の値を、`s2`の方が大きい場合は負の値を返します。
+Next is the `strcmp` function. It compares `s1` and `s2`. It returns 0 if `s1` and `s2` are equal, a positive value if `s1` is greater, and a negative value if `s2` is greater.
 
 ```c:common.c
 int strcmp(const char *s1, const char *s2) {
@@ -123,9 +127,9 @@ int strcmp(const char *s1, const char *s2) {
 }
 ```
 
-比較する際に `unsigned char *` にキャストしているのは、比較する際は符号なし整数を使うという[POSIXの仕様](https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char)に合わせるためです。
+The casting to `unsigned char *` when comparing is done to conform to the [POSIX specification](https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char), which states that comparisons should be done using unsigned integers.
 
-`strcmp`関数はよく文字列が同一であるかを判定したい時に使います。若干ややこしいですが、`!strcmp(s1, s2)` の場合 (ゼロが返ってきた場合に) に文字列が同一になります。
+The `strcmp` function is often used when you want to check if two strings are identical. It's a bit counterintuitive, but the strings are identical when `!strcmp(s1, s2)` is true (i.e., when the function returns zero):
 
 ```c
 if (!strcmp(s1, s2))

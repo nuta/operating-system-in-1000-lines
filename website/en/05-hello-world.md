@@ -3,10 +3,9 @@ title: Hello World!
 layout: chapter
 lang: en
 ---
+In the previous chapter, we successfully booted our first kernel. Although we could confirm this by reading the register dump, it still feels somewhat unsatisfactory. So this time, let's try to output a string from the kernel.
 
-前章では初めてのカーネルの起動に成功しました。レジスタダンプを読むことで確認できたとはいえ、なんだか物足りません。そこで今回は、カーネルから文字列を出力してみましょう。
-
-## 初めてのSBI
+## Say "hello" to SBI
 
 ```c:kernel.c {1, 5-26, 29-32}
 #include "kernel.h"
@@ -48,7 +47,7 @@ void kernel_main(void) {
 }
 ```
 
-加えて、新しく`kernel.h`を作成し、SBIの処理結果を返すための構造体を定義しましょう。
+In addition, let's create a new `kernel.h` file and define a structure to return the results of SBI processing.
 
 ```c:kernel.h
 #pragma once
@@ -59,7 +58,7 @@ struct sbiret {
 };
 ```
 
-新たに`sbi_call`関数を追加しました。この関数は、SBIの仕様に沿ってOpenSBIを呼び出すためのものです。具体的な呼び出し規約は以下のとおりです。
+We've newly added the `sbi_call` function. This function is designed to call OpenSBI according to the SBI specification. The specific calling convention is as follows:
 
 > **Chapter 3. Binary Encoding**
 >
@@ -78,20 +77,19 @@ struct sbiret {
 > };
 > ```
 >
-> -- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1 より引用
+> -- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1
 
 > [!TIP]
 >
-> 呼び出し規約中にある「All registers except `a0` & `a1` must be preserved across an SBI call by the callee.」は、「`a0`と`a1`以外のレジスタの値を呼び出し先 (OpenSBI側) が変更してはならない」という意味です。つまり、カーネルからすると、`a2`から`a7`までのレジスタの値は呼び出し後もそのままであることが保証されています。
+> The statement in the calling convention that says "All registers except `a0` & `a1` must be preserved across an SBI call by the callee" means that "the callee (OpenSBI side) must not change the values of registers other than `a0` and `a1`". In other words, from the kernel's perspective, it is guaranteed that the values of registers from `a2` to `a7` will remain the same after the call.
 >
-> ちなみに、callee (呼び出し先) の反対はcaller (呼び出し元) です。
+> TIP: The opposite of callee (the called party) is caller (the calling party).
 
+The `register` and `__asm__("register name")` used in each local variable declaration are instructions to the compiler to place values in specified registers. This is a common idiom that often appears in system call invocations (e.g., [Linux system call invocation process](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h)). Ideally, this should be specified in inline assembly, but since it's not possible in C language (more precisely, in GCC/clang proprietary extensions), this trick is often used.
 
-各ローカル変数の宣言に使われている`register`と`__asm__("レジスタ名")`は、指定したレジスタに値を入れるようコンパイラに指示するものです。システムコール呼び出し等でよく登場するイディオムです (例: [Linuxのシステムコール呼び出し処理](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h))。本来であればインラインアセンブラで指定できればいいものなのですが、C言語 (正確にはGCC/clangの独自拡張) ではできないためこのトリックを使うことが多いです。
+After preparing the arguments, the `ecall` instruction is executed in inline assembly. When this is called, the CPU's execution mode switches from kernel mode (S-Mode) to OpenSBI mode (M-Mode), and OpenSBI's processing handler is invoked. When OpenSBI processing is complete, it switches back to kernel mode, and execution resumes from the line following the `ecall` instruction. Incidentally, the `ecall` instruction is also used when applications call the kernel (system calls). This instruction has the function of "calling the layer one level below."
 
-引数を用意したあとに、インラインアセンブラで`ecall`命令を実行します。これを呼び出すと、CPUの実行モードをカーネル用 (S-Mode) からOpenSBI用 (M-Mode) に切り替わり、OpenSBIの処理ハンドラが呼び出されます。OpenSBIの処理が終わると、再びカーネル用に切り替わり、`ecall`命令の次の行から実行が再開されます。ちなみに、`ecall`命令はアプリケーションからカーネルを呼び出す際 (システムコール) にも使われます。「ひとつ下のレイヤを呼び出す」という機能を持つのがこの命令です。
-
-文字の表示には、次の`Console Putchar`機能を使います。
+To display characters, we use the following `Console Putchar` function.
 
 > 5.2. Extension: Console Putchar (EID #0x01)
 >
@@ -105,11 +103,11 @@ struct sbiret {
 >
 > This SBI call returns 0 upon success or an implementation specific negative error code.
 >
-> -- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1 より引用
+> -- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1
 
-`Console Putchar`は、引数に渡した文字をデバッグコンソールに出力する機能です。この機能を使って、文字列を1文字ずつ出力していきます。
+`Console Putchar` is a function that outputs the character passed as an argument to the debug console. We'll use this function to output the string one character at a time.
 
-実装ができたら、`run.sh`で実行してみましょう。次のように、`Hello World!`と表示されたら成功です。
+Once the implementation is complete, let's run it using `run.sh`. If you see `Hello World!` displayed as shown below, it's a success.
 
 ```plain
 $ ./run.sh
@@ -120,24 +118,24 @@ Hello World!
 
 > [!TIP]
 >
-> SBIが呼ばれると、次のような流れで文字が表示されます。
+> When SBI is called, characters are displayed through the following process:
 >
-> 1. OSが`ecall`命令を実行すると、CPUはM-modeのトラップハンドラ (`mtvec`レジスタ) へジャンプする。トラップハンドラはOpenSBIが起動時に設定している。
-> 2. レジスタの保存などを済ませたのちに、Cで書かれた [トラップハンドラ](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) が呼ばれる。
-> 3. `eid` に応じた[SBI処理関数が呼ばれる](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65)。
-> 4. 8250 UART ([Wikipedia](https://ja.wikipedia.org/wiki/8250_UART)) の[デバイスドライバ](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77) がQEMUへ文字を送信する。
-> 5. QEMUの8250 UARTエミュレーション実装が文字を受け取り、標準出力に文字を送る。
-> 6. 端末エミュレータがその文字を表示する。
+> 1. When the OS executes the `ecall` instruction, the CPU jumps to the M-mode trap handler (the `mtvec` register). This trap handler is set by OpenSBI during startup.
+> 2. After saving registers and other necessary operations, the [trap handler written in C](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) is called.
+> 3. Based on the `eid`, the [corresponding SBI processing function is called](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65).
+> 4. The [device driver](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77) for the 8250 UART ([Wikipedia](https://en.wikipedia.org/wiki/8250_UART)) sends the character to QEMU.
+> 5. QEMU's 8250 UART emulation implementation receives the character and sends it to the standard output.
+> 6. The terminal emulator displays the character.
 
-## `printf`関数
+## `printf` function
 
-ようやくカーネル開発っぽくなってきました！文字が表示できたら、次に欲しいのが`printf`関数です。
+Finally, it's starting to feel like kernel development! Once we can display characters, the next thing we want is the `printf` function.
 
-`printf`関数は、第1引数にフォーマット文字列を取り、第2引数以降にフォーマット文字列に埋め込む値を取ります。例えば、`printf("1 + 2 = %d", 1 + 2)`とすると、`1 + 2 = 3`と表示されます。
+The `printf` function takes a format string as its first argument, and the values to be embedded in the format string as subsequent arguments. For example, `printf("1 + 2 = %d", 1 + 2)` will display `1 + 2 = 3`.
 
-C標準ライブラリに入っているような`printf`関数は非常に豊富な機能を持っていますが、今回は最低限の機能に絞って実装してみましょう。具体的には`%d` (10進数)、`%x` (16進数)、`%s` (文字列) の3つのフォーマット文字列に対応した`printf`関数を実装します。
+While the `printf` function included in the C standard library has a very rich set of features, let's implement a minimal version for now. Specifically, we'll implement a `printf` function that supports three format specifiers: `%d` (decimal), `%x` (hexadecimal), and `%s` (string).
 
-`printf`関数は将来アプリケーション側でも使いたいので、`kernel.c`ではなくカーネル・ユーザーランド共通のコード用のファイル`common.c`を新しく作ることにします。以下が`printf`関数の全体像です。
+Since we'll want to use the `printf` function in user applications in the future, we'll create a new file `common.c` for code that's shared between the kernel and userland, rather than putting it in `kernel.c`. Here's an overview of the `printf` function:
 
 ```c:common.c
 #include "common.h"
@@ -205,13 +203,13 @@ end:
 }
 ```
 
-案外スッキリしているのではないでしょうか。1文字ずつ見ていき、「`%`」であれば次の文字を見てフォーマット文字列に応じた処理を行います。`%`以外の文字はそのまま出力します。
+It's surprisingly concise, isn't it? We go through the string character by character, and if we encounter a `%`, we look at the next character and perform the corresponding formatting operation. Characters other than `%` are output as is.
 
-10進数の場合は、まず`value`が負の数であれば`-`を出力してから、その絶対値を`value`に代入します。次に、`value`の最上位の桁を求めるために「何桁まであるか」を計算して`divisor` (英語で「割る数」) に入れておきます。あとは、`divisor`を使って`value`の最上位の桁から順に出力していきます。
+For decimal numbers, if `value` is negative, we first output a `-` and then assign its absolute value to `value`. Next, to find the most significant digit of `value`, we calculate "how many digits there are" and store it in `divisor`. Then, we use `divisor` to output the digits of `value` from the most significant to the least significant.
 
-16進数の場合は、最上位のニブル (16進数の1桁、4ビット) から順に出力していきます。ここで`nibble`は0から15の整数になるので、`"0123456789abcdef"`という文字列の何文字目かで`nibble`に対応する文字を取り出しています。
+For hexadecimal numbers, we output from the most significant nibble (one hexadecimal digit, 4 bits) to the least significant. Here, `nibble` is an integer from 0 to 15, so we use it to index into the string `"0123456789abcdef"` to get the corresponding character.
 
-`va_list`などは、C標準ライブラリの`<stdarg.h>`に定義されているマクロですが、本書では標準ライブラリに頼らずに自前で用意します。具体的には`common.h`に次のように定義しておきます。
+`va_list` and related macros are defined in the C standard library's `<stdarg.h>`, but in this book, we'll prepare our own versions without relying on the standard library. Specifically, we'll define them in `common.h` as follows:
 
 ```c:common.h
 #pragma once
@@ -224,9 +222,9 @@ end:
 void printf(const char *fmt, ...);
 ```
 
-単純に`__builtin_`がついたものの別名として定義しています。では、`__builtin_`がついたものは誰が用意するのかというと、コンパイラ (clang) が用意しているものです ([参考: clangのドキュメント](https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins))。あとはコンパイラがよしなにやってくれるので、特に気にする必要はありません。
+We're simply defining these as aliases for the versions with `__builtin_` prefixed. Now, you might wonder who provides these `__builtin_` versions. They are actually provided by the compiler (clang) itself ([Reference: clang documentation](https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins)). The compiler will handle the rest appropriately, so we don't need to worry about it further.
 
-これで`printf`関数が使えるようになりました。`kernel.c`にいくつか`printf`関数を使ったコードを書いてみましょう。
+Now we can use the `printf` function. Let's write some code in `kernel.c` that uses the `printf` function.
 
 ```c:kernel.c {2,5-6}
 #include "kernel.h"
@@ -242,14 +240,14 @@ void kernel_main(void) {
 }
 ```
 
-最後に`common.c`をコンパイル対象に追加します。
+Lastly, add `common.c` to the compilation targets:
 
 ```bash:run.sh {2}
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c common.c
 ```
 
-では`run.sh`を実行してみましょう。次のように、`Hello World!`と`1 + 2 = 3, 1234abcd`が表示されたら成功です。
+Now, let's run `run.sh`. If you see `Hello World!` and `1 + 2 = 3, 1234abcd` displayed as shown below, it's a success:
 
 ```plain
 $ ./run.sh
@@ -258,4 +256,4 @@ Hello World!
 1 + 2 = 3, 1234abcd
 ```
 
-これでプログラミングの強い味方「printfデバッグ」が仲間に加わりました！
+With this, the powerful ally "printf debugging" has joined your toolkit!

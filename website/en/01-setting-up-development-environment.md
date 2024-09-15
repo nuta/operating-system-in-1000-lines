@@ -4,67 +4,67 @@ layout: chapter
 lang: en
 ---
 
-本書では、macOSとUbuntuといったUNIX系OSを想定しています。Windowsをお使いの場合は、Windows Subsystem for Linux (WSL2) をインストールしたのち、Ubuntuの手順に従ってください。
+This book assumes you're using a UNIX-like OS such as macOS or Ubuntu. If you're on Windows, no worries! Just install Windows Subsystem for Linux (WSL2) and follow the Ubuntu instructions.
 
-## ソフトウェアのインストール
+## Installing development tools
 
-### macOS
+### For macOS users
 
-[Homebrew](https://brew.sh/index\_ja) をインストールしたのち、次のコマンドで必要なパッケージをインストールします。
+First things first, let's get [Homebrew](https://brew.sh) installed. Once that's done, run this command to get all the goodies you need:
 
 ```
 brew install llvm qemu
 ```
 
-### Ubuntu
+### For Ubuntu fans
 
-次のコマンドで必要なパッケージをインストールします。他のLinuxディストリビューションをお使いの場合は、適宜読み替えてください。
+If you're on Ubuntu, just run this command to get everything set up.
 
 ```
 sudo apt update && sudo apt install -y clang llvm lld qemu-system-riscv32 curl
 ```
 
-加えてOpenSBI (PCでいうBIOS/UEFI) を作業用ディレクトリにダウンロードしておきます。
+Now, let's grab OpenSBI (think of it as BIOS/UEFI for PCs) and pop it in your working directory:
 
 ```
-cd <開発用ディレクトリ>
+cd <your development directory>
 curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
 ```
 
 > [!WARNING]
 >
-> QEMUを実行する際に、 `opensbi-riscv32-generic-fw_dynamic.bin` がカレントディレクトリにある必要があります。別の場所にある場合、次の「ファイルが見当たらない」エラーが出ます。
+> When you're running QEMU, make sure `opensbi-riscv32-generic-fw_dynamic.bin` is in your current directory. If it's not, you'll see this pesky error:
 >
 > ```
 > qemu-system-riscv32: Unable to load the RISC-V firmware "opensbi-riscv32-generic-fw_dynamic.bin"
 > ```
 
-### その他のOS
+### Other OS users
 
-どうしても他のOSを使いたい場合は、次のコマンドを頑張ってインストールしてください。
+If you're using a different OS and feeling brave, try to install these commands:
 
-* `bash`: コマンドラインシェル。UNIX系OSには基本的に最初から入っている。
-* `tar`: tarアーカイブ操作ツール。UNIX系OSには基本的に最初から入っている。GNU版の`tar`がおすすめ。
-* `clang`: Cコンパイラ。32ビットRISC-V CPUに対応していること (下記参照)。
-* `llvm-objcopy`: オブジェクトファイル編集ツール。よくLLVMパッケージに入っている。(GNU binutilsの`objcopy`でも代用可)。
-* `llvm-objdump`: 逆アセンブラ。`llvm-objcopy`と同様。
-* `llvm-readelf`: ELFファイル解析ツール。`llvm-objcopy`と同様。
-* `qemu-system-riscv32`: 32ビットRISC-V CPUのエミュレータ。QEMUパッケージに入っている。
+* `bash`: Your friendly neighborhood command-line shell. Usually comes pre-installed on UNIX-like OSes.
+* `tar`: For handling those tar archives. Usually pre-installed on UNIX-like OSes too. Prefer GNU version, not BSD.
+* `clang`: Your C compiler. Make sure it's ready for 32-bit RISC-V CPU (more on this below).
+* `llvm-objcopy`: For editing object files. Often comes with the LLVM package. (You can use GNU binutils' `objcopy` in a pinch).
+* `llvm-objdump`: Your trusty disassembler. Same deal as `llvm-objcopy`.
+* `llvm-readelf`: For analyzing ELF files. Again, same as `llvm-objcopy`.
+* `qemu-system-riscv32`: This emulates a 32-bit RISC-V CPU. It's part of the QEMU package.
 
 > [!TIP]
 >
-> お使いのclangが32ビットRISC-Vに対応しているかは、次のコマンドで確認できます。
+> Want to check if your clang is ready for 32-bit RISC-V? Try this command:
 >
 > ```
 > $ clang -print-targets | grep riscv32
 >     riscv32     - 32-bit RISC-V
 > ```
 >
-> `riscv32`が表示されればOKです。表示されない代表例としては、macOS標準のclangがあります。上記の手順では、Homebrewの全部入りclang (`llvm`パッケージ) を代わりにインストールしています。
+> You should see `riscv32`. The standard clang on macOS might not show this. That's why we're getting the full-featured clang (`llvm` package) from Homebrew in the steps above.
 
-## Gitリポジトリの用意 (任意)
+## Setting up a Git repository (optional)
 
-もしGitリポジトリ下で作っていく場合は、次の`.gitignore`をあらかじめ用意しておくと便利です。
+If you're using a Git repository, here's a handy `.gitignore` file:
 
 ```plain:.gitignore
 /disk/*
@@ -77,3 +77,5 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 *.log
 *.pcap
 ```
+
+You're all set! Let's start building that awesome OS of yours!

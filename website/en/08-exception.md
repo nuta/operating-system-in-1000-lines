@@ -4,34 +4,34 @@ layout: chapter
 lang: en
 ---
 
-例外は、不正なメモリアクセス (例: ヌルポインタ参照) のような「プログラムの実行が続行不能な状態」になったときに、あらかじめOSによって設定されるプログラム (例外ハンドラ) に処理を切り替える仕組みです。
+An exception is a mechanism that switches processing to a program (exception handler) pre-set by the OS when a "program execution cannot continue" state occurs, such as invalid memory access (e.g., null pointer dereference).
 
-例外の発生は、QEMUのデバッグログ (`-d`オプション) で確認できますが、長ったらしいログを読むのは面倒なのと、例外が発生してQEMUがリセットしても初学者にはそれが分かりづらいので、例外発生箇所を出力してカーネルパニックする例外ハンドラを序盤に実装しておくのがおすすめです。JavaScriptに親しみのある方なら「とりあえずUnhandled Rejectionのハンドラを追加する感じ」と言えばしっくりくるのではないでしょうか。
+Exception occurrences can be confirmed in QEMU's debug log (`-d` option), but reading through lengthy logs is tedious, and it's not easy for beginners to notice when QEMU resets due to an exception. Therefore, it's recommended to implement an exception handler early on that outputs the exception occurrence location and triggers a kernel panic. For those familiar with JavaScript, this might feel similar to "adding an Unhandled Rejection handler as a first step".
 
-## 例外処理の流れ
+## Exception handling flow
 
-例外が発生すると、RISC-Vでは次のような流れで処理が進みます。
+When an exception occurs in RISC-V, the process follows this flow:
 
-1. CPUは`medeleg`レジスタを確認して、例外をどの動作モードで処理するかを決定する。本書では、主要な例外がU-Mode (ユーザーランド)、S-Mode (カーネル) のどちらかで発生した場合は、S-Modeで処理するようにOpenSBIによって設定されている。
-2. 例外発生時のCPUの状態を各CSRに保存する。
-3. `stvec` レジスタの値をプログラムカウンタにセットして、カーネルの例外処理プログラム (例外ハンドラ) にジャンプする。
-4. 例外ハンドラは、カーネルが好きに使って良い `sscratch`レジスタを上手く使って、汎用レジスタの値 (つまり例外発生時の実行状態) を保存し、例外の種類に応じた処理を行う。
-5. 例外処理を済ませると、保存していた実行状態を復元し、`sret`命令を呼び出して例外発生箇所から実行を再開する。
+1. The CPU checks the `medeleg` register to determine which operation mode should handle the exception. In this book, OpenSBI is configured so that if major exceptions occur in either U-Mode (userland) or S-Mode (kernel), they are handled in S-Mode.
+2. The CPU state at the time of the exception is saved to various CSRs.
+3. The value of the `stvec` register is set to the program counter, jumping to the kernel's exception handling program (exception handler).
+4. The exception handler cleverly uses the `sscratch` register (which the kernel can freely use) to save the values of general-purpose registers (i.e., the execution state at the time of the exception), and performs processing according to the type of exception.
+5. After completing exception processing, it restores the saved execution state and calls the `sret` instruction to resume execution from the point where the exception occurred.
 
-ステップ2で更新されるCSRは、主に次の通りです。カーネルの例外ハンドラはこれらの情報を元に、必要な処理を判断したり、例外発生時の状態を保存・復元したりします。
+The CSRs updated in step 2 are mainly as follows. The kernel's exception handler uses this information to determine necessary actions, and to save and restore the state at the time of the exception.
 
-| レジスタ名 | 内容 |
-|-----------|-----|
-| `scause` | 例外の種類。これを読んでカーネルは例外の種類を判別する。 |
-| `stval` | 例外の付加情報 (例: 例外の原因となったメモリアドレス)。具体的な内容は、例外の種類による。 |
-| `sepc` | 例外発生箇所のプログラムカウンタ |
-| `sstatus`| 例外発生時の動作モード (U-Mode/S-Mode) |
+| Register Name | Content |
+|---------------|---------|
+| `scause` | Type of exception. The kernel reads this to identify the type of exception. |
+| `stval` | Additional information about the exception (e.g., memory address that caused the exception). Specific content depends on the type of exception. |
+| `sepc` | Program counter at the point where the exception occurred |
+| `sstatus` | Operation mode (U-Mode/S-Mode) at the time of exception |
 
-カーネルの例外ハンドラの実装で一番気をつけなければいけないのは例外発生時の状態を正しく保存・復元することです。例えば、a0レジスタを間違って上書きしてしまうと「何もしていないのにローカル変数の値が変」といったデバッグの難しい問題に繋がってしまいます。
+The most important thing to be careful about in implementing the kernel's exception handler is correctly saving and restoring the state at the time of the exception. For example, if you accidentally overwrite the a0 register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason".
 
-## 例外ハンドラの実装
+## Exception Handler
 
-準備が整ったところで、例外を受け取ってみましょう。まずは最初に実行される箇所です。`stvec`レジスタに、この`kernel_entry`関数の先頭アドレスを後ほどセットします。
+Now that we're prepared, let's receive an exception. First, here's the entry point that gets executed first. We'll set the address of this `kernel_entry` function to the `stvec` register later:
 
 ```c:kernel.c
 __attribute__((naked))
@@ -113,14 +113,14 @@ void kernel_entry(void) {
 }
 ```
 
-実装のキーポイントは次のとおりです。
+The key points of implementation are as follows:
 
-- `sscratch`レジスタに、例外発生時のスタックポインタを保存しておき、あとで復元している。このように、一時退避用として`sscratch`レジスタを使うことができる。
-- 浮動小数点レジスタはカーネル内で使われないので、ここでは保存する必要がない。一般的にスレッドの切り替え時に保存・退避が行われる。
-- `a0`レジスタにスタックポインタをセットして、`handle_trap`関数を呼び出している。このとき、スタックポインタが指し示すアドレスには、後述する`trap_frame`構造体と同じ構造でレジスタの値が保存されている。
-- `__attribute__((aligned(4)))` をつけることで、関数の先頭アドレスを4バイト境界にアラインする。これは、`stvec`レジスタは例外ハンドラのアドレスだけでなく、下位2ビットにはモードを表すフラグを持っているため。
+- The `sscratch` register is used to save the stack pointer at the time of exception occurrence, which is later restored. In this way, the `sscratch` register can be used for temporary storage.
+- Floating-point registers are not used within the kernel, so there's no need to save them here. Generally, they are saved and restored during thread switching.
+- The stack pointer is set in the `a0` register, and the `handle_trap` function is called. At this point, the address pointed to by the stack pointer contains register values stored in the same structure as the `trap_frame` structure described later.
+- Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary. This is because the `stvec` register not only holds the address of the exception handler but also has flags representing the mode in its lower 2 bits.
 
-この関数で呼ばれているのが、次の`handle_trap`関数です。
+The function called within this function is the following `handle_trap` function:
 
 ```c:kernel.c
 void handle_trap(struct trap_frame *f) {
@@ -132,7 +132,7 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-例外の発生事由 (`scause`) と例外発生時のプログラムカウンタ (`sepc`) を取得し、デバッグ用にカーネルパニックを発生させています。ここで使われている各種マクロは、`kernel.h`で次のように定義しましょう。
+It retrieves the cause of the exception (`scause`) and the program counter at the time of exception (`sepc`), and triggers a kernel panic for debugging purposes. Let's define the various macros used here in `kernel.h` as follows:
 
 ```c:kernel.h
 #include "common.h"
@@ -185,9 +185,9 @@ struct trap_frame {
     } while (0)
 ```
 
-`trap_frame`構造体はスタックに積まれている元の実行状態の構造を表しています。`READ_CSR`マクロと`WRITE_CSR`マクロは、CSRレジスタの読み書きを行うための便利なマクロです。
+The `trap_frame` structure represents the structure of the original execution state stacked on the stack. The `READ_CSR` macro and `WRITE_CSR` macro are convenient macros for reading and writing CSR registers.
 
-最後に必要なのは例外ハンドラがどこにあるのかをCPUに教えてあげることです。次のように`main`関数で`stvec`レジスタに例外ハンドラのアドレスを書き込みましょう。
+The last thing we need to do is to tell the CPU where the exception handler is located. Let's write the address of the exception handler to the `stvec` register in the `main` function as follows:
 
 ```c:kernel.c {4-5}
 void kernel_main(void) {
@@ -197,9 +197,9 @@ void kernel_main(void) {
     __asm__ __volatile__("unimp"); // 無効な命令
 ```
 
-`stvec`レジスタの設定に加えて、`unimp`命令を実行します。この命令はRISC-Vの命令セットには存在しない架空の命令で、CPUが無効な機械語であると判断するようなバイナリ列を出力してくれる少し便利なコンパイラの機能です (参考: [具体的なunimp命令の実装](https://github.com/llvm/llvm-project/commit/26403def69f72c7938889c1902d62121095b93d7#diff-1d077b8beaff531e8d78ba5bb21c368714f270f1b13ba47bb23d5ad2a5d1f01bR410-R414))。
+In addition to setting the `stvec` register, we will execute the `unimp` instruction. This instruction is a fictitious instruction that doesn't exist in the RISC-V instruction set. It's a somewhat useful compiler feature that outputs a binary sequence that the CPU will recognize as an invalid machine code. (Reference: [Specific implementation of the unimp instruction](https://github.com/llvm/llvm-project/commit/26403def69f72c7938889c1902d62121095b93d7#diff-1d077b8beaff531e8d78ba5bb21c368714f270f1b13ba47bb23d5ad2a5d1f01bR410-R414))
 
-実行してみて、例外ハンドラが呼ばれることを確認しましょう。
+Let's run it and confirm that the exception handler is called:
 
 ```plain
 $ ./run.sh
@@ -207,9 +207,9 @@ Hello World!
 PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=8020015e
 ```
 
-仕様書によると、`scause`の値が2の場合は「Illegal instruction」つまり無効な命令の実行を試みたことが分かります。まさしく、`unimp`命令の期待通りの動作です。
+According to the specification, when the value of `scause` is 2, it indicates an "Illegal instruction," meaning an attempt was made to execute an invalid instruction. This is precisely the expected behavior of the `unimp` instruction.
 
-また、`sepc`の値がどこを指しているかも確認してみましょう。`unimp`命令を呼び出している行であれば上手くいっています。
+Let's also check where the value of `sepc` is pointing. If it's pointing to the line where the `unimp` instruction is called, then everything is working correctly:
 
 ```plain
 $ llvm-addr2line -e kernel.elf 8020015e

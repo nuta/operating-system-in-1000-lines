@@ -4,17 +4,21 @@ layout: chapter
 lang: en
 ---
 
-本書では、小さなOSをゼロから少しずつ作っていきます。
 
-OSと聞くと腰が引けるかもしれませんが、OS (特にカーネル) の基本機能は案外単純です。巨大なオープンソースソフトウェアとしてよく挙げられるLinuxでさえ、バージョン0.01はたった8413行でした。様々な要求に応えるために次第に肥大化していっただけで、当初は大変素朴な実装になっていました。
 
-本書では素朴なコンテキストスイッチ、ページング、ユーザーモード、コマンドラインシェル、ディスクデバイスドライバ、ファイルの読み書きをC言語で実装します。これだけ様々な機能が詰め込まれているのに、コードは合計でたった1000行未満です。
+Hey there! In this book, we're going to build a small operating system from scratch, step by step.
 
-「1000行なら1日でできそう」と思うかもしれませんが、初学者には少なくとも3日はかかるでしょう。OS自作のハマりポイントは「デバッグ」です。アプリケーション開発とは違うデバッグ手法・能力を習得する必要があります。特に「ゼロから」の自作となると、ブート処理やページングといったデバッグが難しく挫折しやすい部分が冒頭に登場します。そこで本書では「自作OSをどうデバッグすればよいのか」も一緒に学んでいきます。
+Now, don't get intimidated when you hear "OS"! The basic functions of an OS (especially the kernel) are surprisingly simple. Even Linux, which is often cited as a huge open-source software, was only 8,413 lines in version 0.01. Today's Linux kernel is overwhelmingly large, but it started with a tiny codebase, just like your hobby project.
 
-ただ、デバッグが辛い分、動いた時の感動もひとしおです。ぜひ本書を通じて、OS開発という楽しい世界を体験してみてください。
+In this online book, we'll implement basic context switching, paging, user mode, a command-line shell, a disk device driver, and file read/write operations in C. Despite all these features, the total code is less than 1000 lines!
 
-- 実装例は [GitHub](https://github.com/nuta/operating-system-in-1000-lines) からダウンロードできます。
-- 本書は [CC BY 4.0ライセンス](https://creativecommons.jp/faq) の下で利用できます。実装例と本文中のソースコードは [MITライセンス](https://opensource.org/licenses/MIT) です。
-- 前提知識は「C言語を理解していること」と「UNIX系のコマンドラインシェルに慣れていること」です。
-- **本書はあくまで[『自作OSで学ぶマイクロカーネルの設計と実装』](https://www.shuwasystem.co.jp/book/9784798068718.html) (愛称: エナガ本) の補足資料です。** エナガ本で既に解説されている部分は本書では省略しています。
+You might think you could do that in a day! However, it'll probably take at least three days. The tricky part of creating your own OS is debugging. You can't do `printf` debugging until you implement it! You'll need to learn different debugging techniques and skills compared to application development. Especially when starting "from scratch," you'll encounter challenging parts like boot processing and paging right at the beginning. So, we'll also learn "how to debug a homemade OS" together.
+
+But remember, the tougher the debugging, the more satisfying it is when it works! So, dive in and experience the exciting world of OS development through this book.
+
+- You can download the implementation examples from [GitHub](https://github.com/nuta/operating-system-in-1000-lines).
+- This book is available under the [CC BY 4.0 license](https://creativecommons.jp/faq). The implementation examples and source code in the text are under the [MIT license](https://opensource.org/licenses/MIT).
+- The prerequisites are "familiarity with C language" and "being familiar with UNIX-like command-line shells."
+- This book was written as an appendix of ["Design and Implementation of Microkernels Learned Through Homemade OS"](https://www.shuwasystem.co.jp/book/9784798068718.html).
+
+Happy OS hacking!
