@@ -4,31 +4,29 @@ layout: chapter
 lang: en
 ---
 
+## Virtio introduction
 
-## Virtio入門
+Virtio is a mechanism for exchanging data between a virtual machine and the host OS. Each virtio device has one or more virtqueues. A virtqueue consists of the following three ring buffers:
 
-Virtioは、仮想マシンとホストOS間でデータをやり取りするための仕組みです。各virtioデバイスは1つ以上のvirtqueueを持ちます。virtqueueは次の3つのリングバッファから構成されます。
-
-| リングバッファ | 誰が書き込むか | 内容 | 各エントリの内容 |
+| Ring Buffer | Written by | Content | Each Entry's Content |
 | --- | --- | --- | --- |
-| ディスクリプタリング | ドライバ | 処理要求データの格納場所を示す情報 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
-| availableリング | ドライバ | デバイスへの処理要求 | ディスクリプタチェーンの先頭インデックス |
-| usedリング | デバイス | デバイスによって処理済みの処理要求 |  ディスクリプタチェーンの先頭インデックス |
+| Descriptor Ring | Driver | Information indicating the storage location of processing request data | Memory address, length, index of the next descriptor |
+| Available Ring | Driver | Processing requests to the device | Index of the head of the descriptor chain |
+| Used Ring | Device | Processing requests handled by the device | Index of the head of the descriptor chain |
 
-各処理要求 (例: ディスクへの書き込み) は複数のディスクリプタから構成され、ディスクリプタチェーンと呼びます。複数のディスクリプタに分けることで、飛び飛びのメモリデータを指定したり (いわゆる Scatter-Gather IO)、異なるディスクリプタ属性 (デバイスから書き込み可能か) を持たせたりできます。
+Each processing request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
 
-詳細は [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html) を参照してください。今回実装するのは、virtio-blkというデバイスです。
+For details, refer to the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html). In this implementation, we will focus on a device called virtio-blk.
 
+## Enabling virtio devices
 
-## virtioデバイスの有効化
-
-virtioデバイスドライバを書く前に、適当なテストファイルを作成しておきます。`lorem.txt`というファイルを作成し、その中に適当な文章を書き込んでおきます。
+Before writing a virtio device driver, let's prepare a test file. Create a file named `lorem.txt` and fill it with some random text like the following:
 
 ```plain
 $ echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In ut magna consequat, cursus velit aliquam, scelerisque odio. Ut lorem eros, feugiat quis bibendum vitae, malesuada ac orci. Praesent eget quam non nunc fringilla cursus imperdiet non tellus. Aenean dictum lobortis turpis, non interdum leo rhoncus sed. Cras in tellus auctor, faucibus tortor ut, maximus metus. Praesent placerat ut magna non tristique. Pellentesque at nunc quis dui tempor vulputate. Vestibulum vitae massa orci. Mauris et tellus quis risus sagittis placerat. Integer lorem leo, feugiat sed molestie non, viverra a tellus." > lorem.txt
 ```
 
-また、QEMUにvirtio-blkデバイスを追加するために、QEMUのオプションを変更します。
+Also, add a virtio-blk device to QEMU by changing the options:
 
 ```bash:run.sh {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -38,14 +36,14 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -kernel kernel.elf
 ```
 
-新たに追加したオプションは次の通りです:
+The newly added options are as follows:
 
-- `-drive id=drive0`: ディスク`drive0`を定義。`lorem.txt`をディスクイメージとしてQEMUに渡す。ディスクイメージの形式は`raw` (ファイルの内容をそのままディスクデータとして扱う)。
-- `-device virtio-blk-device`: virtio-blkデバイスを追加する。ディスク`drive0`に接続する。`bus=virtio-mmio-bus.0`を指定することで、MMIO (Memory Mapped I/O) 領域にデバイスをマップする。
+- `-drive id=drive0`: Defines disk `drive0`. Passes `lorem.txt` as the disk image to QEMU. The disk image format is `raw` (treats the file contents as-is as disk data).
+- `-device virtio-blk-device`: Adds a virtio-blk device. Connects to disk `drive0`. By specifying `bus=virtio-mmio-bus.0`, the device is mapped to the MMIO (Memory Mapped I/O) region.
 
-## 雑多な定義
+## Virtio-related definitions
 
-まずは雑多な定義を`kernel.h`に追加します。
+First, let's add some miscellaneous definitions to `kernel.h`.
 
 ```c:kernel.h
 #define SECTOR_SIZE       512
@@ -116,7 +114,7 @@ struct virtio_blk_req {
 } __attribute__((packed));
 ```
 
-続いてvirtioデバイスのMMIO上のレジスタを操作するための便利な関数を `kernel.c` に追加します。
+Next, we'll add utility functions to `kernel.c` for manipulating registers on the MMIO of virtio devices:
 
 ```c:kernel.c
 uint32_t virtio_reg_read32(unsigned offset) {
@@ -136,9 +134,9 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 }
 ```
 
-## Virtioデバイスの初期化
+## Virtio device initialization
 
-virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003) に載っています。
+The initialization process for virtio devices is detailed in the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003):
 
 > 3.1.1 Driver Requirements: Device Initialization
 > The driver MUST follow this sequence to initialize a device:
@@ -152,7 +150,7 @@ virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oas
 > 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
 > 8. Set the DRIVER_OK status bit. At this point the device is “live”.
 
-以下がvirtioデバイスの初期化処理の実装です。いくつかの処理を省いている行儀の悪い実装ですが一応動きます。
+Below is the implementation of the virtio device initialization process. It is a somewhat sloppy implementation that skips a few steps, but it works for now:
 
 ```c:kernel.c
 struct virtio_virtq *blk_request_vq;
@@ -181,19 +179,19 @@ void virtio_blk_init(void) {
     // 8. Set the DRIVER_OK status bit.
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
-    // ディスクの容量を取得
+    // Get the disk capacity.
     blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
     printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
 
-    // デバイスへの処理要求を格納する領域を確保
+    // Allocate a region to store requests to the device.
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
     blk_req = (struct virtio_blk_req *) blk_req_paddr;
 }
 ```
 
-## Virtqueueの初期化
+## Virtqueue initialization
 
-virtqueueも初期化する必要があります。以下が仕様書に載っているvirtqueueの初期化処理です。
+Virtqueues also need to be initialized. Below is the initialization process for virtqueues as described in the specification:
 
 > The virtual queue is configured as follows:
 >
@@ -223,15 +221,15 @@ struct virtio_virtq *virtq_init(unsigned index) {
 }
 ```
 
-ここで指定しているアドレスは、割り当てた `struct virtio_virtq` の領域です。この中にディスクリプタリング、availableリング、usedリングが格納されます。
+The addresses specified here are the allocated areas for `struct virtio_virtq`. This structure contains the descriptor ring, available ring, and used ring.
 
-## IOリクエストの送信
+## Sending IO requests
 
-初期化ができたので、ディスクへのIOリクエストを送信してみましょう。ディスクへのIOリクエストは、以下のように「virtqueueへの処理要求の追加」で行います。
+Now that initialization is complete, let's send an IO request to the disk. IO requests to the disk are made by *"adding processing requests to the virtqueue"* as follows:
 
-```c:kernel.c
-// デバイスに新しいリクエストがあることを通知する。desc_indexは、新しいリクエストの
-// 先頭ディスクリプタのインデックス。
+```c
+// Notifies the device that there is a new request. `desc_index` is the index
+// of the head descriptor of the new request.
 void virtq_kick(struct virtio_virtq *vq, int desc_index) {
     vq->avail.ring[vq->avail.index % VIRTQ_ENTRY_NUM] = desc_index;
     vq->avail.index++;
@@ -240,12 +238,12 @@ void virtq_kick(struct virtio_virtq *vq, int desc_index) {
     vq->last_used_index++;
 }
 
-// デバイスが処理中のリクエストがあるかどうかを返す。
+// Returns whether there are requests being processed by the device.
 bool virtq_is_busy(struct virtio_virtq *vq) {
     return vq->last_used_index != *vq->used_index;
 }
 
-// virtio-blkデバイスの読み書き。
+// Reads/writes from/to virtio-blk device.
 void read_write_disk(void *buf, unsigned sector, int is_write) {
     if (sector >= blk_capacity / SECTOR_SIZE) {
         printf("virtio: tried to read/write sector=%d, but capacity is %d\n",
@@ -253,13 +251,13 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
         return;
     }
 
-    // virtio-blkの仕様に従って、リクエストを構築する
+    // Construct the request according to the virtio-blk specification.
     blk_req->sector = sector;
     blk_req->type = is_write ? VIRTIO_BLK_T_OUT : VIRTIO_BLK_T_IN;
     if (is_write)
         memcpy(blk_req->data, buf, SECTOR_SIZE);
 
-    // virtqueueのディスクリプタを構築する (3つのディスクリプタを使う)
+    // Construct the virtqueue descriptors (using 3 descriptors).
     struct virtio_virtq *vq = blk_request_vq;
     vq->descs[0].addr = blk_req_paddr;
     vq->descs[0].len = sizeof(uint32_t) * 2 + sizeof(uint64_t);
@@ -275,61 +273,62 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
     vq->descs[2].len = sizeof(uint8_t);
     vq->descs[2].flags = VIRTQ_DESC_F_WRITE;
 
-    // デバイスに新しいリクエストがあることを通知する
+    // Notify the device that there is a new request.
     virtq_kick(vq, 0);
 
-    // デバイス側の処理が終わるまで待つ
+    // Wait until the device finishes processing.
     while (virtq_is_busy(vq))
         ;
 
-    // virtio-blk: 0でない値が返ってきたらエラー
+    // virtio-blk: If a non-zero value is returned, it's an error.
     if (blk_req->status != 0) {
         printf("virtio: warn: failed to read/write sector=%d status=%d\n",
                sector, blk_req->status);
         return;
     }
 
-    // 読み込み処理の場合は、バッファにデータをコピーする
+    // For read operations, copy the data into the buffer.
     if (!is_write)
         memcpy(buf, blk_req->data, SECTOR_SIZE);
 }
 ```
 
-大まかには、以下のような流れでリクエストを送信しています。
+Overall, the request is sent in the following steps:
 
-1. `blk_req` にリクエストを構築する。アクセスしたいセクタ番号と、読み書きの種類を指定します。
-2. `blk_req` の各領域を指すディスクリプタチェーンを構築する。
-3. ディスクリプタチェーンの先頭ディスクリプタのインデックスを `avail` リングに追加する。
-4. デバイスに「新しい処理すべき処理要求がある」ことを通知する。
-5. デバイスが処理を終えるまで待つ。
-6. デバイスからの応答を確認する。
+1. Construct the request in `blk_req`. Specify the sector number you want to access and the type of read/write.
+2. Construct a descriptor chain pointing to each area of `blk_req`.
+3. Add the index of the head descriptor of the descriptor chain to the `avail` ring.
+4. Notify the device that there is a "new processing request to be handled".
+5. Wait until the device finishes processing.
+6. Check the response from the device.
 
-ここでは、3のディスクリプタから構成されるディスクリプタチェーンを構築しています。3つに分けているのは、次のように各ディスクリプタが異なる属性 (`flags`) を持つためです。
+Here, we are constructing a descriptor chain consisting of 3 descriptors. The reason for splitting into 3 parts is that each descriptor has different attributes (`flags`) as follows:
 
-```c:kernel.h
+```c
 struct virtio_blk_req {
-    // 1つ目のディスクリプタ: デバイスからは読み込み専用
+    // First descriptor: read-only from the device
     uint32_t type;
     uint32_t reserved;
     uint64_t sector;
 
-    // 2つ目のディスクリプタ: 読み込み処理の場合は、デバイスから書き込み可 (VIRTQ_DESC_F_WRITE)
+    // Second descriptor: writable by the device if it's a read operation (VIRTQ_DESC_F_WRITE)
     uint8_t data[512];
 
-    // 3つ目のディスクリプタ: デバイスから書き込み可 (VIRTQ_DESC_F_WRITE)
+    // Third descriptor: writable by the device (VIRTQ_DESC_F_WRITE)
     uint8_t status;
 } __attribute__((packed));
 ```
 
-今回は処理が終わるまでビジーウェイトしているため、毎回同じディスクリプタを使っています (0から2番目)。
+Because we busy-wait until the processing is complete every time, we can simply use the first 3 descriptors. However, in practice, you may need to track free/used descriptors to process multiple requests simultaneously.
 
-## デバイスドライバの初期化
+## Driver initialization
 
-最後に必要な処理を追加します。まずは、各プロセスのページテーブルに `virtio-blk` のMMIO領域をマップします。
+First, map the `virtio-blk` MMIO region to the page table of each process:
+
 
 ```c:kernel.c {8}
 struct process *create_process(const void *image, size_t image_size) {
-    /* 省略 */
+    /* omitted */
 
     for (paddr_t paddr = (paddr_t) __kernel_base;
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
@@ -338,7 +337,7 @@ struct process *create_process(const void *image, size_t image_size) {
     map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
 ```
 
-また、virtioの初期化関数を起動時に呼び出します。
+Call the driver initialization function when boot:
 
 ```c:kernel.c {4}
 void kernel_main(void) {
@@ -346,13 +345,13 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
     virtio_blk_init();
 
-    /* 省略 */
+    /* omitted */
 }
 ```
 
-## ディスクの読み込みテスト
+## Testing
 
-最後に、ディスクの読み書きができることを確認しましょう。
+Lastly, let's test the disk I/O. Add the following code to `kernel.c`:
 
 ```c:kernel.c {3-8}
     virtio_blk_init();
@@ -365,7 +364,7 @@ void kernel_main(void) {
     read_write_disk(buf, 0, true);
 ```
 
-ディスクイメージとして `lorem.txt` を指定しているので、ファイルの中身がそのまま表示されるはずです。
+Since we specify `lorem.txt` as the (raw) disk image, the contents of the file should be displayed as-is:
 
 ```plain
 $ ./run.sh
@@ -374,7 +373,7 @@ virtio-blk: capacity is 1024 bytes
 first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 ```
 
-また、先頭セクタに書き込んだ内容が `lorem.txt` の冒頭に反映されていれば完璧です。
+If `lorem.txt` is updated with the content written to the first sector, the implementation is successful:
 
 ```plain
 $ head lorem.txt
