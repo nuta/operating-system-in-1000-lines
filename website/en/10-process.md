@@ -4,36 +4,36 @@ layout: chapter
 lang: en
 ---
 
-プロセスは、アプリケーションのいわばインスタンスで、各プロセスが独立の実行コンテキストと、仮想アドレス空間といった資源を持ちます。OSによっては実行コンテキストを「スレッド」という別の概念で提供していることもありますが、本書では、簡単のため1プロセスにつき1スレッドとして一緒くたに扱います。
+A process is essentially an instance of an application, with each process having its own independent execution context and resources such as a virtual address space. Some OSes provide the execution context as a separate concept called a "thread", but for simplicity, in this book we'll treat each process as having a single thread.
 
-## プロセス管理構造体
+## Process control structure
 
-プロセスの情報をまとめたのが次の`process`構造体です。この構造体のことを「プロセス管理構造体 (PCB: Process Control Block)」と呼びます。
+The following `process` structure summarizes the information for a process. This structure is called a *"Process Control Block (PCB)"*.
 
-```c:kernel.h
-#define PROCS_MAX 8       // 最大プロセス数
-#define PROC_UNUSED   0   // 未使用のプロセス管理構造体
-#define PROC_RUNNABLE 1   // 実行可能なプロセス
+```c
+#define PROCS_MAX 8       // Maximum number of processes
+#define PROC_UNUSED   0   // Unused process control structure
+#define PROC_RUNNABLE 1   // Runnable process
 
 struct process {
-    int pid;             // プロセスID
-    int state;           // プロセスの状態
-    vaddr_t sp;          // コンテキストスイッチ時のスタックポインタ
-    uint8_t stack[8192]; // カーネルスタック
+    int pid;             // Process ID
+    int state;           // Process state
+    vaddr_t sp;          // Stack pointer at context switch
+    uint8_t stack[8192]; // Kernel stack
 };
 ```
 
-カーネルスタックにはコンテキストスイッチ時のCPUレジスタ、どこから呼ばれたのか (関数の戻り先)、各関数でのローカル変数などが入っています。カーネルスタックをプロセスごとに用意することで、別の実行コンテキストを持ち、コンテキストスイッチで状態の保存と復元ができるようになります。
+The kernel stack contains CPU registers at context switch, return addresses (where it was called from), and local variables for each function. By preparing a kernel stack for each process, we can have separate execution contexts and save and restore states during context switching.
 
 > [!TIP]
->
-> ちなみに、カーネルスタックをプロセス (スレッド) ごとではなく、CPUごとに1つだけ使う「シングルカーネルスタック」というカーネル実装手法もあります。seL4がこの方式を採用しています ([参考](https://trustworthy.systems/publications/theses_public/05/Warton%3Abe.abstract))。
->
-> この「プログラムのコンテキスト、つまり文脈をどこに保存しておくか」という問題は、GoやRustといったプログラム言語の非同期処理ランタイムでも議論されるテーマです。「stackless/stackful async」で検索してみましょう。
+> 
+> There's a kernel implementation technique called "single kernel stack" where instead of having a kernel stack for each process (thread), there's only one per CPU. seL4 adopts this method (reference).
+> 
+> This issue of "where to store the program's context" is also a topic discussed in asynchronous processing runtimes of programming languages like Go and Rust. Try searching for "stackless/stackful async".
 
-## コンテキストスイッチ
+## Context switch
 
-コンテキストスイッチは本書中の解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。
+The context switch implementation is the same as explained in this book. It saves the callee-saved registers to the stack, saves and restores the stack pointer, and then restores the callee-saved registers:
 
 ```c:kernel.c
 struct process procs[PROCS_MAX];
@@ -76,11 +76,11 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 }
 ```
 
-プロセスの初期化処理が次の`create_process`関数です。この関数は実行開始アドレス (`pc`) を受け取り、プロセス管理構造体を初期化して返します。
+The following `create_process` function is the initialization process for a process. This function receives the execution start address (`pc`), initializes the process control structure, and returns it.
 
-```c:kernel.c
+```c
 struct process *create_process(uint32_t pc) {
-    // 空いているプロセス管理構造体を探す
+    // Find an unused process control structure.
     struct process *proc = NULL;
     int i;
     for (i = 0; i < PROCS_MAX; i++) {
@@ -93,7 +93,7 @@ struct process *create_process(uint32_t pc) {
     if (!proc)
         PANIC("no free process slots");
 
-    // switch_context() で復帰できるように、スタックに呼び出し先保存レジスタを積む
+    // Stack callee-saved registers so that switch_context() can restore.
     uint32_t *sp = (uint32_t *) &proc->stack[sizeof(proc->stack)];
     *--sp = 0;                      // s11
     *--sp = 0;                      // s10
@@ -109,7 +109,7 @@ struct process *create_process(uint32_t pc) {
     *--sp = 0;                      // s0
     *--sp = (uint32_t) pc;          // ra
 
-    // 各フィールドを初期化
+    // Initialize fields.
     proc->pid = i + 1;
     proc->state = PROC_RUNNABLE;
     proc->sp = (uint32_t) sp;
@@ -117,9 +117,9 @@ struct process *create_process(uint32_t pc) {
 }
 ```
 
-## コンテキストスイッチのテスト
+## Testing context switch
 
-これでプロセスの最も基本的な機能である「複数のプログラムの並行実行」が実装できました。早速、2つのプロセスを作成してみましょう。
+With this, we have implemented the most basic function of processes: "concurrent execution of multiple programs". Let's create two processes:
 
 ```c:kernel.c {1-24,31-33}
 struct process *proc_a;
@@ -160,11 +160,11 @@ void kernel_main(void) {
 }
 ```
 
-`proc_a_entry`関数と`proc_b_entry`関数がそれぞれプロセスA、プロセスBのエントリポイントです。`putchar`関数で1文字表示したら、`switch_context`関数で他方のプロセスにコンテキストスイッチします。
+The `proc_a_entry` function and `proc_b_entry` function are the entry points for Process A and Process B, respectively. After displaying a single character using the `putchar` function, they switch context to the other process using the `switch_context` function.
 
-`__asm__ __volatile__("nop")` で呼び出されているnop命令は「何もしない」命令です。これをしばらく繰り返すループを入れることで、文字での出力が速すぎてターミナルを操作できなくなるのを防いでいます。
+The nop instruction called by `__asm__ __volatile__("nop")` is a "do nothing" instruction. By including a loop that repeats this instruction for a while, we prevent the character output from becoming too fast, which would make the terminal inoperable.
 
-では、実際に動かしてみましょう。次のように起動時のメッセージが1回ずつ表示され、その後は「ABABAB...」と交互に表示されます。
+Now, let's try. The startup messages will be displayed once each, and then "ABABAB..." will be displayed alternately, as shown below:
 
 ```plain
 $ ./run.sh
@@ -174,23 +174,22 @@ Astarting process B
 BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAQE
 ```
 
-## スケジューラ
+## Scheduler
 
-上記の実験では、`switch_context`関数を直接呼び出して「次に実行するプロセス」を指定していました。ただこの手法では、プロセスの数が増えると「次にどのプロセスに切り替えるべきか」を決めるのが大変です。そこで次のプロセスを決定する「スケジューラ」を実装しましょう。
+In the previous experiment, we directly called the `switch_context` function to specify the "next process to execute". However, this method becomes complicated when determining "which process to switch to next" as the number of processes increases. So, let's implement a "scheduler" that decides the next process.
 
-次の`yield`関数がスケジューラの実装です。
+The following `yield` function is the implementation of the scheduler:
 
 > [!TIP]
 >
-> 「yield」は「譲る」という意味の英単語です。「CPU時間という資源を譲る」という意味合いで、プロセスが自発的に呼び出すAPIの名前としてよく使われます。
-
+> "Yield" means "to give up" in English. It's often used as the name for an API that processes call voluntarily, with the connotation of "giving up the resource of CPU time".
 
 ```c:kernel.c
-struct process *current_proc; // 現在実行中のプロセス
-struct process *idle_proc;    // アイドルプロセス
+struct process *current_proc; // Currently running process
+struct process *idle_proc;    // Idle process
 
 void yield(void) {
-    // 実行可能なプロセスを探す
+    // Search for a runnable process
     struct process *next = idle_proc;
     for (int i = 0; i < PROCS_MAX; i++) {
         struct process *proc = &procs[(current_proc->pid + i) % PROCS_MAX];
@@ -200,18 +199,18 @@ void yield(void) {
         }
     }
 
-    // 現在実行中のプロセス以外に、実行可能なプロセスがない。戻って処理を続行する
+    // If there's no runnable process other than the current one, return and continue processing
     if (next == current_proc)
         return;
 
-    // コンテキストスイッチ
+    // Context switch
     struct process *prev = current_proc;
     current_proc = next;
     switch_context(&prev->sp, &next->sp);
 }
 ```
 
-ここで、2つのグローバル変数を導入しています。`current_proc`は現在実行中のプロセスを指します。`idle_proc`はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。`idle_proc`はプロセスIDが`-1`のプロセスとして、次のように起動時に作成しておきます。
+Here, we introduce two global variables. `current_proc` points to the currently running process. `idle_proc` refers to the idle process, which is "the process to run when there are no runnable processes". The `idle_proc` is created at startup as a process with process ID `-1`, as shown below:
 
 ```c:kernel.c {8-10,15-16}
 void kernel_main(void) {
@@ -233,11 +232,11 @@ void kernel_main(void) {
 }
 ```
 
-この初期化処理のキーポイントが `current_proc = idle_proc` です。こうすることで、ブート処理の実行コンテキストがアイドルプロセスのそれとして保存・復元されます。最初の`yield`関数の呼び出しではアイドルプロセス→プロセスAに切り替わり、アイドルプロセスに切り替わるときには、この`yield`関数の呼び出しから戻ってきたかのように動きます。
+The key point of this initialization process is `current_proc = idle_proc`. This ensures that the execution context of the boot process is saved and restored as that of the idle process. During the first call to the `yield` function, it switches from the idle process to process A, and when switching back to the idle process, it behaves as if returning from this `yield` function call.
 
-ブート時のスタックがアイドルプロセスのスタックとして使われる (`switch_context`関数で保存・復元される) ため、`process`構造体に割り当ててある`stack`フィールドは使われません。
+Since the boot-time stack is used as the idle process's stack (saved and restored by the `switch_context` function), the `stack` field allocated in the `process` structure is not used.
 
-最後に、`proc_a_entry`と`proc_b_entry`関数を次のように変更して、`switch_context`関数を直接呼び出す代わりに、`yield`関数を呼び出すようにします。
+Finally, we modify the `proc_a_entry` and `proc_b_entry` functions as follows to call the `yield` function instead of directly calling the `switch_context` function:
 
 ```c:kernel.c {5,16}
 void proc_a_entry(void) {
@@ -263,17 +262,17 @@ void proc_b_entry(void) {
 }
 ```
 
-同じように「A」「B」が交互に表示されたら成功です。
+If "A" and "B" are displayed alternately, it's successful.
 
-## 例外ハンドラの修正
+## Changes in the exception handler
 
-例外ハンドラではスタックに実行状態を保存していましたが、プロセスごとに別のカーネルスタックを使うようになったので少し修正が必要です。
+In the exception handler, we were saving the execution state on the stack, but since we now use separate kernel stacks for each process, some modifications are necessary.
 
-まずはプロセス切り替え時に`sscratch`レジスタへ、実行中プロセスのカーネルスタックの初期値を設定するようにします。
+First, we need to set the initial value of the kernel stack for the currently executing process in the `sscratch` register during process switching.
 
 ```c:kernel.c {4-8}
 void yield(void) {
-    /* 省略 */
+    /* omitted */
 
     __asm__ __volatile__(
         "csrw sscratch, %[sscratch]\n"
@@ -281,21 +280,20 @@ void yield(void) {
         : [sscratch] "r" ((uint32_t) &next->stack[sizeof(next->stack)])
     );
 
-    // コンテキストスイッチ
+    // Context switch
     struct process *prev = current_proc;
     current_proc = next;
     switch_context(&prev->sp, &next->sp);
 }
 ```
+Since the stack pointer extends towards lower addresses (the stack area is used from the end), we set the address at the `sizeof(next->stack)`th byte as the initial value of the kernel stack.
 
-スタックポインタは下位アドレスの方向に伸びる (スタック領域の末尾から使われていく) ため、`sizeof(next->stack)`バイト目のアドレスをカーネルスタックの初期値として設定します。
-
-例外ハンドラの修正は次のとおりです。
+The modifications to the exception handler are as follows:
 
 ```c:kernel.c {3-5,39-45}
 void kernel_entry(void) {
     __asm__ __volatile__(
-        // 実行中プロセスのカーネルスタックをsscratchから取り出す
+        // Retrieve the kernel stack of the running process from sscratch
         // tmp = sp; sp = sscratch; sscratch = tmp;
         "csrrw sp, sscratch, sp\n"
 
@@ -331,11 +329,11 @@ void kernel_entry(void) {
         "sw s10, 4 * 28(sp)\n"
         "sw s11, 4 * 29(sp)\n"
 
-        // 例外発生時のspを取り出して保存
+        // Retrieve and save the sp at the time of exception
         "csrr a0, sscratch\n"
         "sw a0,  4 * 30(sp)\n"
 
-        // カーネルスタックを設定し直す
+        // Reset the kernel stack
         "addi a0, sp, 4 * 31\n"
         "csrw sscratch, a0\n"
 
@@ -343,28 +341,28 @@ void kernel_entry(void) {
         "call handle_trap\n"
 ```
 
-まず、`sscratch`レジスタにある実行中プロセスのカーネルスタックのアドレスを`sp`レジスタに設定し、同時に例外発生時の`sp`を`sscratch`レジスタに保存します。`csrrw`命令はいわばswap操作です。例外発生時の状態を保存したら、`sscratch`レジスタに退避しておいた例外発生時の`sp`レジスタの値を取り出して保存します。最後に`sscratch`レジスタへカーネルスタックの初期値を設定し直して終わりです。
+First, we set the address of the kernel stack of the running process from the `sscratch` register to the `sp` register, and simultaneously save the `sp` at the time of the exception to the `sscratch` register. The `csrrw` instruction is essentially a swap operation. After saving the state at the time of the exception, we retrieve and save the value of the `sp` register at the time of the exception, which was temporarily stored in the `sscratch` register. Finally, we reset the initial value of the kernel stack in the `sscratch` register.
 
-ここでのキーポイントは「プロセスごと独立したカーネルスタックを持っている」点です。コンテキストスイッチ時に`sscratch`の内容も切り替えておくことで、プロセスごとのトラップ発生時の状態の保存・復元をトラップハンドラができるようになっています。
+The key point here is that "each process has its own independent kernel stack". By switching the contents of `sscratch` during context switching, the trap handler can save and restore the state of each process at the time of trap occurrence.
 
 > [!TIP]
 >
-> ここでは「カーネル」スタックの切り替え処理を実装しています。アプリケーションが使うスタックは、カーネルスタックとは別に割り当てられる予定です。後々の章で実装します。
+> Here, we are implementing the switching process for the "kernel" stack. The stack used by applications will be allocated separately from the kernel stack. This will be implemented in later chapters.
 
-## なぜスタックポインタを設定し直すのか
+## Why Do We Reset the Stack Pointer?
 
-上記の修正は「例外発生時のスタックポインタを信頼しない」ためのものです。そもそも、なぜ信頼すべきではないのか考えてみましょう。例外ハンドラでは、次の3つのパターンを考慮する必要があります。
+The above modification is to "not trust the stack pointer at the time of exception". Let's consider why we shouldn't trust it in the first place. In the exception handler, we need to consider the following three patterns:
 
-1. カーネルモードで例外が発生した。
-2. 例外処理中にカーネルモードで例外が発生した (ネストされた例外)。
-3. ユーザーモードで例外が発生した。
+1. An exception occurred in kernel mode.
+2. An exception occurred in kernel mode during exception handling (nested exception).
+3. An exception occurred in user mode.
 
-(1) の場合は、スタックポインタを設定し直さなくても基本的に問題ありません。(2) の場合は退避領域を上書きしてしまいますが、本実装ではネストされた例外からの復帰を想定せずカーネルパニックして停止するため問題ありません。
+In case (1), there's generally no problem even if we don't reset the stack pointer. In case (2), we would overwrite the saved area, but in this implementation, we don't assume recovery from nested exceptions and instead cause a kernel panic and halt, so it's not a problem.
 
-問題は (3) の場合です。このとき、`sp`は「ユーザー (アプリケーション) のスタック領域」を指しています。`sp`をそのまま利用する (信頼する) 実装の場合では、次のような不正な値をセットして例外を発生させると、カーネルをクラッシュさせる脆弱性に繋がります。17章まで本書の一通りの実装が終わった状態で、以下のようなアプリケーションを実行して実験してみます。
+The problem is with case (3). In this case, `sp` points to the "user (application) stack area". If we implement it to use (trust) `sp` as is, setting invalid values and causing an exception could lead to a vulnerability that crashes the kernel. We'll experiment with this by running the following application after completing all the implementations up to Chapter 17 in this book:
 
 ```c
-// 後の章で登場する「アプリケーション」の例
+// An example of applications
 #include "user.h"
 
 void main(void) {
@@ -375,28 +373,27 @@ void main(void) {
 }
 ```
 
-本章の修正 (`sscratch`からカーネルスタックを復元する) を適用せずにこれを実行してみると、カーネルが何も表示せずハングアップし、QEMUのログには以下のような出力が残ります。
+If we run this without applying the modifications from this chapter (restoring the kernel stack from `sscratch`), the kernel hangs without displaying anything, and the following output remains in the QEMU log:
 
 ```
-epc:0x0100004e, tval:0x00000000, desc=illegal_instruction <- unimpでトラップハンドラに遷移
-epc:0x802009dc, tval:0xdeadbe73, desc=store_page_fault <- スタック領域 (0xdeadbeef) への書き込み失敗例外
-epc:0x802009dc, tval:0xdeadbdf7, desc=store_page_fault <- スタック領域 (0xdeadbeef) への書き込み失敗例外 (2)
-epc:0x802009dc, tval:0xdeadbd7b, desc=store_page_fault <- スタック領域 (0xdeadbeef) への書き込み失敗例外 (3)
-epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault <- スタック領域 (0xdeadbeef) への書き込み失敗例外 (4)
+epc:0x0100004e, tval:0x00000000, desc=illegal_instruction <- unimp triggers the trap handler
+epc:0x802009dc, tval:0xdeadbe73, desc=store_page_fault <- an aborted write to the stack  (0xdeadbeef)
+epc:0x802009dc, tval:0xdeadbdf7, desc=store_page_fault <- an aborted write to the stack  (0xdeadbeef) (2)
+epc:0x802009dc, tval:0xdeadbd7b, desc=store_page_fault <- an aborted write to the stack  (0xdeadbeef) (3)
+epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault <- an aborted write to the stack  (0xdeadbeef) (4)
 ...
 ```
 
-最初に`unimp`擬似命令で無効命令例外が発生し、カーネルのトラップハンドラに遷移しています。しかし、スタックポインタがマップされていないアドレス (`0xdeadbeef`) を指しているため、レジスタを保存する際に例外発生し、再びトラップハンドラの先頭へジャンプしています。これが無限ループとなり、カーネルがハングアップします。これを防ぐために、信頼できるスタック領域を`sscratch`から取り出すようにしています。
+First, an invalid instruction exception occurs with the `unimp` pseudo-instruction, transitioning to the kernel's trap handler. However, because the stack pointer points to an unmapped address (`0xdeadbeef`), an exception occurs when trying to save registers, jumping back to the beginning of the trap handler. This becomes an infinite loop, causing the kernel to hang. To prevent this, we retrieve a trusted stack area from `sscratch`.
 
-xv6 (有名な教育用UNIX風OS) のRISC-V版実装では、(1)と(2)の時用の例外ハンドラ ([`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14)) と、(3)の時用の例外ハンドラ ([`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)) がそれぞれ別になっています。前者の場合は、例外発生時のスタックポインタを引き継ぎ、後者の場合はカーネルスタックを別途取り出す実装になっており、カーネルを出入りするときに [ハンドラの設定を切り替える](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46) ようになっています。xv6の実装と解説 ([日本語訳](https://www.sugawara-lab.jp/lecture.html) の「4.2 カーネル空間からのトラップ」あたり) が参考になるでしょう。
+In the RISC-V version of xv6 (a famous UNIX-like OS for education), there are separate exception handlers for cases (1) and (2) ([`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14)) and for case (3) ([`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)). In the former case, it inherits the stack pointer at the time of the exception, and in the latter case, it retrieves a separate kernel stack. The handler settings are [switched](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46) when entering and exiting the kernel. The implementation and explanation of xv6 ([Japanese translation](https://www.sugawara-lab.jp/lecture.html), around "4.2 Traps from kernel space") might be helpful.
 
 > [!TIP]
 >
-> 余談ですが、Googleが開発しているOSのFuchsiaには、ユーザーから任意のプログラムカウンタの値を設定できる実装が[脆弱性になっていたケース](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html)がありました。「ユーザー (アプリケーション) からの入力を信頼しない」というのは、堅牢なカーネルを実装する上で非常に重要な習慣です。
+> In Fuchsia, an OS developed by Google, there was a [case where the implementation allowing arbitrary program counter values to be set from the user became a vulnerability](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html). "Not trusting input from users (applications)" is an extremely important habit in implementing a robust kernel.
 
+## Next Steps
 
-## 次のステップ
+We have now achieved the ability to run multiple processes in parallel, realizing a multitasking OS. From here, we can implement OS features in the same way as multithreaded programming in applications.
 
-これで複数のプロセスを並列に動作できるようになり、マルチタスクOSを実現できました。あとはアプリケーションのマルチスレッドプログラミングと同じ要領でOSの機能を実装していくことができます。
-
-ただし、このままではプロセスがカーネルのメモリ空間を自由に読み書きできてしまいます。次章からは、アプリケーションをどう安全に動かすか、つまりカーネルとアプリケーションをどう隔離するのかをするのかをみていきます。
+However, as it stands, processes can freely read and write to the kernel's memory space. In the next chapter, we'll look at how to safely run applications, or in other words, how to isolate the kernel and applications.

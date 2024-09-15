@@ -858,6 +858,9 @@ video {
     .absolute {
   position: absolute;
 }
+    .isolate {
+  isolation: isolate;
+}
     .mx-auto {
   margin-left: auto;
   margin-right: auto;
