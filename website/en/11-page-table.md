@@ -81,13 +81,13 @@ The function simply prepares the second-level page table, and sets the physical 
 
 It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself.
 
-## カーネルページのマッピング
+## Kernel page mapping
 
-ページテーブルにはアプリケーション (ユーザー空間) のマッピングだけでなく、カーネルのそれも設定する必要があります。
+The page table must be configured not only for applications (user space) but also for the kernel.
 
-本書では、カーネルのマッピングは、カーネルの仮想アドレスと物理アドレスが一致するように設定します。こうすることで、ページングを有効化しても同じコードを引き続き実行できるようになります。
+In this guide, the kernel's mapping is set so that the kernel's virtual addresses match the physical addresses. This allows the same code to continue running even after enabling paging.
 
-まずはカーネルのリンカスクリプトの修正です。カーネルが利用するアドレスの先頭 (`__kernel_base`) を定義します。
+First, let's modify the kernel's linker script to define the starting address used by the kernel (`__kernel_base`):
 
 ```plain:kernel.ld {5}
 ENTRY(boot)
@@ -99,9 +99,9 @@ SECTIONS {
 
 > [!WARNING]
 >
-> `. = 0x80200000`の**後ろ**に定義するよう注意してください。順番が逆だと、`__kernel_base`の値がゼロになります。
+> Define `__kernel_base` **after** the line `. = 0x80200000`. If the order is reversed, the value of `__kernel_base` will be zero.
 
-次にプロセス管理構造体にページテーブルを追加します。1段目のページテーブルを指すポインタです。
+Next, we'll add the page table to the process management structure. This will be a pointer to the first-level page table.
 
 ```c:kernel.h {5}
 struct process {
@@ -113,17 +113,17 @@ struct process {
 };
 ```
 
-最後に、`create_process`関数でカーネルのページをマッピングします。カーネルのページは、`__kernel_base`から`__free_ram_end`までの範囲です。こうすることで、静的に配置される領域 (`.text`など) と、`alloc_pages`関数で動的に割り当てられる領域の両方を、カーネルはいつでもアクセスできるようにしておきます。
+Lastly, we'll map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`) and dynamically allocated areas through the `alloc_pages` function:
 
 ```c:kernel.c {1,6-11,16}
 extern char __kernel_base[];
 
 struct process *create_process(uint32_t pc) {
-    /* 省略 */
+    /* omitted */
 
     uint32_t *page_table = (uint32_t *) alloc_pages(1);
 
-    // カーネルのページをマッピングする
+    // Map kernel pages.
     for (paddr_t paddr = (paddr_t) __kernel_base;
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
@@ -136,13 +136,13 @@ struct process *create_process(uint32_t pc) {
 }
 ```
 
-## ページテーブルの切り替え
+## Switching page tables
 
-最後に、プロセスの切り替え時にページテーブルを切り替えるようにします。
+Let's switch the process's page table when context switching:
 
 ```c:kernel.c {5-7,10-11}
 void yield(void) {
-    /* 省略 */
+    /* omitted */
 
     __asm__ __volatile__(
         "sfence.vma\n"
@@ -150,7 +150,7 @@ void yield(void) {
         "sfence.vma\n"
         "csrw sscratch, %[sscratch]\n"
         :
-        // 行末のカンマを忘れずに！
+        // Don't forget the trailing comma!
         : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table / PAGE_SIZE)),
           [sscratch] "r" ((uint32_t) &next->stack[sizeof(next->stack)])
     );
@@ -159,17 +159,20 @@ void yield(void) {
 }
 ```
 
-`satp`レジスタへの一段目のページテーブルを設定することで、ページテーブルを切り替えることができます。なお、物理ページ番号を指定するので、`PAGE_SIZE`で割っています。
+We can switch page tables by setting the first-level page table in the `satp` register. Note that we divide by `PAGE_SIZE` because it's the physical page number.
 
-ページテーブルの設定の前後に追加されている `sfence.vma` 命令は、「ページテーブルへの変更をきちんと完了させることを保証する (参考: メモリフェンス)」「ページテーブルエントリのキャッシュ (TLB) を消す」という意味合いがあります。
+The `sfence.vma` instructions added before and after setting the page table serve two purposes:
+
+1. To ensure that changes to the page table are properly completed (similar to a memory fence).
+2. To clear the cache of page table entries (TLB).
 
 > [!TIP]
 >
-> ブート時には、ページングが無効化されています (`satp`レジスタが設定されていない)。そのため、仮想アドレスと物理アドレスが一致しているかような挙動になります。
+> At boot time, paging is disabled (the `satp` register is not set). As a result, virtual addresses behave as if they match physical addresses.
 
-## ページングのテスト
+## Testing paging
 
-ページングを一通り実装したところで、実際に動かしてみましょう。
+Now that we've implemented paging, let's actually run it and see how it works.
 
 ```plain
 $ ./run.sh
@@ -179,12 +182,11 @@ Astarting process B
 BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 ```
 
-表示内容は前章と全く同じです。ページングを有効化しても変化はありません。そこで、ページテーブルを上手く設定できているかをQEMUモニタを使って見てみましょう。
+The output is exactly the same as in the previous chapter (context switching). There's no visible change even after enabling paging. So, let's use the QEMU monitor to check if we've set up the page tables correctly.
 
-## ページテーブルの内容を確認する
+## Examining page table contents
 
-
-仮想アドレス`0x80000000`周辺が、どうマップされているかを見てみましょう。正しく設定されていれば、`(仮想アドレス) == (物理アドレス)`になるようにマップされているはずです。
+Let's look at how the virtual addresses around `0x80000000` are mapped. If set up correctly, they should be mapped so that `(virtual address) == (physical address)`.
 
 ```plain
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -195,22 +197,22 @@ QEMU 8.0.2 monitor - type 'help' for more information
  ...
 ```
 
-まず、`satp`レジスタの値を見てみると`0x80080253`になっています。これを仕様書の通り解釈すると `0x80080253 & 0x3fffff) * 4096 = 0x80253000` がページテーブルの一段目の先頭物理アドレスです。
+The value of the `satp` register is `0x80080253`. According to the specification (RISC-V Sv32), interpreting this value gives us the first-level page table's starting physical address: `(0x80080253 & 0x3fffff) * 4096 = 0x80253000`.
 
-では、ページテーブルの中身を見てみましょう。QEMUにはメモリの内容 (メモリダンプ) を表示するコマンドを用意しています。`xp`コマンドを使うと指定した物理アドレスのメモリダンプを表示できます。`/x`は16進数で表示することを意味します。`/1024x`のように`x`の前に数字を書くと、その分表示してくれます。
+Let's inspect the contents of the page table. QEMU provides commands to display memory contents (memory dump). By using the `xp` command, we can display the memory dump for a specified physical address. The `/x` option specifies hexadecimal display. Adding a number before `x` (e.g., `/1024x`) specifies the number of entries to display.
 
 > [!TIP]
 >
-> `xp`ではなく`x`コマンドを使うと、指定した**仮想**アドレスのメモリダンプを確認できます。後に設定するユーザー空間 (アプリケーション) では、カーネル空間とは違い仮想アドレスと物理アドレスが同一にならないため、ユーザー空間のメモリ内容を調べたいときに便利です。
+> Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in kernel space.
 
-ここでは仮想アドレス`0x80000000`に紐づく2段目のページテーブルが知りたいので、`0x80000000 >> 22 = 512`番目のエントリを見てみます。1エントリ4バイトなので、4をかけています。
+Here, we want to know the second-level page table corresponding to the virtual address `0x80000000`. We will inspect the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
 
 ```plain
 (qemu) xp /x 0x80253000+512*4
 0000000080253800: 0x20095001
 ```
 
-1列目が物理アドレス、2列目以降がメモリの値です。ゼロではないので、なんらかの値が設定されていることがわかります。これを仕様書の通り解釈すると、`(0x20095000 >> 10) * 4096 = 0x80254000` に2段目のページテーブルがあることがわかります。2段目のテーブル全体 (1024エントリ) をみてみましょう。
+The first column shows the physical address, and the subsequent columns show the memory values. We can see that some non-zero values are set. Interpreting this according to the specification, we find that the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. Let's examine the entire second-level table (1024 entries):
 
 ```
 (qemu) xp /1024x 0x80254000
@@ -232,9 +234,9 @@ QEMU 8.0.2 monitor - type 'help' for more information
 ...
 ```
 
-最初の方はゼロで埋まっていますが、`(0x800バイト目) / 4 = 512エントリ目`から値が埋まっています。`512 << 12 = 0x200000`であるため、2段目は`0x200000`バイト目の部分からマップされていることがわかります。
+The initial entries are filled with zeros, but values start appearing from the 512th entry (`(0x800 bytes) / 4 = 512th entry`). Since `512 << 12 = 0x200000`, we can see that the second-level table maps from the 0x200000 byte mark.
 
-ここまでメモリダンプを自力で読んでみましたが、QEMUには使用中のページテーブルの設定情報を読みやすい形で表示するコマンドがあります。正しくマップされているかを最終確認したい場合は`info mem`コマンドを使うとよいでしょう。
+We've been manually reading memory dumps up to this point, but QEMU actually provides a command that displays the current page table settings in a more readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
 
 ```plain
 (qemu) info mem
@@ -272,19 +274,19 @@ vaddr    paddr            size     attr
 84000000 0000000084000000 00241000 rwx----
 ```
 
-1列目から順に、仮想アドレス、物理アドレス (マップ先)、サイズ (16進バイト数)、属性を表しています。属性は`r`が読み込み可能、`w`が書き込み可能、`x`が実行可能を表します。また、`a`と`d`は、それぞれCPUが「ページにアクセスしたことがある」、「ページに書き込みしたことがある」ことを表しています。実際に使われているページをOSが把握するための補助的な情報です。
+The columns represent, in order: virtual address, physical address (mapping destination), size (in hexadecimal bytes), and attributes. For the attributes, `r` means readable, `w` means writable, and `x` means executable. Additionally, `a` and `d` indicate that the CPU has "accessed the page" and "written to the page" respectively. These are auxiliary information for the OS to keep track of which pages are actually being used.
 
 > [!TIP]
 >
-> ページテーブルの設定ミスは、初学者にとってはデバッグがかなり難しい部分です。もし上手く動かない場合は、「付録: ページングのデバッグ」を参照してください。
+> For beginners, debugging page table configuration errors can be quite challenging. If things aren't working as expected, refer to the "Appendix: Debugging Paging" section.
 
-## ページングのデバッグ (おまけ)
+## Appendix: debugging paging
 
-ページテーブルの設定は難易度が少し高く、ミスに気づきにくいものです。そこで、本章ではよくあるページングのミスを題材に、どうデバッグできるかを見ていきます。
+Setting up page tables can be a bit tricky, and mistakes can be hard to notice. In this section, we'll look at some common paging errors and how to debug them.
 
-### モードの設定し忘れ
+### Forgetting to set the mode
 
-まずは`satp`レジスタにモードを設定し忘れた場合です。次のように抜いてみましょう。
+First, let's consider the case where we forget to set the mode in the `satp` register. Try removing it like this:
 
 ```c:kernel.c {6}
     __asm__ __volatile__(
@@ -296,16 +298,15 @@ vaddr    paddr            size     attr
     );
 ```
 
-実際に動かしてみると、きちんと動作しているように見えるはずです。これは、ページテーブルの場所が指定されてはいますがページングが無効化されているままだからです。この場合、QEMUモニタの`info mem`コマンドで確認すると、次のように表示されます。
+When you actually run this, it should appear to be working correctly. This is because while the page table location is specified, paging remains disabled. In this case, if you check with the `info mem` command in the QEMU monitor, you'll see something like this:
 
 ```
 (qemu) info mem
 No translation or protection
 ```
+### Specifying physical address instead of physical page number
 
-### 物理ページ番号ではなく物理アドレスを指定している
-
-次に物理ページ番号ではなく物理アドレスでページテーブルを指定してしまった時です。
+Next, let's look at the case where we mistakenly specify the page table using a physical address instead of a physical page number.
 
 ```c:kernel.c {6}
     __asm__ __volatile__(
@@ -313,11 +314,11 @@ No translation or protection
         "csrw satp, %[satp]\n"
         "sfence.vma\n"
         :
-        : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table)) // シフトし忘れ
+        : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table)) // Forgot to shift
     );
 ```
 
-OSを起動して`info mem`コマンドで確認すると、次のように空っぽになっているはずです。
+When you boot the OS and check with the info mem command, you should see it's empty, like this:
 
 ```plain
 $ ./run.sh
@@ -329,7 +330,7 @@ vaddr    paddr            size     attr
 -------- ---------------- -------- -------
 ```
 
-レジスタダンプを見て、CPUが何をしているのかを確認しましょう。
+Dump registers to see what the CPU is doing:
 
 ```plain
 (qemu) info registers
@@ -342,9 +343,9 @@ CPU#0
  ...
 ```
 
-`80200188`を`llvm-addr2line`で確認すると例外ハンドラの先頭アドレス、例外の発生理由 (`scause`レジスタ) は仕様書によると「Instruction page fault」に該当します。ページテーブルを切り替えて次の命令を実行するとき、CPUはページテーブルからプログラムカウンタの仮想アドレスを物理アドレスに変換しようとします。しかし、ページテーブルのアドレス (`satp`レジスタ) が正しくないため、変換に失敗し、ページフォルトが発生しています。
+If you check `80200188` with `llvm-addr2line`, you'll find it's the starting address of the exception handler. According to the specification, the reason for the exception (`scause` register) corresponds to an "Instruction page fault". When switching the page table and executing the next instruction, the CPU tries to translate the virtual address of the program counter to a physical address using the page table. However, since the page table address (in the `satp` register) is incorrect, the translation fails, resulting in a page fault.
 
-より具体的に何が起きているのかをQEMUのログから見てみましょう。
+Let's take a closer look at what's specifically happening by examining the QEMU logs:
 
 ```bash:run.sh {2}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -361,8 +362,12 @@ Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected
 riscv_cpu_do_interrupt: hart:0, async:0, cause:0000000c, epc:0x80200188, tval:0x80200188, desc=exec_page_fault
 ```
 
-- 最初のページフォルトの例外発生箇所 (`epc`レジスタ) の値は`0x80200580`で、`llvm-objdump`で確認すると`satp`レジスタを設定した直後の命令を指している。つまり、ページングを有効化した直後にページフォルトが発生している。
-- 2番目以降のページフォルトはみな同じ値が続いていく。例外発生箇所は`0x80200188`で、`llvm-objdump`で確認すると例外ハンドラの先頭アドレスを指している。このログが無限に続いていくことから、例外ハンドラを実行しようとして再度例外 (ページフォルト) が発生していることがわかる。
-- `info registers`コマンドを見ると、`satp`レジスタの値は`0x80253000`で、仕様書に従って物理アドレスを計算すると `(0x80253000 & 0x3fffff) * 4096 = 0x253000000` で、これは32ビットのアドレス空間に収まらない。このことから、異常な値が入っていることがわかる。
+Here's what you can infer from the logs:
 
-このように、QEMUのログとレジスタダンプ、メモリダンプを確認していきながら、どこがおかしいのかを探していくことができます。ただし、デバッグで最も大事なことは「仕様書をしっかり読む」ことです。「仕様書の記述を見落としていた・勘違いしていた」ということが大変よくあります。
+- The value of the `epc` register, which indicates the location of the first page fault exception, is `0x80200580`. Checking with `llvm-objdump` shows that it points to the instruction immediately after setting the `satp` register. This means that a page fault occurs right after enabling paging.
+
+- All subsequent page faults show the same value. The exception location is `0x80200188`, which `llvm-objdump` confirms is pointing to the beginning address of the exception handler. The fact that this log continues indefinitely indicates that another exception (page fault) occurs when trying to execute the exception handler.
+
+- Looking at the `info registers` command, the value of the `satp` register is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
+
+In this way, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing in debugging is to *"read the specification carefully."* It's very common to overlook or misunderstand descriptions in the specification.
