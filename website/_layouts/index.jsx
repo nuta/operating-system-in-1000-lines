@@ -5,6 +5,7 @@ export default async function IndexLayout({ children, meta, pages }) {
           <title>Operating System in 1,000 Lines</title>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width" />
+          <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         </head>
         <body className="mx-auto max-w-3xl w-full py-8 px-4">
           <header>
