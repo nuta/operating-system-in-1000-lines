@@ -33,7 +33,7 @@ This is easier to understand by looking at some example values:
 > - Changing the middle bits (`VPN[0]`) doesn't affect the first-level index. This means page table entries for nearby addresses are concentrated in the same second-level page table.
 > - Changing the lower bits doesn't affect either `VPN[1]` or `VPN[0]`. This means addresses within the same 4KB page reference the same page table entry.
 
-This structure utilizes the principle of locality of reference, allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
+This structure utilizes [the principle of locality](https://en.wikipedia.org/wiki/Locality_of_reference), allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
 
 When accessing memory, the CPU uses `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, then adds the physical address from that entry to the `offset` to calculate the final physical address to access.
 

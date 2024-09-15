@@ -26,6 +26,6 @@
         { "source": "/ja/system-call", "destination": "/ja/14-system-call", "permanent": true },
         { "source": "/ja/virtio-blk", "destination": "/ja/15-virtio-blk", "permanent": true },
         { "source": "/ja/file-system", "destination": "/ja/16-file-system", "permanent": true },
-        { "source": "/ja/conclusion", "destination": "/ja/17-conclusion", "permanent": true }
+        { "source": "/ja/conclusion", "destination": "/ja/17-outro", "permanent": true }
     ]      
 }

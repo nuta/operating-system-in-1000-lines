@@ -18,7 +18,7 @@ Let's start with the user-land implementation for invoking system calls. As a fi
 
 # System call handler (kernel)
 
-Next, let's look at the function that actually invokes the system call. The implementation is quite similar to [the SBI call implementation](/en/05-hello-world#first-sbi-call) we've seen before:
+Next, let's look at the function that actually invokes the system call. The implementation is quite similar to [the SBI call implementation](/en/05-hello-world#say-hello-to-sbi) we've seen before:
 
 ```c:user.c
 int syscall(int sysno, int arg0, int arg1, int arg2) {

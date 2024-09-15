@@ -1,11 +1,12 @@
 ---
-title: Next Steps
+title: Outro
 layout: chapter
 lang: en
 ---
+
 This is where the book ends. Although it's less than 1000 lines, it must have been quite challenging.
 
-For those who think "I'm not satisfied yet! I want to continue with something," I'll introduce a few "next steps."
+For those who are not satisfied yet and wants to continue with something, here are somew next steps:
 
 ## Read HinaOS or xv6
 
