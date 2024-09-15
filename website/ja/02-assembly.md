@@ -1,6 +1,7 @@
 ---
 title: RISC-V入門
 layout: chapter
+lang: ja
 ---
 
 ## RISC-V

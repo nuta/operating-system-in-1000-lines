@@ -14,6 +14,7 @@ export default async function IndexLayout({ children, meta, pages }) {
           </header>
           <main className="container mx-auto flex justify-center">
             <ul>
+                <li><a href="/en" className="text-lg">English</a></li>
                 <li><a href="/ja" className="text-lg">Japanese (日本語)</a></li>
             </ul>
           </main>

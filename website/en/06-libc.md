@@ -1,6 +1,7 @@
 ---
-title: C標準ライブラリ
+title: C Standard Library
 layout: chapter
+lang: en
 ---
 
 Hello Worldを済ませたところで、基本的な型やメモリ操作、文字列操作関数を実装しましょう。一般的にはC言語の標準ライブラリ (例: `stdint.h` や `string.h`) を利用しますが、今回は勉強のためにゼロから作ります。

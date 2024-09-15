@@ -1,6 +1,7 @@
 ---
-title: RISC-V入門
+title: RISC-V 101
 layout: chapter
+lang: en
 ---
 
 ## RISC-V

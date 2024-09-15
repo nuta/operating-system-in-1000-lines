@@ -1,6 +1,7 @@
 ---
-title: メモリ割り当て
+title: Memory Allocation
 layout: chapter
+lang: en
 ---
 
 ## リンカスクリプト

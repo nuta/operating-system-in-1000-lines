@@ -1,6 +1,7 @@
 ---
 title: ディスク読み書き
 layout: chapter
+lang: ja
 ---
 
 

@@ -1,7 +1,7 @@
 export default async function EntryLayout({ children, meta, pages }) {
   const blogPages = pages
     .filter((page) => {
-      return page.meta.layout === "chapter";
+      return page.meta.layout === "chapter" && page.meta.lang === meta.lang;
     })
     .sort((a, b) => {
       if (a.sourcePath.endsWith("index.md")) return -1;
@@ -15,17 +15,29 @@ export default async function EntryLayout({ children, meta, pages }) {
   const prev = blogPages[currentIndex - 1];
   const next = blogPages[currentIndex + 1];
 
+  function i18n(key) {
+    if (meta.lang === "en") {
+      return key;
+    }
+
+    return {
+      "Operating System in 1,000 Lines": {
+        ja: "1000行で作るOS",
+      },
+    }
+  }
+
   return (
     <html>
       <head>
-        <title>{meta.title} - 1000行で作るOS</title>
+        <title>{meta.title} - {i18n('Operating System in 1,000 Lines')}</title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width" />
       </head>
       <body className="mx-auto max-w-3xl w-full py-8 px-4">
         <header>
           <h1 className="text-center mb-8 text-xl font-bold">
-            1000行で作るOS - {meta.title}
+            {i18n('Operating System in 1,000 Lines')} - {meta.title}
           </h1>
           <div className="mb-8 container mx-auto flex justify-center">
             <ol

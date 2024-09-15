@@ -1,6 +1,7 @@
 ---
-title: ユーザーモード
+title: User Mode
 layout: chapter
+lang: en
 ---
 
 本章では、前章で作ったアプリケーションの実行イメージを動かしてみます。

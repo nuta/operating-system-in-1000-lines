@@ -1,6 +1,7 @@
 ---
-title: ファイルシステム
+title: File System
 layout: chapter
+lang: en
 ---
 
 ディスクの読み書きができるようになったので、ファイルの読み書きを実装しましょう。

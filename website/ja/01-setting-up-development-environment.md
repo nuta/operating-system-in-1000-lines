@@ -1,6 +1,7 @@
 ---
 title: 開発環境
 layout: chapter
+lang: ja
 ---
 
 本書では、macOSとUbuntuといったUNIX系OSを想定しています。Windowsをお使いの場合は、Windows Subsystem for Linux (WSL2) をインストールしたのち、Ubuntuの手順に従ってください。

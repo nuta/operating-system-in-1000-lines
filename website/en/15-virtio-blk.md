@@ -1,6 +1,7 @@
 ---
-title: ディスク読み書き
+title: Disk I/O
 layout: chapter
+lang: en
 ---
 
 

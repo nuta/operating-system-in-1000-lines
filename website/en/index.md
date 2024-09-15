@@ -1,6 +1,7 @@
 ---
-title: はじめに
+title: Intro
 layout: chapter
+lang: en
 ---
 
 本書では、小さなOSをゼロから少しずつ作っていきます。

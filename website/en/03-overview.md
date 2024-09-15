@@ -1,6 +1,7 @@
 ---
-title: OSの全体像
+title: Overview
 layout: chapter
+lang: en
 ---
 
 OSを作り始める前に、どんな機能を作るのか、どのようなソースコードの構成になるのかをざっくりと把握しておきましょう。

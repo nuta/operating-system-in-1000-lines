@@ -1,6 +1,7 @@
 ---
-title: アプリケーション
+title: Application
 layout: chapter
+lang: en
 ---
 
 本章では、カーネルから一旦離れて、最初のユーザーランドのプログラムとそのビルド方法を見ていきます。

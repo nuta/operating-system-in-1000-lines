@@ -1,6 +1,7 @@
 ---
-title: おわりに
+title: Next Steps
 layout: chapter
+lang: en
 ---
 
 ここで本書は終わりです。1000行足らずではありますが、なかなか大変だったのではないでしょうか。
