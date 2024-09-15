@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html><head><title>C標準ライブラリ - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - C標準ライブラリ</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="font-bold">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>Hello Worldを済ませたところで、基本的な型やメモリ操作、文字列操作関数を実装しましょう。一般的にはC言語の標準ライブラリ (例: <code>stdint.h</code> や <code>string.h</code>) を利用しますが、今回は勉強のためにゼロから作ります。</p>
+<blockquote class="callout callout-tip">
+<p>本章で紹介するものはC言語でごく一般的なものなので、ChatGPTに聞くとしっかりと答えてくれる領域です。実装や理解に手こずる部分があった時には試してみてください。便利な時代になりましたね。</p>
+</blockquote>
+<h2 id="基本的な型"><a class="anchor" href="#基本的な型">基本的な型</a></h2>
+<p>まずは基本的な型といくつかのマクロを定義します。</p>
+<pre><code class="language-c:common.h"><span class="pl-k">typedef</span> <span class="pl-k">int</span> <span class="pl-k">bool</span>;
+<span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">char</span> <span class="pl-c1">uint8_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">short</span> <span class="pl-c1">uint16_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">int</span> <span class="pl-c1">uint32_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">long</span> <span class="pl-k">long</span> <span class="pl-c1">uint64_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-c1">uint32_t</span> <span class="pl-c1">size_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-c1">uint32_t</span> <span class="pl-c1">paddr_t</span>;
+<span class="pl-k">typedef</span> <span class="pl-c1">uint32_t</span> <span class="pl-c1">vaddr_t</span>;
+
+#<span class="pl-k">define</span> <span class="pl-en">true</span>  <span class="pl-c1">1</span>
+#<span class="pl-k">define</span> <span class="pl-en">false</span> <span class="pl-c1">0</span>
+#<span class="pl-k">define</span> <span class="pl-en">NULL</span>  ((<span class="pl-k">void</span> *) <span class="pl-c1">0</span>)
+#<span class="pl-k">define</span> <span class="pl-en">align_up</span>(<span class="pl-v">value, align</span>)   __builtin_align_up(value, align)
+#<span class="pl-k">define</span> <span class="pl-en">is_aligned</span>(<span class="pl-v">value, align</span>) __builtin_is_aligned(value, align)
+#<span class="pl-k">define</span> <span class="pl-en">offsetof</span>(<span class="pl-v">type, member</span>)   __builtin_offsetof(type, member)
+#<span class="pl-k">define</span> <span class="pl-en">va_list</span>  __builtin_va_list
+#<span class="pl-k">define</span> <span class="pl-en">va_start</span> __builtin_va_start
+#<span class="pl-k">define</span> <span class="pl-en">va_end</span>   __builtin_va_end
+#<span class="pl-k">define</span> <span class="pl-en">va_arg</span>   __builtin_va_arg
+
+<span class="pl-k">void</span> *<span class="pl-en">memset</span>(<span class="pl-k">void</span> *buf, <span class="pl-k">char</span> c, <span class="pl-c1">size_t</span> n);
+<span class="pl-k">void</span> *<span class="pl-en">memcpy</span>(<span class="pl-k">void</span> *dst, <span class="pl-k">const</span> <span class="pl-k">void</span> *src, <span class="pl-c1">size_t</span> n);
+<span class="pl-k">char</span> *<span class="pl-en">strcpy</span>(<span class="pl-k">char</span> *dst, <span class="pl-k">const</span> <span class="pl-k">char</span> *src);
+<span class="pl-k">int</span> <span class="pl-en">strcmp</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *s1, <span class="pl-k">const</span> <span class="pl-k">char</span> *s2);
+<span class="pl-k">void</span> <span class="pl-en">printf</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *fmt, ...);
+</code></pre>
+<p>ほとんどは標準ライブラリにあるものですが、いくつか便利なものを追加しています。</p>
+<ul>
+<li><code>paddr_t</code>: 物理メモリアドレスを表す型。</li>
+<li><code>vaddr_t</code>: 仮想メモリアドレスを表す型。標準ライブラリでいう<code>uintptr_t</code>。</li>
+<li><code>align_up</code>: <code>value</code>を<code>align</code>の倍数に切り上げる。<code>align</code>は2のべき乗である必要がある。</li>
+<li><code>is_aligned</code>: <code>value</code>が<code>align</code>の倍数かどうかを判定する。<code>align</code>は2のべき乗である必要がある。</li>
+<li><code>offsetof</code>: 構造体のメンバのオフセット (メンバが構造体の先頭から何バイト目にあるか) を返す。</li>
+</ul>
+<p><code>align_up</code>と<code>is_aligned</code>は、メモリアラインメントを気にする際に便利です。例えば、<code>align_up(0x1234, 0x1000)</code>は<code>0x2000</code>を返します。また、<code>is_aligned(0x2000, 0x1000)</code>は真となります。</p>
+<p>各マクロで使われている<code>__builtin_</code>から始まる関数はClangの独自拡張 (ビルトイン関数) です。これらの他にも、<a href="https://clang.llvm.org/docs/LanguageExtensions.html">さまざまなビルトイン関数・マクロ</a> があります。</p>
+<blockquote class="callout callout-tip">
+<p>なお、これらのマクロはビルトイン関数を使わなくても標準的なCのコードで実装することもできます。特に<code>offsetof</code>の実装手法は面白いので、興味のある方は検索してみてください。</p>
+</blockquote>
+<h2 id="メモリ操作"><a class="anchor" href="#メモリ操作">メモリ操作</a></h2>
+<p>次のメモリ操作関数を実装します。<code>memcpy</code>関数は<code>src</code>から<code>n</code>バイト分を<code>dst</code>にコピーします。</p>
+<p><code>memset</code>関数は<code>buf</code>の先頭から<code>n</code>バイト分を<code>c</code>で埋めます。この関数は、bssセクションの初期化のために5章で実装済みです。<code>kernel.c</code>から<code>common.c</code>に移動させましょう。</p>
+<pre><code class="language-c:common.c"><span class="pl-k">void</span> *<span class="pl-en">memset</span>(<span class="pl-k">void</span> *buf, <span class="pl-k">char</span> c, <span class="pl-c1">size_t</span> n) {
+    <span class="pl-c1">uint8_t</span> *p = (<span class="pl-c1">uint8_t</span> *) buf;
+    <span class="pl-k">while</span> (n--)
+        *p++ = c;
+    <span class="pl-k">return</span> buf;
+}
+
+<span class="pl-k">void</span> *<span class="pl-en">memcpy</span>(<span class="pl-k">void</span> *dst, <span class="pl-k">const</span> <span class="pl-k">void</span> *src, <span class="pl-c1">size_t</span> n) {
+    <span class="pl-c1">uint8_t</span> *d = (<span class="pl-c1">uint8_t</span> *) dst;
+    <span class="pl-k">const</span> <span class="pl-c1">uint8_t</span> *s = (<span class="pl-k">const</span> <span class="pl-c1">uint8_t</span> *) src;
+    <span class="pl-k">while</span> (n--)
+        *d++ = *s++;
+    <span class="pl-k">return</span> dst;
+}
+</code></pre>
+<p><code>*p++ = c;</code>のように、ポインタの間接参照とポインタの操作を一度にしている箇所がいくつかあります。わかりやすく分解すると次のようになります。C言語ではよく使われる表現です。</p>
+<pre><code class="language-c">*p = c;    <span class="pl-c">//ポインタの間接参照を行う</span>
+p = p + <span class="pl-c1">1</span>; <span class="pl-c">// 代入を済ませた後にポインタを進める</span>
+</code></pre>
+<h2 id="文字列操作"><a class="anchor" href="#文字列操作">文字列操作</a></h2>
+<p>まずは、<code>strcpy</code>関数です。この関数は<code>src</code>の文字列を<code>dst</code>にコピーします。</p>
+<pre><code class="language-c:common.c"><span class="pl-k">char</span> *<span class="pl-en">strcpy</span>(<span class="pl-k">char</span> *dst, <span class="pl-k">const</span> <span class="pl-k">char</span> *src) {
+    <span class="pl-k">char</span> *d = dst;
+    <span class="pl-k">while</span> (*src)
+        *d++ = *src++;
+    *d = <span class="pl-s"><span class="pl-pds">'</span><span class="pl-cce">\0</span><span class="pl-pds">'</span></span>;
+    <span class="pl-k">return</span> dst;
+}
+</code></pre>
+<blockquote class="callout callout-warning">
+<p><code>strcpy</code>関数は<code>dst</code>のメモリ領域より<code>src</code>の方が長い時でも、<code>dst</code>のメモリ領域を越えてコピーを行います。バグや脆弱性に繋がりやすいため、一般的には<code>strcpy</code>ではなく代替の関数を使うことが推奨されています。</p>
+<p>本書では簡単のため<code>strcpy</code>を使いますが、余力があれば代替の関数 (<code>strcpy_s</code>) を実装して代わりに使ってみてください。</p>
+</blockquote>
+<p>次に<code>strcmp</code>関数です。<code>s1</code>と<code>s2</code>を比較します。<code>s1</code>と<code>s2</code>が等しい場合は0を、<code>s1</code>の方が大きい場合は正の値を、<code>s2</code>の方が大きい場合は負の値を返します。</p>
+<pre><code class="language-c:common.c"><span class="pl-k">int</span> <span class="pl-en">strcmp</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *s1, <span class="pl-k">const</span> <span class="pl-k">char</span> *s2) {
+    <span class="pl-k">while</span> (*s1 &#x26;&#x26; *s2) {
+        <span class="pl-k">if</span> (*s1 != *s2)
+            <span class="pl-k">break</span>;
+        s1++;
+        s2++;
+    }
+
+    <span class="pl-k">return</span> *(<span class="pl-k">unsigned</span> <span class="pl-k">char</span> *)s1 - *(<span class="pl-k">unsigned</span> <span class="pl-k">char</span> *)s2;
+}
+</code></pre>
+<p>比較する際に <code>unsigned char *</code> にキャストしているのは、比較する際は符号なし整数を使うという<a href="https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char">POSIXの仕様</a>に合わせるためです。</p>
+<p><code>strcmp</code>関数はよく文字列が同一であるかを判定したい時に使います。若干ややこしいですが、<code>!strcmp(s1, s2)</code> の場合 (ゼロが返ってきた場合に) に文字列が同一になります。</p>
+<pre><code class="language-c"><span class="pl-k">if</span> (!strcmp(s1, s2))
+    <span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>s1 == s2<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+<span class="pl-k">else</span>
+    <span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>s1 != s2<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+</code></pre></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/07-kernel-panic">カーネルパニック ⏩</a><a href="/ja/05-hello-world" class="sm:-order-1">⏪ Hello World!</a></div></footer></body></html>

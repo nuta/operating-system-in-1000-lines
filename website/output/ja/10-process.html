@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html><head><title>プロセス - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - プロセス</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="font-bold">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>プロセスは、アプリケーションのいわばインスタンスで、各プロセスが独立の実行コンテキストと、仮想アドレス空間といった資源を持ちます。OSによっては実行コンテキストを「スレッド」という別の概念で提供していることもありますが、本書では、簡単のため1プロセスにつき1スレッドとして一緒くたに扱います。</p>
+<h2 id="プロセス管理構造体"><a class="anchor" href="#プロセス管理構造体">プロセス管理構造体</a></h2>
+<p>プロセスの情報をまとめたのが次の<code>process</code>構造体です。この構造体のことを「プロセス管理構造体 (PCB: Process Control Block)」と呼びます。</p>
+<pre><code class="language-c:kernel.h">#<span class="pl-k">define</span> <span class="pl-en">PROCS_MAX</span> <span class="pl-c1">8</span>       <span class="pl-c">// 最大プロセス数</span>
+#<span class="pl-k">define</span> <span class="pl-en">PROC_UNUSED</span>   <span class="pl-c1">0</span>   <span class="pl-c">// 未使用のプロセス管理構造体</span>
+#<span class="pl-k">define</span> <span class="pl-en">PROC_RUNNABLE</span> <span class="pl-c1">1</span>   <span class="pl-c">// 実行可能なプロセス</span>
+
+<span class="pl-k">struct</span> process {
+    <span class="pl-k">int</span> pid;             <span class="pl-c">// プロセスID</span>
+    <span class="pl-k">int</span> state;           <span class="pl-c">// プロセスの状態</span>
+    <span class="pl-c1">vaddr_t</span> sp;          <span class="pl-c">// コンテキストスイッチ時のスタックポインタ</span>
+    <span class="pl-c1">uint8_t</span> stack[<span class="pl-c1">8192</span>]; <span class="pl-c">// カーネルスタック</span>
+};
+</code></pre>
+<p>カーネルスタックにはコンテキストスイッチ時のCPUレジスタ、どこから呼ばれたのか (関数の戻り先)、各関数でのローカル変数などが入っています。カーネルスタックをプロセスごとに用意することで、別の実行コンテキストを持ち、コンテキストスイッチで状態の保存と復元ができるようになります。</p>
+<blockquote class="callout callout-tip">
+<p>ちなみに、カーネルスタックをプロセス (スレッド) ごとではなく、CPUごとに1つだけ使う「シングルカーネルスタック」というカーネル実装手法もあります。seL4がこの方式を採用しています (<a href="https://trustworthy.systems/publications/theses_public/05/Warton%3Abe.abstract">参考</a>)。</p>
+<p>この「プログラムのコンテキスト、つまり文脈をどこに保存しておくか」という問題は、GoやRustといったプログラム言語の非同期処理ランタイムでも議論されるテーマです。「stackless/stackful async」で検索してみましょう。</p>
+</blockquote>
+<h2 id="コンテキストスイッチ"><a class="anchor" href="#コンテキストスイッチ">コンテキストスイッチ</a></h2>
+<p>コンテキストスイッチは本書中の解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process procs[PROCS_MAX];
+
+<span class="pl-en">__attribute__</span>((naked)) void switch_context(<span class="pl-c1">uint32_t</span> *prev_sp,
+                                           <span class="pl-c1">uint32_t</span> *next_sp) {
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
+        <span class="pl-s"><span class="pl-pds">"</span>addi sp, sp, -13 * 4<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw ra,  0  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s0,  1  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s1,  2  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s2,  3  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s3,  4  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s4,  5  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s5,  6  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s6,  7  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s7,  8  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s8,  9  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s9,  10 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s10, 11 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s11, 12 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw sp, (a0)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw sp, (a1)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw ra,  0  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s0,  1  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s1,  2  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s2,  3  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s3,  4  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s4,  5  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s5,  6  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s6,  7  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s7,  8  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s8,  9  * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s9,  10 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s10, 11 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>lw s11, 12 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>addi sp, sp, 13 * 4<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>ret<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+    );
+}
+</code></pre>
+<p>プロセスの初期化処理が次の<code>create_process</code>関数です。この関数は実行開始アドレス (<code>pc</code>) を受け取り、プロセス管理構造体を初期化して返します。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *<span class="pl-en">create_process</span>(<span class="pl-c1">uint32_t</span> pc) {
+    <span class="pl-c">// 空いているプロセス管理構造体を探す</span>
+    <span class="pl-k">struct</span> process *proc = <span class="pl-c1">NULL</span>;
+    <span class="pl-k">int</span> i;
+    <span class="pl-k">for</span> (i = <span class="pl-c1">0</span>; i &#x3C; PROCS_MAX; i++) {
+        <span class="pl-k">if</span> (procs[i].<span class="pl-smi">state</span> == PROC_UNUSED) {
+            proc = &#x26;procs[i];
+            <span class="pl-k">break</span>;
+        }
+    }
+
+    <span class="pl-k">if</span> (!proc)
+        <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>no free process slots<span class="pl-pds">"</span></span>);
+
+    <span class="pl-c">// switch_context() で復帰できるように、スタックに呼び出し先保存レジスタを積む</span>
+    <span class="pl-c1">uint32_t</span> *sp = (<span class="pl-c1">uint32_t</span> *) &#x26;proc-><span class="pl-smi">stack</span>[<span class="pl-k">sizeof</span>(proc-><span class="pl-smi">stack</span>)];
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s11</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s10</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s9</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s8</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s7</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s6</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s5</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s4</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s3</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s2</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s1</span>
+    *--sp = <span class="pl-c1">0</span>;                      <span class="pl-c">// s0</span>
+    *--sp = (<span class="pl-c1">uint32_t</span>) pc;          <span class="pl-c">// ra</span>
+
+    <span class="pl-c">// 各フィールドを初期化</span>
+    proc-><span class="pl-smi">pid</span> = i + <span class="pl-c1">1</span>;
+    proc-><span class="pl-smi">state</span> = PROC_RUNNABLE;
+    proc-><span class="pl-smi">sp</span> = (<span class="pl-c1">uint32_t</span>) sp;
+    <span class="pl-k">return</span> proc;
+}
+</code></pre>
+<h2 id="コンテキストスイッチのテスト"><a class="anchor" href="#コンテキストスイッチのテスト">コンテキストスイッチのテスト</a></h2>
+<p>これでプロセスの最も基本的な機能である「複数のプログラムの並行実行」が実装できました。早速、2つのプロセスを作成してみましょう。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *proc_a;
+<span class="pl-k">struct</span> process *proc_b;
+
+<span class="pl-k">void</span> <span class="pl-en">proc_a_entry</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>starting process A<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+    <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>A<span class="pl-pds">'</span></span>);
+        <span class="pl-c1">switch_context</span>(&#x26;proc_a-><span class="pl-smi">sp</span>, &#x26;proc_b-><span class="pl-smi">sp</span>);
+
+        <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; i &#x3C; <span class="pl-c1">30000000</span>; i++)
+            <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>nop<span class="pl-pds">"</span></span>);
+    }
+}
+
+<span class="pl-k">void</span> <span class="pl-en">proc_b_entry</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>starting process B<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+    <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>B<span class="pl-pds">'</span></span>);
+        <span class="pl-c1">switch_context</span>(&#x26;proc_b-><span class="pl-smi">sp</span>, &#x26;proc_a-><span class="pl-smi">sp</span>);
+
+        <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; i &#x3C; <span class="pl-c1">30000000</span>; i++)
+            <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>nop<span class="pl-pds">"</span></span>);
+    }
+}
+
+<span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">memset</span>(__bss, <span class="pl-c1">0</span>, (<span class="pl-c1">size_t</span>) __bss_end - (<span class="pl-c1">size_t</span>) __bss);
+
+    <span class="pl-c1">WRITE_CSR</span>(stvec, (<span class="pl-c1">uint32_t</span>) kernel_entry);
+
+    proc_a = <span class="pl-c1">create_process</span>((<span class="pl-c1">uint32_t</span>) proc_a_entry);
+    proc_b = <span class="pl-c1">create_process</span>((<span class="pl-c1">uint32_t</span>) proc_b_entry);
+    <span class="pl-c1">proc_a_entry</span>();
+
+    <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>unreachable here!<span class="pl-pds">"</span></span>);
+}
+</code></pre>
+<p><code>proc_a_entry</code>関数と<code>proc_b_entry</code>関数がそれぞれプロセスA、プロセスBのエントリポイントです。<code>putchar</code>関数で1文字表示したら、<code>switch_context</code>関数で他方のプロセスにコンテキストスイッチします。</p>
+<p><code>__asm__ __volatile__("nop")</code> で呼び出されているnop命令は「何もしない」命令です。これをしばらく繰り返すループを入れることで、文字での出力が速すぎてターミナルを操作できなくなるのを防いでいます。</p>
+<p>では、実際に動かしてみましょう。次のように起動時のメッセージが1回ずつ表示され、その後は「ABABAB...」と交互に表示されます。</p>
+<pre><code class="language-plain">$ ./run.sh
+
+starting process A
+Astarting process B
+BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAQE
+</code></pre>
+<h2 id="スケジューラ"><a class="anchor" href="#スケジューラ">スケジューラ</a></h2>
+<p>上記の実験では、<code>switch_context</code>関数を直接呼び出して「次に実行するプロセス」を指定していました。ただこの手法では、プロセスの数が増えると「次にどのプロセスに切り替えるべきか」を決めるのが大変です。そこで次のプロセスを決定する「スケジューラ」を実装しましょう。</p>
+<p>次の<code>yield</code>関数がスケジューラの実装です。</p>
+<blockquote class="callout callout-tip">
+<p>「yield」は「譲る」という意味の英単語です。「CPU時間という資源を譲る」という意味合いで、プロセスが自発的に呼び出すAPIの名前としてよく使われます。</p>
+</blockquote>
+<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *current_proc; <span class="pl-c">// 現在実行中のプロセス</span>
+<span class="pl-k">struct</span> process *idle_proc;    <span class="pl-c">// アイドルプロセス</span>
+
+<span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c">// 実行可能なプロセスを探す</span>
+    <span class="pl-k">struct</span> process *next = idle_proc;
+    <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; i &#x3C; PROCS_MAX; i++) {
+        <span class="pl-k">struct</span> process *proc = &#x26;procs[(current_proc-><span class="pl-smi">pid</span> + i) % PROCS_MAX];
+        <span class="pl-k">if</span> (proc-><span class="pl-smi">state</span> == PROC_RUNNABLE &#x26;&#x26; proc-><span class="pl-smi">pid</span> > <span class="pl-c1">0</span>) {
+            next = proc;
+            <span class="pl-k">break</span>;
+        }
+    }
+
+    <span class="pl-c">// 現在実行中のプロセス以外に、実行可能なプロセスがない。戻って処理を続行する</span>
+    <span class="pl-k">if</span> (next == current_proc)
+        <span class="pl-k">return</span>;
+
+    <span class="pl-c">// コンテキストスイッチ</span>
+    <span class="pl-k">struct</span> process *prev = current_proc;
+    current_proc = next;
+    <span class="pl-c1">switch_context</span>(&#x26;prev-><span class="pl-smi">sp</span>, &#x26;next-><span class="pl-smi">sp</span>);
+}
+</code></pre>
+<p>ここで、2つのグローバル変数を導入しています。<code>current_proc</code>は現在実行中のプロセスを指します。<code>idle_proc</code>はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。<code>idle_proc</code>はプロセスIDが<code>-1</code>のプロセスとして、次のように起動時に作成しておきます。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">memset</span>(__bss, <span class="pl-c1">0</span>, (<span class="pl-c1">size_t</span>) __bss_end - (<span class="pl-c1">size_t</span>) __bss);
+
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n\n</span><span class="pl-pds">"</span></span>);
+
+    <span class="pl-c1">WRITE_CSR</span>(stvec, (<span class="pl-c1">uint32_t</span>) kernel_entry);
+
+    idle_proc = <span class="pl-c1">create_process</span>((<span class="pl-c1">uint32_t</span>) <span class="pl-c1">NULL</span>);
+    idle_proc-><span class="pl-smi">pid</span> = -<span class="pl-c1">1</span>; <span class="pl-c">// idle</span>
+    current_proc = idle_proc;
+
+    proc_a = <span class="pl-c1">create_process</span>((<span class="pl-c1">uint32_t</span>) proc_a_entry);
+    proc_b = <span class="pl-c1">create_process</span>((<span class="pl-c1">uint32_t</span>) proc_b_entry);
+
+    <span class="pl-c1">yield</span>();
+    <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>switched to idle process<span class="pl-pds">"</span></span>);
+}
+</code></pre>
+<p>この初期化処理のキーポイントが <code>current_proc = idle_proc</code> です。こうすることで、ブート処理の実行コンテキストがアイドルプロセスのそれとして保存・復元されます。最初の<code>yield</code>関数の呼び出しではアイドルプロセス→プロセスAに切り替わり、アイドルプロセスに切り替わるときには、この<code>yield</code>関数の呼び出しから戻ってきたかのように動きます。</p>
+<p>ブート時のスタックがアイドルプロセスのスタックとして使われる (<code>switch_context</code>関数で保存・復元される) ため、<code>process</code>構造体に割り当ててある<code>stack</code>フィールドは使われません。</p>
+<p>最後に、<code>proc_a_entry</code>と<code>proc_b_entry</code>関数を次のように変更して、<code>switch_context</code>関数を直接呼び出す代わりに、<code>yield</code>関数を呼び出すようにします。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">proc_a_entry</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>starting process A<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+    <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>A<span class="pl-pds">'</span></span>);
+        <span class="pl-c1">yield</span>();
+
+        <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; i &#x3C; <span class="pl-c1">30000000</span>; i++)
+            <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>nop<span class="pl-pds">"</span></span>);
+    }
+}
+
+<span class="pl-k">void</span> <span class="pl-en">proc_b_entry</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>starting process B<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+    <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>B<span class="pl-pds">'</span></span>);
+        <span class="pl-c1">yield</span>();
+
+        <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; i &#x3C; <span class="pl-c1">30000000</span>; i++)
+            <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>nop<span class="pl-pds">"</span></span>);
+    }
+}
+</code></pre>
+<p>同じように「A」「B」が交互に表示されたら成功です。</p>
+<h2 id="例外ハンドラの修正"><a class="anchor" href="#例外ハンドラの修正">例外ハンドラの修正</a></h2>
+<p>例外ハンドラではスタックに実行状態を保存していましたが、プロセスごとに別のカーネルスタックを使うようになったので少し修正が必要です。</p>
+<p>まずはプロセス切り替え時に<code>sscratch</code>レジスタへ、実行中プロセスのカーネルスタックの初期値を設定するようにします。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c">/* 省略 */</span>
+
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
+        <span class="pl-s"><span class="pl-pds">"</span>csrw sscratch, %[sscratch]<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        :
+        : [sscratch] <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span> ((<span class="pl-c1">uint32_t</span>) &#x26;next-><span class="pl-smi">stack</span>[<span class="pl-k">sizeof</span>(next-><span class="pl-smi">stack</span>)])
+    );
+
+    <span class="pl-c">// コンテキストスイッチ</span>
+    <span class="pl-k">struct</span> process *prev = current_proc;
+    current_proc = next;
+    <span class="pl-c1">switch_context</span>(&#x26;prev-><span class="pl-smi">sp</span>, &#x26;next-><span class="pl-smi">sp</span>);
+}
+</code></pre>
+<p>スタックポインタは下位アドレスの方向に伸びる (スタック領域の末尾から使われていく) ため、<code>sizeof(next->stack)</code>バイト目のアドレスをカーネルスタックの初期値として設定します。</p>
+<p>例外ハンドラの修正は次のとおりです。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">kernel_entry</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
+        <span class="pl-c">// 実行中プロセスのカーネルスタックをsscratchから取り出す</span>
+        <span class="pl-c">// tmp = sp; sp = sscratch; sscratch = tmp;</span>
+        <span class="pl-s"><span class="pl-pds">"</span>csrrw sp, sscratch, sp<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+
+        <span class="pl-s"><span class="pl-pds">"</span>addi sp, sp, -4 * 31<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw ra,  4 * 0(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw gp,  4 * 1(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw tp,  4 * 2(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t0,  4 * 3(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t1,  4 * 4(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t2,  4 * 5(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t3,  4 * 6(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t4,  4 * 7(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t5,  4 * 8(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw t6,  4 * 9(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a0,  4 * 10(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a1,  4 * 11(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a2,  4 * 12(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a3,  4 * 13(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a4,  4 * 14(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a5,  4 * 15(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a6,  4 * 16(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a7,  4 * 17(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s0,  4 * 18(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s1,  4 * 19(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s2,  4 * 20(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s3,  4 * 21(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s4,  4 * 22(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s5,  4 * 23(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s6,  4 * 24(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s7,  4 * 25(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s8,  4 * 26(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s9,  4 * 27(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s10, 4 * 28(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw s11, 4 * 29(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+
+        <span class="pl-c">// 例外発生時のspを取り出して保存</span>
+        <span class="pl-s"><span class="pl-pds">"</span>csrr a0, sscratch<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>sw a0,  4 * 30(sp)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+
+        <span class="pl-c">// カーネルスタックを設定し直す</span>
+        <span class="pl-s"><span class="pl-pds">"</span>addi a0, sp, 4 * 31<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>csrw sscratch, a0<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+
+        <span class="pl-s"><span class="pl-pds">"</span>mv a0, sp<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>call handle_trap<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+</code></pre>
+<p>まず、<code>sscratch</code>レジスタにある実行中プロセスのカーネルスタックのアドレスを<code>sp</code>レジスタに設定し、同時に例外発生時の<code>sp</code>を<code>sscratch</code>レジスタに保存します。<code>csrrw</code>命令はいわばswap操作です。例外発生時の状態を保存したら、<code>sscratch</code>レジスタに退避しておいた例外発生時の<code>sp</code>レジスタの値を取り出して保存します。最後に<code>sscratch</code>レジスタへカーネルスタックの初期値を設定し直して終わりです。</p>
+<p>ここでのキーポイントは「プロセスごと独立したカーネルスタックを持っている」点です。コンテキストスイッチ時に<code>sscratch</code>の内容も切り替えておくことで、プロセスごとのトラップ発生時の状態の保存・復元をトラップハンドラができるようになっています。</p>
+<blockquote class="callout callout-tip">
+<p>ここでは「カーネル」スタックの切り替え処理を実装しています。アプリケーションが使うスタックは、カーネルスタックとは別に割り当てられる予定です。後々の章で実装します。</p>
+</blockquote>
+<h2 id="なぜスタックポインタを設定し直すのか"><a class="anchor" href="#なぜスタックポインタを設定し直すのか">なぜスタックポインタを設定し直すのか</a></h2>
+<p>上記の修正は「例外発生時のスタックポインタを信頼しない」ためのものです。そもそも、なぜ信頼すべきではないのか考えてみましょう。例外ハンドラでは、次の3つのパターンを考慮する必要があります。</p>
+<ol>
+<li>カーネルモードで例外が発生した。</li>
+<li>例外処理中にカーネルモードで例外が発生した (ネストされた例外)。</li>
+<li>ユーザーモードで例外が発生した。</li>
+</ol>
+<p>(1) の場合は、スタックポインタを設定し直さなくても基本的に問題ありません。(2) の場合は退避領域を上書きしてしまいますが、本実装ではネストされた例外からの復帰を想定せずカーネルパニックして停止するため問題ありません。</p>
+<p>問題は (3) の場合です。このとき、<code>sp</code>は「ユーザー (アプリケーション) のスタック領域」を指しています。<code>sp</code>をそのまま利用する (信頼する) 実装の場合では、次のような不正な値をセットして例外を発生させると、カーネルをクラッシュさせる脆弱性に繋がります。17章まで本書の一通りの実装が終わった状態で、以下のようなアプリケーションを実行して実験してみます。</p>
+<pre><code class="language-c"><span class="pl-c">// 後の章で登場する「アプリケーション」の例</span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
+        <span class="pl-s"><span class="pl-pds">"</span>li sp, 0xdeadbeef<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>unimp<span class="pl-pds">"</span></span>
+    );
+}
+</code></pre>
+<p>本章の修正 (<code>sscratch</code>からカーネルスタックを復元する) を適用せずにこれを実行してみると、カーネルが何も表示せずハングアップし、QEMUのログには以下のような出力が残ります。</p>
+<pre><code>epc:0x0100004e, tval:0x00000000, desc=illegal_instruction &#x3C;- unimpでトラップハンドラに遷移
+epc:0x802009dc, tval:0xdeadbe73, desc=store_page_fault &#x3C;- スタック領域 (0xdeadbeef) への書き込み失敗例外
+epc:0x802009dc, tval:0xdeadbdf7, desc=store_page_fault &#x3C;- スタック領域 (0xdeadbeef) への書き込み失敗例外 (2)
+epc:0x802009dc, tval:0xdeadbd7b, desc=store_page_fault &#x3C;- スタック領域 (0xdeadbeef) への書き込み失敗例外 (3)
+epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault &#x3C;- スタック領域 (0xdeadbeef) への書き込み失敗例外 (4)
+...
+</code></pre>
+<p>最初に<code>unimp</code>擬似命令で無効命令例外が発生し、カーネルのトラップハンドラに遷移しています。しかし、スタックポインタがマップされていないアドレス (<code>0xdeadbeef</code>) を指しているため、レジスタを保存する際に例外発生し、再びトラップハンドラの先頭へジャンプしています。これが無限ループとなり、カーネルがハングアップします。これを防ぐために、信頼できるスタック領域を<code>sscratch</code>から取り出すようにしています。</p>
+<p>xv6 (有名な教育用UNIX風OS) のRISC-V版実装では、(1)と(2)の時用の例外ハンドラ (<a href="https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14"><code>kernelvec</code></a>) と、(3)の時用の例外ハンドラ (<a href="https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75"><code>uservec</code></a>) がそれぞれ別になっています。前者の場合は、例外発生時のスタックポインタを引き継ぎ、後者の場合はカーネルスタックを別途取り出す実装になっており、カーネルを出入りするときに <a href="https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46">ハンドラの設定を切り替える</a> ようになっています。xv6の実装と解説 (<a href="https://www.sugawara-lab.jp/lecture.html">日本語訳</a> の「4.2 カーネル空間からのトラップ」あたり) が参考になるでしょう。</p>
+<blockquote class="callout callout-tip">
+<p>余談ですが、Googleが開発しているOSのFuchsiaには、ユーザーから任意のプログラムカウンタの値を設定できる実装が<a href="https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html">脆弱性になっていたケース</a>がありました。「ユーザー (アプリケーション) からの入力を信頼しない」というのは、堅牢なカーネルを実装する上で非常に重要な習慣です。</p>
+</blockquote>
+<h2 id="次のステップ"><a class="anchor" href="#次のステップ">次のステップ</a></h2>
+<p>これで複数のプロセスを並列に動作できるようになり、マルチタスクOSを実現できました。あとはアプリケーションのマルチスレッドプログラミングと同じ要領でOSの機能を実装していくことができます。</p>
+<p>ただし、このままではプロセスがカーネルのメモリ空間を自由に読み書きできてしまいます。次章からは、アプリケーションをどう安全に動かすか、つまりカーネルとアプリケーションをどう隔離するのかをするのかをみていきます。</p></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/11-page-table">ページテーブル ⏩</a><a href="/ja/09-memory-allocation" class="sm:-order-1">⏪ メモリ割り当て</a></div></footer></body></html>

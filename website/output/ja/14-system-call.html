@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html><head><title>システムコール - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - システムコール</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="font-bold">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>前章では、ページフォルトをわざと起こすことでユーザーモードへの移行を確認しました。本章では、ユーザーモードで実行されているアプリケーションからカーネルの機能を呼び出す <strong>「システムコール」</strong> を実装します。</p>
+<h2 id="システムコール呼び出し関数-ユーザーランド側"><a class="anchor" href="#システムコール呼び出し関数-ユーザーランド側">システムコール呼び出し関数 (ユーザーランド側)</a></h2>
+<p>まずはシステムコールを呼び出すユーザーランド側の実装から始めましょう。手始めに、文字を出力する <code>putchar</code> 関数をシステムコールとして実装してみます。システムコールを識別するための番号 (<code>SYS_PUTCHAR</code>) を<code>common.h</code>に定義します。</p>
+<pre><code class="language-c:common.h">#<span class="pl-k">define</span> <span class="pl-en">SYS_PUTCHAR</span> <span class="pl-c1">1</span>
+</code></pre>
+<p>次にシステムコールを実際に呼び出す関数です。大体は <a href="/ja/hello-world#%E5%88%9D%E3%82%81%E3%81%A6%E3%81%AEsbi">SBIの呼び出し</a> の実装と同じです。</p>
+<pre><code class="language-c:user.c"><span class="pl-k">int</span> <span class="pl-en">syscall</span>(<span class="pl-k">int</span> sysno, <span class="pl-k">int</span> arg0, <span class="pl-k">int</span> arg1, <span class="pl-k">int</span> arg2) {
+    <span class="pl-k">register</span> <span class="pl-k">int</span> a0 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a0<span class="pl-pds">"</span></span>) = arg0;
+    <span class="pl-k">register</span> <span class="pl-k">int</span> a1 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a1<span class="pl-pds">"</span></span>) = arg1;
+    <span class="pl-k">register</span> <span class="pl-k">int</span> a2 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a2<span class="pl-pds">"</span></span>) = arg2;
+    <span class="pl-k">register</span> <span class="pl-k">int</span> a3 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a3<span class="pl-pds">"</span></span>) = sysno;
+
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>ecall<span class="pl-pds">"</span></span>
+                         : <span class="pl-s"><span class="pl-pds">"</span>=r<span class="pl-pds">"</span></span>(a0)
+                         : <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a0), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a1), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a2), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a3)
+                         : <span class="pl-s"><span class="pl-pds">"</span>memory<span class="pl-pds">"</span></span>);
+
+    <span class="pl-k">return</span> a0;
+}
+</code></pre>
+<p><code>syscall</code>関数は、<code>a3</code>にシステムコール番号、<code>a0</code>〜<code>a2</code>レジスタにシステムコールの引数を設定して <code>ecall</code> 命令を実行します。<code>ecall</code> 命令は、カーネルに処理を委譲するための特殊な命令です。<code>ecall</code> 命令を実行すると、例外ハンドラが呼び出され、カーネルに処理が移ります。カーネルからの戻り値は<code>a0</code>レジスタに設定されます。</p>
+<p>最後に、次のように <code>putchar</code> 関数で <code>putchar</code>システムコールを呼び出しましょう。このシステムコールでは、第1引数として文字を渡します。第2引数以降は、未使用なので0を渡すことにします。</p>
+<pre><code class="language-c:user.c"><span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> ch) {
+    <span class="pl-bu">syscall</span>(SYS_PUTCHAR, ch, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>);
+}
+</code></pre>
+<h2 id="例外ハンドラの更新"><a class="anchor" href="#例外ハンドラの更新">例外ハンドラの更新</a></h2>
+<p>次に、<code>ecall</code> 命令を実行したときに呼び出される例外ハンドラを更新します。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">handle_trap</span>(<span class="pl-k">struct</span> trap_frame *f) {
+    <span class="pl-c1">uint32_t</span> scause = <span class="pl-c1">READ_CSR</span>(scause);
+    <span class="pl-c1">uint32_t</span> stval = <span class="pl-c1">READ_CSR</span>(stval);
+    <span class="pl-c1">uint32_t</span> user_pc = <span class="pl-c1">READ_CSR</span>(sepc);
+    <span class="pl-k">if</span> (scause == SCAUSE_ECALL) {
+        <span class="pl-c1">handle_syscall</span>(f);
+        user_pc += <span class="pl-c1">4</span>;
+    } <span class="pl-k">else</span> {
+        <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>unexpected trap scause=<span class="pl-c1">%x</span>, stval=<span class="pl-c1">%x</span>, sepc=<span class="pl-c1">%x</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, scause, stval, user_pc);
+    }
+
+    <span class="pl-c1">WRITE_CSR</span>(sepc, user_pc);
+}
+</code></pre>
+<p><code>ecall</code> 命令が呼ばれたのかどうかは、<code>scause</code> の値を確認することで判定できます。<code>handle_syscall</code>関数を呼び出す以外にも、<code>sepc</code>の値に4を加えています。これは、<code>sepc</code>は例外を引き起こしたプログラムカウンタ、つまり<code>ecall</code>命令を指しています。変えないままだと、<code>ecall</code>命令を無限に繰り返し実行してしまうので、命令のサイズ分 (4バイト) だけ加算することで、ユーザーモードに戻る際に次の命令から実行を再開するようにしています。</p>
+<p>最後に <code>SCAUSE_ECALL</code> は次の通り8です。</p>
+<pre><code class="language-c:kernel.h">#<span class="pl-k">define</span> <span class="pl-en">SCAUSE_ECALL</span> <span class="pl-c1">8</span>
+</code></pre>
+<h2 id="システムコールハンドラ"><a class="anchor" href="#システムコールハンドラ">システムコールハンドラ</a></h2>
+<p>例外ハンドラから呼ばれるのが次のシステムコールハンドラです。引数には、例外ハンドラで保存した「例外発生時のレジスタ」の構造体を受け取ります。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">handle_syscall</span>(<span class="pl-k">struct</span> trap_frame *f) {
+    <span class="pl-k">switch</span> (f-><span class="pl-smi">a3</span>) {
+        <span class="pl-k">case</span> SYS_PUTCHAR:
+            <span class="pl-c1">putchar</span>(f-><span class="pl-smi">a0</span>);
+            <span class="pl-k">break</span>;
+        <span class="pl-k">default</span>:
+            <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>unexpected syscall a3=<span class="pl-c1">%x</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, f-><span class="pl-smi">a3</span>);
+    }
+}
+</code></pre>
+<p>システムコールの種類に応じて処理を分岐します。今回は、<code>SYS_PUTCHAR</code> に対応する処理を実装します。単に<code>a0</code>レジスタに入っている文字を出力するだけです。</p>
+<h2 id="システムコールのテスト"><a class="anchor" href="#システムコールのテスト">システムコールのテスト</a></h2>
+<p>システムコールを一通り実装したので試してみましょう。<code>common.c</code>にある<code>printf</code>関数の実装を覚えているでしょうか。この関数は文字を表示する際に<code>putchar</code>関数を呼び出しています。たった今ユーザーランド上のライブラリで<code>putchar</code>を実装したのでそのまま使えます。</p>
+<pre><code class="language-c:shell.c"><span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>Hello World from shell!<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+}
+</code></pre>
+<p>次のようにメッセージが表示されれば成功です。</p>
+<pre><code class="language-plain">$ ./run.sh
+Hello World from shell!
+</code></pre>
+<h2 id="文字入力システムコール-getchar"><a class="anchor" href="#文字入力システムコール-getchar">文字入力システムコール (<code>getchar</code>)</a></h2>
+<p>次に、文字入力を行うシステムコールを実装しましょう。SBIには「デバッグコンソールへの入力」を読む機能があります。空の場合は-1を返します。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">long</span> <span class="pl-en">getchar</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">struct</span> sbiret ret = <span class="pl-c1">sbi_call</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">2</span>);
+    <span class="pl-k">return</span> ret.<span class="pl-smi">error</span>;
+}
+</code></pre>
+<p>あとは次の通り<code>getchar</code>システムコールを実装します。</p>
+<pre><code class="language-c:common.h">#<span class="pl-k">define</span> <span class="pl-en">SYS_GETCHAR</span> <span class="pl-c1">2</span>
+</code></pre>
+<pre><code class="language-c:user.c"><span class="pl-k">int</span> <span class="pl-en">getchar</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">return</span> <span class="pl-bu">syscall</span>(SYS_GETCHAR, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>);
+}
+</code></pre>
+<pre><code class="language-c:user.h"><span class="pl-k">int</span> <span class="pl-en">getchar</span>(<span class="pl-k">void</span>);
+</code></pre>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">handle_syscall</span>(<span class="pl-k">struct</span> trap_frame *f) {
+    <span class="pl-k">switch</span> (f-><span class="pl-smi">a3</span>) {
+        <span class="pl-k">case</span> SYS_GETCHAR:
+            <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+                <span class="pl-k">long</span> ch = <span class="pl-c1">getchar</span>();
+                <span class="pl-k">if</span> (ch >= <span class="pl-c1">0</span>) {
+                    f-><span class="pl-smi">a0</span> = ch;
+                    <span class="pl-k">break</span>;
+                }
+
+                <span class="pl-c1">yield</span>();
+            }
+            <span class="pl-k">break</span>;
+        <span class="pl-c">/* 省略 */</span>
+    }
+}
+</code></pre>
+<p><code>getchar</code>システムコールの実装は、文字が入力されるまでSBIを繰り返し呼び出します。ただし、単純に繰り返すとCPUを占有してしまうので、<code>yield</code>システムコールを呼び出してCPUを他のプロセスに譲るようにしています。</p>
+<h2 id="シェルを書こう"><a class="anchor" href="#シェルを書こう">シェルを書こう</a></h2>
+<p>文字入力ができるようになったので、シェルを書いてみましょう。手始めに、<code>Hello world from shell!</code>と表示する<code>hello</code>コマンドを実装します。</p>
+<pre><code class="language-c:shell.c"><span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
+prompt:
+        <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>> <span class="pl-pds">"</span></span>);
+        <span class="pl-k">char</span> cmdline[<span class="pl-c1">128</span>];
+        <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>;; i++) {
+            <span class="pl-k">char</span> ch = <span class="pl-c1">getchar</span>();
+            <span class="pl-c1">putchar</span>(ch);
+            <span class="pl-k">if</span> (i == <span class="pl-k">sizeof</span>(cmdline) - <span class="pl-c1">1</span>) {
+                <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>command line too long<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+                <span class="pl-k">goto</span> prompt;
+            } <span class="pl-k">else</span> <span class="pl-k">if</span> (ch == <span class="pl-s"><span class="pl-pds">'</span><span class="pl-cce">\r</span><span class="pl-pds">'</span></span>) {
+                <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+                cmdline[i] = <span class="pl-s"><span class="pl-pds">'</span><span class="pl-cce">\0</span><span class="pl-pds">'</span></span>;
+                <span class="pl-k">break</span>;
+            } <span class="pl-k">else</span> {
+                cmdline[i] = ch;
+            }
+        }
+
+        <span class="pl-k">if</span> (<span class="pl-c1">strcmp</span>(cmdline, <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>) == <span class="pl-c1">0</span>)
+            <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>Hello world from shell!<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+        <span class="pl-k">else</span>
+            <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>unknown command: <span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, cmdline);
+    }
+}
+</code></pre>
+<p>改行が来るまで文字を読み込んでいき、入力された文字列がコマンド名に完全一致するかをチェックする、非常に単純な実装です。デバッグコンソール上では改行が (<code>'\r'</code>) でやってくるので注意してください。</p>
+<p>実際に動かしてみて、文字が入力されるか、そして<code>hello</code>コマンドが動くか確認してみましょう。</p>
+<pre><code class="language-plain">$ ./run.sh
+
+> hello
+Hello world from shell!
+</code></pre>
+<h2 id="プロセスの終了-exitシステムコール"><a class="anchor" href="#プロセスの終了-exitシステムコール">プロセスの終了 (<code>exit</code>システムコール)</a></h2>
+<p>最後に、プロセスを終了する<code>exit</code>システムコールを実装します。</p>
+<pre><code class="language-c:common.h">#<span class="pl-k">define</span> <span class="pl-en">SYS_EXIT</span>    <span class="pl-c1">3</span>
+</code></pre>
+<pre><code class="language-c:user.c"><span class="pl-en">__attribute__</span>((noreturn)) void exit(<span class="pl-k">void</span>) {
+    <span class="pl-bu">syscall</span>(SYS_EXIT, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>);
+    <span class="pl-k">for</span> (;;); <span class="pl-c">// 念のため</span>
+}
+</code></pre>
+<pre><code class="language-c:kernel.h">#<span class="pl-k">define</span> <span class="pl-en">PROC_EXITED</span>   <span class="pl-c1">2</span>
+</code></pre>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">handle_syscall</span>(<span class="pl-k">struct</span> trap_frame *f) {
+    <span class="pl-k">switch</span> (f-><span class="pl-smi">a3</span>) {
+        <span class="pl-k">case</span> SYS_EXIT:
+            <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>process <span class="pl-c1">%d</span> exited<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, current_proc-><span class="pl-smi">pid</span>);
+            current_proc-><span class="pl-smi">state</span> = PROC_EXITED;
+            <span class="pl-c1">yield</span>();
+            <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>unreachable<span class="pl-pds">"</span></span>);
+        <span class="pl-c">/* 省略 */</span>
+    }
+}
+</code></pre>
+<p>まず、プロセスの状態を<code>PROC_EXITED</code>に変更し、<code>yield</code>システムコールを呼び出してCPUを他のプロセスに譲ります。スケジューラは<code>PROC_RUNNABLE</code>のプロセスしか実行しないため、このプロセスに戻ってくることはありません。ただし念の為、<code>PANIC</code>マクロで万が一戻ってきた場合はパニックを起こします。</p>
+<blockquote class="callout callout-tip">
+<p>分かりやすさのためにプロセスの状態を変えているだけで、プロセス管理構造体を開放していません。実用的なOSを目指したい時には、ページテーブルや割り当てられたメモリ領域など、プロセスが持つ資源を開放する必要があります。</p>
+</blockquote>
+<p>最後に、シェルに<code>exit</code>コマンドを追加します。</p>
+<pre><code class="language-c:shell.c">        <span class="pl-k">if</span> (strcmp(cmdline, <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>) == <span class="pl-c1">0</span>)
+            <span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>Hello world from shell!<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+        <span class="pl-k">else</span> <span class="pl-k">if</span> (strcmp(cmdline, <span class="pl-s"><span class="pl-pds">"</span>exit<span class="pl-pds">"</span></span>) == <span class="pl-c1">0</span>)
+            <span class="pl-en">exit</span>();
+        <span class="pl-k">else</span>
+            <span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>unknown command: <span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, cmdline);
+</code></pre>
+<p>実際に動かしてみましょう。</p>
+<pre><code class="language-plain">$ ./run.sh
+
+> exit
+process 2 exited
+PANIC: kernel.c:333: switched to idle process
+</code></pre>
+<p><code>exit</code>コマンドを実行するとシェルプロセスが終了し、他に実行可能なプロセスがなくなります。そのため、スケジューラがアイドルプロセスを選ぶという流れになります。</p></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/15-virtio-blk">ディスク読み書き ⏩</a><a href="/ja/13-user-mode" class="sm:-order-1">⏪ ユーザーモード</a></div></footer></body></html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head><title>メモリ割り当て - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - メモリ割り当て</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="font-bold">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><h2 id="リンカスクリプト"><a class="anchor" href="#リンカスクリプト">リンカスクリプト</a></h2>
+<p>動的に割り当てるメモリ領域をリンカスクリプトに定義しましょう。</p>
+<pre><code class="language-plain:kernel.ld">    . = ALIGN(4);
+    . += 128 * 1024; /* 128KB */
+    __stack_top = .;
+
+    . = ALIGN(4096);
+    __free_ram = .;
+    . += 64 * 1024 * 1024; /* 64MB */
+    __free_ram_end = .;
+}
+</code></pre>
+<p><code>__free_ram</code>から<code>__free_ram_end</code>までの領域を、動的割り当て可能なメモリ領域とします。64MBは筆者が適当に選んだ値です。<code>. = ALIGN(4096)</code>とすることで、4KB境界に配置されるようになります。</p>
+<p>このように、アドレスを決め打ちで定義せずにリンカスクリプト上に定義することで、カーネルの静的データと被らないようにリンカが位置を決定してくれます。</p>
+<p>実用的なOSでは、このようにデバイスごとにメモリサイズを決め打ちで定義する場合の他に、起動時にハードウェアから利用可能なメモリ領域の情報を取得して決定することもあります (例: UEFIの<code>GetMemoryMap</code>)。</p>
+<h2 id="たぶん世界一シンプルなメモリ割り当てアルゴリズム"><a class="anchor" href="#たぶん世界一シンプルなメモリ割り当てアルゴリズム">たぶん世界一シンプルなメモリ割り当てアルゴリズム</a></h2>
+<p>動的割り当て領域を定義したところで、実際に動的にメモリを割り当てる関数を実装しましょう。ただし、<code>malloc</code>関数のようなバイト単位で割り当てるのではなく「ページ」という、まとまった単位で割り当てます。1ページは一般的に4KB (4096バイト) です。</p>
+<blockquote class="callout callout-tip">
+<p>4KB = 4096 = 0x1000 です。16進数では<code>1000</code>であることを覚えておくと便利です。</p>
+</blockquote>
+<p>次の<code>alloc_pages</code>関数は、<code>n</code>ページ分のメモリを動的に割り当てて、その先頭アドレスを返します。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">extern</span> <span class="pl-k">char</span> __free_ram[], __free_ram_end[];
+
+<span class="pl-c1">paddr_t</span> <span class="pl-en">alloc_pages</span>(<span class="pl-c1">uint32_t</span> n) {
+    <span class="pl-k">static</span> <span class="pl-c1">paddr_t</span> next_paddr = (<span class="pl-c1">paddr_t</span>) __free_ram;
+    <span class="pl-c1">paddr_t</span> paddr = next_paddr;
+    next_paddr += n * PAGE_SIZE;
+
+    <span class="pl-k">if</span> (next_paddr > (<span class="pl-c1">paddr_t</span>) __free_ram_end)
+        <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>out of memory<span class="pl-pds">"</span></span>);
+
+    <span class="pl-c1">memset</span>((<span class="pl-k">void</span> *) paddr, <span class="pl-c1">0</span>, n * PAGE_SIZE);
+    <span class="pl-k">return</span> paddr;
+}
+</code></pre>
+<p>新たに登場する <code>PAGE_SIZE</code> は、1ページのサイズを表します。<code>common.h</code>に定義しておきます。</p>
+<pre><code class="language-c:common.h">#<span class="pl-k">define</span> <span class="pl-en">PAGE_SIZE</span> <span class="pl-c1">4096</span>
+</code></pre>
+<p>この関数からは、次のような特徴を読み取ることができます。</p>
+<ul>
+<li><code>next_paddr</code>は<code>static</code>変数として定義されている。つまり、ローカル変数とは違い、関数呼び出し間で値が保持される (グローバル変数のような挙動を示す)。</li>
+<li><code>next_paddr</code>が「次に割り当てられる領域 (空いている領域) の先頭アドレス」を指す。割り当て時には、確保するサイズ分だけ<code>next_paddr</code>を進める。</li>
+<li><code>next_paddr</code>は<code>__free_ram</code>のアドレスを初期値として持つ。つまり、<code>__free_ram</code>から順にメモリを割り当てていく。</li>
+<li><code>__free_ram</code>はリンカスクリプトの<code>ALIGN(4096)</code>により4KB境界に配置される。つまり、<code>alloc_pages</code>関数必ず4KBでアラインされたアドレスを返す。</li>
+<li><code>__free_ram_end</code>を超えるアドレスに割り当てようとした場合は、カーネルパニックする。<code>malloc</code>関数が<code>NULL</code>を返すのと同じように<code>0</code>を返すのも手だが、返り値チェックし忘れのバグはデバッグが面倒なので、分かりやすさのためパニックさせる。</li>
+<li><code>memset</code>関数によって、割り当てたメモリ領域が必ずゼロで初期化されている。初期化し忘れのバグはデバッグが面倒なので、ここで初期化しておく。</li>
+</ul>
+<p>このメモリ割り当ての最大の特徴は個別のメモリページを解放できないことです。つまり、割り当てっぱなしです。ただ、自作OSを長時間動かし続けることはまずないでしょうから、今のところはメモリリークを許容しても差し支えないでしょう。</p>
+<blockquote class="callout callout-tip">
+<p>ちなみに、この割り当てアルゴリズムのことは<strong>Bumpアロケータ</strong>または<strong>Linearアロケータ</strong>と呼ばれており、解放処理が必要ない場面で実際に使われています。数行に実装できて高速に動作する、魅力的な割り当てアルゴリズムです。</p>
+<p>解放処理を実装する場合は、ビットマップで空き状況を管理したり、バディシステムというアルゴリズムを使ったりすることが多いです。</p>
+</blockquote>
+<h2 id="メモリ割り当てのテスト"><a class="anchor" href="#メモリ割り当てのテスト">メモリ割り当てのテスト</a></h2>
+<p>実装したメモリ割り当て関数をテストしてみましょう。</p>
+<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">memset</span>(__bss, <span class="pl-c1">0</span>, (<span class="pl-c1">size_t</span>) __bss_end - (<span class="pl-c1">size_t</span>) __bss);
+
+    <span class="pl-c1">paddr_t</span> paddr0 = <span class="pl-c1">alloc_pages</span>(<span class="pl-c1">2</span>);
+    <span class="pl-c1">paddr_t</span> paddr1 = <span class="pl-c1">alloc_pages</span>(<span class="pl-c1">1</span>);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>alloc_pages test: paddr0=<span class="pl-c1">%x</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, paddr0);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>alloc_pages test: paddr1=<span class="pl-c1">%x</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, paddr1);
+
+    <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>booted!<span class="pl-pds">"</span></span>);
+}
+</code></pre>
+<p>次のように、最初のアドレス (<code>paddr0</code>) が<code>__free_ram</code>のアドレスと一致し、次のアドレス (<code>paddr1</code>) が最初のアドレスから2 * 4KB分進んだアドレス (16進数で<code>0x2000</code>足した数) と一致することを確認します。</p>
+<pre><code class="language-plain">$ ./run.sh
+Hello World!
+alloc_pages test: paddr0=80221000
+alloc_pages test: paddr1=80223000
+</code></pre>
+<pre><code class="language-plain">$ llvm-nm kernel.elf | grep __free_ram
+80221000 R __free_ram
+84221000 R __free_ram_end
+</code></pre></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/10-process">プロセス ⏩</a><a href="/ja/08-exception" class="sm:-order-1">⏪ 例外処理</a></div></footer></body></html>

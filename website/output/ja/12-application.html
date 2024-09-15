@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html><head><title>アプリケーション - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - アプリケーション</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="font-bold">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>本章では、カーネルから一旦離れて、最初のユーザーランドのプログラムとそのビルド方法を見ていきます。</p>
+<h2 id="メモリレイアウト"><a class="anchor" href="#メモリレイアウト">メモリレイアウト</a></h2>
+<p>前章ではページングという仕組みを使ってプロセスごとの独立した仮想アドレス空間を実現しました。本章では、アプリケーションを仮想アドレス空間上のどこに配置するかを考えます。</p>
+<p>アプリケーションの実行ファイルをどこに配置するかを定義する、新しいリンカスクリプト (<code>user.ld</code>) を作成しましょう。</p>
+<pre><code class="language-plain:user.ld">ENTRY(start)
+
+SECTIONS {
+    . = 0x1000000;
+
+    .text :{
+        KEEP(*(.text.start));
+        *(.text .text.*);
+    }
+
+    .rodata : ALIGN(4) {
+        *(.rodata .rodata.*);
+    }
+
+    .data : ALIGN(4) {
+        *(.data .data.*);
+    }
+
+    .bss : ALIGN(4) {
+        *(.bss .bss.* .sbss .sbss.*);
+
+        . = ALIGN(16); /* https://github.com/nuta/operating-system-in-1000-lines/pull/23 */
+        . += 64 * 1024; /* 64KB */
+        __stack_top = .;
+
+       ASSERT(. &#x3C; 0x1800000, "too large executable");
+    }
+}
+</code></pre>
+<p>筆者が適当に決めた、カーネルアドレスと被らない領域 (<code>0x1000000</code>から <code>0x1800000</code>の間) にアプリケーションの各データを配置することにします。大体カーネルのリンカスクリプトと同じではないでしょうか。</p>
+<p>ここで登場している<code>ASSERT</code>は、第一引数の条件が満たされていなければリンク処理 (本書ではclangコマンド) を失敗させるものです。ここでは、<code>.bss</code>セクションの末尾、つまりアプリケーションの末尾が <code>0x1800000</code> を超えていないことを確認しています。実行ファイルが意図せず大きすぎることのないようにするためです。</p>
+<h2 id="ユーザーランド用ライブラリ"><a class="anchor" href="#ユーザーランド用ライブラリ">ユーザーランド用ライブラリ</a></h2>
+<p>次にユーザーランド用ライブラリを作成しましょう。まずはアプリケーションの起動に必要な処理だけを書きます。</p>
+<pre><code class="language-c:user.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">extern</span> <span class="pl-k">char</span> __stack_top[];
+
+<span class="pl-en">__attribute__</span>((noreturn)) void exit(<span class="pl-k">void</span>) {
+    <span class="pl-k">for</span> (;;);
+}
+
+<span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> c) {
+    <span class="pl-c">/* 後で実装する */</span>
+}
+
+<span class="pl-en">__attribute__</span>((section(<span class="pl-s"><span class="pl-pds">"</span>.text.start<span class="pl-pds">"</span></span>)))
+__attribute__((naked))
+void start(<span class="pl-k">void</span>) {
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
+        <span class="pl-s"><span class="pl-pds">"</span>mv sp, %[stack_top]<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>call main<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
+        <span class="pl-s"><span class="pl-pds">"</span>call exit<span class="pl-cce">\n</span><span class="pl-pds">"</span></span> ::[stack_top] <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(__stack_top));
+}
+</code></pre>
+<p>アプリケーションの実行は<code>start</code>関数から始まります。カーネルのブート処理と同じように、スタックポインタを設定し、アプリケーションの<code>main</code>関数を呼び出します。</p>
+<p>アプリケーションを終了する<code>exit</code>関数も用意しておきます。ただし、ここでは無限ループを行うだけにとどめておきます。</p>
+<p>また、<code>common.c</code> の <code>printf</code> 関数が参照している <code>putchar</code> 関数も定義しておきます。のちほど実装します。</p>
+<p>カーネルの初期化処理と異なる点として、<code>.bss</code>セクションをゼロで埋める処理 (ゼロクリア) をしていません。これは、カーネルがゼロで埋めていることを保証してくるからです (<code>alloc_pages</code>関数)。</p>
+<blockquote class="callout callout-tip">
+<p>ゼロクリアは実用的なOSでも行われている処理で、ゼロで埋めないと以前そのメモリ領域を使っていた他のプロセスの情報が残ってしまうためです。パスワードのような機密情報が残ってしまっていたら大変です。</p>
+</blockquote>
+<p>加えて、ユーザランド用ライブラリのヘッダファイル (<code>user.h</code>) も用意しておきましょう。</p>
+<pre><code class="language-c:user.h">#<span class="pl-k">pragma</span> once
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
+
+<span class="pl-en">__attribute__</span>((noreturn)) void exit(<span class="pl-k">void</span>);
+<span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> ch);
+</code></pre>
+<h2 id="最初のアプリケーション"><a class="anchor" href="#最初のアプリケーション">最初のアプリケーション</a></h2>
+<p>最初のアプリケーション (<code>shell.c</code>) は次のものを用意します。カーネルの時と同じく、文字を表示するのにも一手間必要なので、無限ループを行うだけにとどめておきます。</p>
+<pre><code class="language-c:shell.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">for</span> (;;);
+}
+</code></pre>
+<h2 id="アプリケーションのビルド"><a class="anchor" href="#アプリケーションのビルド">アプリケーションのビルド</a></h2>
+<p>最後にアプリケーションのビルド処理です。</p>
+<pre><code class="language-bash:run.sh">OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+
+<span class="pl-c"># シェルをビルド</span>
+<span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf shell.c user.c common.c
+<span class="pl-smi">$OBJCOPY</span> --set-section-flags .bss=alloc,contents -O binary shell.elf shell.bin
+<span class="pl-smi">$OBJCOPY</span> -Ibinary -Oelf32-littleriscv shell.bin shell.bin.o
+
+<span class="pl-c"># カーネルをビルド</span>
+<span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
+    kernel.c common.c shell.bin.o
+</code></pre>
+<p>最初の<code>$CC</code>を呼び出している箇所はカーネルと同じで、clangがコンパイル・リンク処理を一括して行います。</p>
+<p>1つ目の<code>$OBJCOPY</code>は、ビルドした実行ファイル (ELF形式) を生バイナリ形式 (raw binary) に変換する処理です。まず、生バイナリとは何かというと、ベースアドレス (ここでは0x1000000) から実際にメモリ上に展開される内容が入ったものです。OSは生バイナリの内容をそのままコピーするだけで、アプリケーションをメモリ上に展開できます。一般的なOSでは、ELFのような展開先の定義とメモリ上のデータが分かれた形式を使いますが、本書では簡単のために生バイナリを使います。</p>
+<p>2つ目の<code>$OBJCOPY</code>は、生バイナリ形式の実行イメージを、C言語に埋め込める形式に変換する処理です。<code>llvm-nm</code>コマンドで何が入っているかを見てみましょう。</p>
+<pre><code class="language-plain">$ llvm-nm shell.bin.o
+00010260 D _binary_shell_bin_end
+00010260 A _binary_shell_bin_size
+00000000 D _binary_shell_bin_start
+</code></pre>
+<p><code>_binary_</code>という接頭辞に続いて、ファイル名、そして<code>start</code>、<code>end</code>、<code>size</code>が続いています。それぞれ、実行イメージの先頭、終端、サイズを示すシンボルです。実際には次のように利用します。</p>
+<pre><code class="language-c"><span class="pl-k">extern</span> <span class="pl-k">char</span> _binary_shell_bin_start[];
+<span class="pl-k">extern</span> <span class="pl-k">char</span> _binary_shell_bin_size[];
+
+<span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">uint8_t</span> *shell_bin = (<span class="pl-c1">uint8_t</span> *) _binary_shell_bin_start;
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>shell_bin size = <span class="pl-c1">%d</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, (<span class="pl-k">int</span>) _binary_shell_bin_size);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>shell_bin[0] = <span class="pl-c1">%x</span> (<span class="pl-c1">%d</span> bytes)<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, shell_bin[<span class="pl-c1">0</span>]);
+}
+</code></pre>
+<p>このプログラムは、<code>shell.bin</code>のファイルサイズと、ファイル内容の1バイト目を出力します。つまり、次のように<code>_binary_shell_bin_start</code>変数にファイル内容が入っているかように扱えます。</p>
+<pre><code class="language-c"><span class="pl-k">char</span> _binary_shell_bin_start[] = <span class="pl-s"><span class="pl-pds">"</span>shell.binのファイル内容<span class="pl-pds">"</span></span>;
+</code></pre>
+<p>また、<code>_binary_shell_bin_size</code>変数には、ファイルサイズが入っています。ただし少し変わった使い方をします。もう一度<code>llvm-nm</code>で確認してみましょう。</p>
+<pre><code class="language-plain">$ llvm-nm shell.bin.o | grep _binary_shell_bin_size
+00010454 A _binary_shell_bin_size
+
+$ ls -al shell.bin   ← shell.bin.oではなくshell.binであることに注意
+-rwxr-xr-x 1 seiya staff 66644 Oct 24 13:35 shell.bin
+
+$ python3 -c 'print(0x10454)'
+66644
+</code></pre>
+<p>出力の1列目は、シンボルのアドレスです。この<code>10260</code>という値はファイルの大きさと一致しますが、これは偶然ではありません。一般的に、<code>.o</code>ファイルの各アドレスの値はリンカによって決定されます。しかし、<code>_binary_shell_bin_size</code>は特別なのです。</p>
+<p>2列目の<code>A</code>は、<code>_binary_shell_bin_size</code>のアドレスがリンカによって変更されない種類のシンボル (absolute) であることを示しています。
+<code>char _binary_shell_bin_size[]</code>という適当な型の配列として定義することで、<code>_binary_shell_bin_size</code>はそのアドレスを格納したポインタとして扱われることになります。ただし、ここではファイルサイズをアドレスとして埋め込んでいるので、キャストするとファイルサイズになるのです。オブジェクトファイルの仕組みをうまく使った、ちょっとした小技が使われています。</p>
+<p>最後に、カーネルのclangへの引数に、生成した <code>shell.bin.o</code> を追加しています。これで、最初に起動すべきアプリケーションの実行ファイルを、カーネルイメージに埋め込めるようになりました。</p>
+<h2 id="逆アセンブリを見てみる"><a class="anchor" href="#逆アセンブリを見てみる">逆アセンブリを見てみる</a></h2>
+<p>逆アセンブリしてみると、リンカスクリプトに定義されている通り、<code>.text.start</code>セクションは実行ファイルの先頭に配置され、<code>0x1000000</code>に<code>start</code>関数が配置されていることがわかります。</p>
+<pre><code class="language-plain">$ llvm-objdump -d shell.elf
+
+shell.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+01000000 &#x3C;start>:
+ 1000000: 37 05 01 01  	lui	a0, 4112
+ 1000004: 13 05 05 26  	addi	a0, a0, 608
+ 1000008: 2a 81        	mv	sp, a0
+ 100000a: 19 20        	jal	0x1000010 &#x3C;main>
+ 100000c: 29 20        	jal	0x1000016 &#x3C;exit>
+ 100000e: 00 00        	unimp
+
+01000010 &#x3C;main>:
+ 1000010: 01 a0        	j	0x1000010 &#x3C;main>
+ 1000012: 00 00        	unimp
+
+01000016 &#x3C;exit>:
+ 1000016: 01 a0        	j	0x1000016 &#x3C;exit>
+</code></pre></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/13-user-mode">ユーザーモード ⏩</a><a href="/ja/11-page-table" class="sm:-order-1">⏪ ページテーブル</a></div></footer></body></html>

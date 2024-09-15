@@ -8,17 +8,16 @@ export default async function IndexLayout({ children, meta, pages }) {
         </head>
         <body className="mx-auto max-w-3xl w-full py-8 px-4">
           <header>
-            <h1 className="text-center mb-8 text-xl font-bold">
+            <h1 className="text-center mb-4 text-xl font-bold">
               Operating System in 1,000 Lines
             </h1>
           </header>
-          <main className="mb-8 container mx-auto flex justify-center">
+          <main className="container mx-auto flex justify-center">
             <ul>
-                <li><a href="/ja">Japanese (日本語)</a></li>
+                <li><a href="/ja" className="text-lg">Japanese (日本語)</a></li>
             </ul>
           </main>
         </body>
       </html>
     );
-  }
-  
+}

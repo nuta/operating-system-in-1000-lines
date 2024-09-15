@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html><head><title>Hello World! - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - Hello World!</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="font-bold">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>前章では初めてのカーネルの起動に成功しました。レジスタダンプを読むことで確認できたとはいえ、なんだか物足りません。そこで今回は、カーネルから文字列を出力してみましょう。</p>
+<h2 id="初めてのsbi"><a class="anchor" href="#初めてのsbi">初めてのSBI</a></h2>
+<pre><code class="language-c:kernel.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">extern</span> <span class="pl-k">char</span> __bss[], __bss_end[], __stack_top[];
+
+<span class="pl-k">struct</span> sbiret <span class="pl-en">sbi_call</span>(<span class="pl-k">long</span> arg0, <span class="pl-k">long</span> arg1, <span class="pl-k">long</span> arg2, <span class="pl-k">long</span> arg3, <span class="pl-k">long</span> arg4,
+                       <span class="pl-k">long</span> arg5, <span class="pl-k">long</span> fid, <span class="pl-k">long</span> eid) {
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a0 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a0<span class="pl-pds">"</span></span>) = arg0;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a1 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a1<span class="pl-pds">"</span></span>) = arg1;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a2 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a2<span class="pl-pds">"</span></span>) = arg2;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a3 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a3<span class="pl-pds">"</span></span>) = arg3;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a4 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a4<span class="pl-pds">"</span></span>) = arg4;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a5 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a5<span class="pl-pds">"</span></span>) = arg5;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a6 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a6<span class="pl-pds">"</span></span>) = fid;
+    <span class="pl-k">register</span> <span class="pl-k">long</span> a7 <span class="pl-smi">__asm__</span>(<span class="pl-s"><span class="pl-pds">"</span>a7<span class="pl-pds">"</span></span>) = eid;
+
+    <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>ecall<span class="pl-pds">"</span></span>
+                         : <span class="pl-s"><span class="pl-pds">"</span>=r<span class="pl-pds">"</span></span>(a0), <span class="pl-s"><span class="pl-pds">"</span>=r<span class="pl-pds">"</span></span>(a1)
+                         : <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a0), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a1), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a2), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a3), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a4), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a5),
+                           <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a6), <span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>(a7)
+                         : <span class="pl-s"><span class="pl-pds">"</span>memory<span class="pl-pds">"</span></span>);
+    <span class="pl-k">return</span> (<span class="pl-k">struct</span> sbiret){.<span class="pl-smi">error</span> = a0, .<span class="pl-smi">value</span> = a1};
+}
+
+<span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> ch) {
+    <span class="pl-c1">sbi_call</span>(ch, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">1</span> <span class="pl-c">/* Console Putchar */</span>);
+}
+
+<span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-k">const</span> <span class="pl-k">char</span> *s = <span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n\n</span>Hello World!<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>;
+    <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">0</span>; s[i] != <span class="pl-s"><span class="pl-pds">'</span><span class="pl-cce">\0</span><span class="pl-pds">'</span></span>; i++) {
+        <span class="pl-c1">putchar</span>(s[i]);
+    }
+
+    <span class="pl-k">for</span> (;;) {
+        <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>wfi<span class="pl-pds">"</span></span>);
+    }
+}
+</code></pre>
+<p>加えて、新しく<code>kernel.h</code>を作成し、SBIの処理結果を返すための構造体を定義しましょう。</p>
+<pre><code class="language-c:kernel.h">#<span class="pl-k">pragma</span> once
+
+<span class="pl-k">struct</span> sbiret {
+    <span class="pl-k">long</span> error;
+    <span class="pl-k">long</span> value;
+};
+</code></pre>
+<p>新たに<code>sbi_call</code>関数を追加しました。この関数は、SBIの仕様に沿ってOpenSBIを呼び出すためのものです。具体的な呼び出し規約は以下のとおりです。</p>
+<blockquote>
+<p><strong>Chapter 3. Binary Encoding</strong></p>
+<p>All SBI functions share a single binary encoding, which facilitates the mixing of SBI extensions. The SBI specification follows the below calling convention.</p>
+<ul>
+<li>An <code>ECALL</code> is used as the control transfer instruction between the supervisor and the SEE.</li>
+<li><code>a7</code> encodes the SBI extension ID (<strong>EID</strong>),</li>
+<li><code>a6</code> encodes the SBI function ID (<strong>FID</strong>) for a given extension ID encoded in <code>a7</code> for any SBI extension defined in or after SBI v0.2.</li>
+<li>All registers except <code>a0</code> &#x26; <code>a1</code> must be preserved across an SBI call by the callee.</li>
+<li>SBI functions must return a pair of values in <code>a0</code> and <code>a1</code>, with <code>a0</code> returning an error code. This is analogous to returning the C structure</li>
+</ul>
+<pre><code class="language-c"><span class="pl-k">struct</span> sbiret {
+    <span class="pl-k">long</span> error;
+    <span class="pl-k">long</span> value;
+};
+</code></pre>
+<p>-- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1 より引用</p>
+</blockquote>
+<blockquote class="callout callout-tip">
+<p>呼び出し規約中にある「All registers except <code>a0</code> &#x26; <code>a1</code> must be preserved across an SBI call by the callee.」は、「<code>a0</code>と<code>a1</code>以外のレジスタの値を呼び出し先 (OpenSBI側) が変更してはならない」という意味です。つまり、カーネルからすると、<code>a2</code>から<code>a7</code>までのレジスタの値は呼び出し後もそのままであることが保証されています。</p>
+<p>ちなみに、callee (呼び出し先) の反対はcaller (呼び出し元) です。</p>
+</blockquote>
+<p>各ローカル変数の宣言に使われている<code>register</code>と<code>__asm__("レジスタ名")</code>は、指定したレジスタに値を入れるようコンパイラに指示するものです。システムコール呼び出し等でよく登場するイディオムです (例: <a href="https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h">Linuxのシステムコール呼び出し処理</a>)。本来であればインラインアセンブラで指定できればいいものなのですが、C言語 (正確にはGCC/clangの独自拡張) ではできないためこのトリックを使うことが多いです。</p>
+<p>引数を用意したあとに、インラインアセンブラで<code>ecall</code>命令を実行します。これを呼び出すと、CPUの実行モードをカーネル用 (S-Mode) からOpenSBI用 (M-Mode) に切り替わり、OpenSBIの処理ハンドラが呼び出されます。OpenSBIの処理が終わると、再びカーネル用に切り替わり、<code>ecall</code>命令の次の行から実行が再開されます。ちなみに、<code>ecall</code>命令はアプリケーションからカーネルを呼び出す際 (システムコール) にも使われます。「ひとつ下のレイヤを呼び出す」という機能を持つのがこの命令です。</p>
+<p>文字の表示には、次の<code>Console Putchar</code>機能を使います。</p>
+<blockquote>
+<p>5.2. Extension: Console Putchar (EID #0x01)</p>
+<pre><code class="language-c">  <span class="pl-k">long</span> <span class="pl-en">sbi_console_putchar</span>(<span class="pl-k">int</span> ch)
+</code></pre>
+<p>Write data present in ch to debug console.</p>
+<p>Unlike sbi_console_getchar(), this SBI call will block if there remain any pending characters to be transmitted or if the receiving terminal is not yet ready to receive the byte. However, if the console doesn’t exist at all, then the character is thrown away.</p>
+<p>This SBI call returns 0 upon success or an implementation specific negative error code.</p>
+<p>-- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1 より引用</p>
+</blockquote>
+<p><code>Console Putchar</code>は、引数に渡した文字をデバッグコンソールに出力する機能です。この機能を使って、文字列を1文字ずつ出力していきます。</p>
+<p>実装ができたら、<code>run.sh</code>で実行してみましょう。次のように、<code>Hello World!</code>と表示されたら成功です。</p>
+<pre><code class="language-plain">$ ./run.sh
+...
+
+Hello World!
+</code></pre>
+<blockquote class="callout callout-tip">
+<p>SBIが呼ばれると、次のような流れで文字が表示されます。</p>
+<ol>
+<li>OSが<code>ecall</code>命令を実行すると、CPUはM-modeのトラップハンドラ (<code>mtvec</code>レジスタ) へジャンプする。トラップハンドラはOpenSBIが起動時に設定している。</li>
+<li>レジスタの保存などを済ませたのちに、Cで書かれた <a href="https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263">トラップハンドラ</a> が呼ばれる。</li>
+<li><code>eid</code> に応じた<a href="https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65">SBI処理関数が呼ばれる</a>。</li>
+<li>8250 UART (<a href="https://ja.wikipedia.org/wiki/8250_UART">Wikipedia</a>) の<a href="https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77">デバイスドライバ</a> がQEMUへ文字を送信する。</li>
+<li>QEMUの8250 UARTエミュレーション実装が文字を受け取り、標準出力に文字を送る。</li>
+<li>端末エミュレータがその文字を表示する。</li>
+</ol>
+</blockquote>
+<h2 id="printf関数"><a class="anchor" href="#printf関数"><code>printf</code>関数</a></h2>
+<p>ようやくカーネル開発っぽくなってきました！文字が表示できたら、次に欲しいのが<code>printf</code>関数です。</p>
+<p><code>printf</code>関数は、第1引数にフォーマット文字列を取り、第2引数以降にフォーマット文字列に埋め込む値を取ります。例えば、<code>printf("1 + 2 = %d", 1 + 2)</code>とすると、<code>1 + 2 = 3</code>と表示されます。</p>
+<p>C標準ライブラリに入っているような<code>printf</code>関数は非常に豊富な機能を持っていますが、今回は最低限の機能に絞って実装してみましょう。具体的には<code>%d</code> (10進数)、<code>%x</code> (16進数)、<code>%s</code> (文字列) の3つのフォーマット文字列に対応した<code>printf</code>関数を実装します。</p>
+<p><code>printf</code>関数は将来アプリケーション側でも使いたいので、<code>kernel.c</code>ではなくカーネル・ユーザーランド共通のコード用のファイル<code>common.c</code>を新しく作ることにします。以下が<code>printf</code>関数の全体像です。</p>
+<pre><code class="language-c:common.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> ch);
+
+<span class="pl-k">void</span> <span class="pl-en">printf</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *fmt, ...) {
+    <span class="pl-c1">va_list</span> vargs;
+    <span class="pl-c1">va_start</span>(vargs, fmt);
+
+    <span class="pl-k">while</span> (*fmt) {
+        <span class="pl-k">if</span> (*fmt == <span class="pl-s"><span class="pl-pds">'</span>%<span class="pl-pds">'</span></span>) {
+            fmt++;
+            <span class="pl-k">switch</span> (*fmt) {
+                <span class="pl-k">case</span> <span class="pl-s"><span class="pl-pds">'</span><span class="pl-cce">\0</span><span class="pl-pds">'</span></span>:
+                    <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>%<span class="pl-pds">'</span></span>);
+                    <span class="pl-k">goto</span> end;
+                <span class="pl-k">case</span> <span class="pl-s"><span class="pl-pds">'</span>%<span class="pl-pds">'</span></span>:
+                    <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>%<span class="pl-pds">'</span></span>);
+                    <span class="pl-k">break</span>;
+                <span class="pl-k">case</span> <span class="pl-s"><span class="pl-pds">'</span>s<span class="pl-pds">'</span></span>: {
+                    <span class="pl-k">const</span> <span class="pl-k">char</span> *s = <span class="pl-c1">va_arg</span>(vargs, <span class="pl-k">const</span> <span class="pl-k">char</span> *);
+                    <span class="pl-k">while</span> (*s) {
+                        <span class="pl-c1">putchar</span>(*s);
+                        s++;
+                    }
+                    <span class="pl-k">break</span>;
+                }
+                <span class="pl-k">case</span> <span class="pl-s"><span class="pl-pds">'</span>d<span class="pl-pds">'</span></span>: {
+                    <span class="pl-k">int</span> value = <span class="pl-c1">va_arg</span>(vargs, <span class="pl-k">int</span>);
+                    <span class="pl-k">if</span> (value &#x3C; <span class="pl-c1">0</span>) {
+                        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>-<span class="pl-pds">'</span></span>);
+                        value = -value;
+                    }
+
+                    <span class="pl-k">int</span> divisor = <span class="pl-c1">1</span>;
+                    <span class="pl-k">while</span> (value / divisor > <span class="pl-c1">9</span>)
+                        divisor *= <span class="pl-c1">10</span>;
+
+                    <span class="pl-k">while</span> (divisor > <span class="pl-c1">0</span>) {
+                        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>0<span class="pl-pds">'</span></span> + value / divisor);
+                        value %= divisor;
+                        divisor /= <span class="pl-c1">10</span>;
+                    }
+
+                    <span class="pl-k">break</span>;
+                }
+                <span class="pl-k">case</span> <span class="pl-s"><span class="pl-pds">'</span>x<span class="pl-pds">'</span></span>: {
+                    <span class="pl-k">int</span> value = <span class="pl-c1">va_arg</span>(vargs, <span class="pl-k">int</span>);
+                    <span class="pl-k">for</span> (<span class="pl-k">int</span> i = <span class="pl-c1">7</span>; i >= <span class="pl-c1">0</span>; i--) {
+                        <span class="pl-k">int</span> nibble = (value >> (i * <span class="pl-c1">4</span>)) &#x26; <span class="pl-c1">0xf</span>;
+                        <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">"</span>0123456789abcdef<span class="pl-pds">"</span></span>[nibble]);
+                    }
+                }
+            }
+        } <span class="pl-k">else</span> {
+            <span class="pl-c1">putchar</span>(*fmt);
+        }
+
+        fmt++;
+    }
+
+end:
+    <span class="pl-c1">va_end</span>(vargs);
+}
+</code></pre>
+<p>案外スッキリしているのではないでしょうか。1文字ずつ見ていき、「<code>%</code>」であれば次の文字を見てフォーマット文字列に応じた処理を行います。<code>%</code>以外の文字はそのまま出力します。</p>
+<p>10進数の場合は、まず<code>value</code>が負の数であれば<code>-</code>を出力してから、その絶対値を<code>value</code>に代入します。次に、<code>value</code>の最上位の桁を求めるために「何桁まであるか」を計算して<code>divisor</code> (英語で「割る数」) に入れておきます。あとは、<code>divisor</code>を使って<code>value</code>の最上位の桁から順に出力していきます。</p>
+<p>16進数の場合は、最上位のニブル (16進数の1桁、4ビット) から順に出力していきます。ここで<code>nibble</code>は0から15の整数になるので、<code>"0123456789abcdef"</code>という文字列の何文字目かで<code>nibble</code>に対応する文字を取り出しています。</p>
+<p><code>va_list</code>などは、C標準ライブラリの<code>&#x3C;stdarg.h></code>に定義されているマクロですが、本書では標準ライブラリに頼らずに自前で用意します。具体的には<code>common.h</code>に次のように定義しておきます。</p>
+<pre><code class="language-c:common.h">#<span class="pl-k">pragma</span> once
+
+#<span class="pl-k">define</span> <span class="pl-en">va_list</span>  __builtin_va_list
+#<span class="pl-k">define</span> <span class="pl-en">va_start</span> __builtin_va_start
+#<span class="pl-k">define</span> <span class="pl-en">va_end</span>   __builtin_va_end
+#<span class="pl-k">define</span> <span class="pl-en">va_arg</span>   __builtin_va_arg
+
+<span class="pl-k">void</span> <span class="pl-en">printf</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *fmt, ...);
+</code></pre>
+<p>単純に<code>__builtin_</code>がついたものの別名として定義しています。では、<code>__builtin_</code>がついたものは誰が用意するのかというと、コンパイラ (clang) が用意しているものです (<a href="https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins">参考: clangのドキュメント</a>)。あとはコンパイラがよしなにやってくれるので、特に気にする必要はありません。</p>
+<p>これで<code>printf</code>関数が使えるようになりました。<code>kernel.c</code>にいくつか<code>printf</code>関数を使ったコードを書いてみましょう。</p>
+<pre><code class="language-c:kernel.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n\n</span>Hello <span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>World!<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>1 + 2 = <span class="pl-c1">%d</span>, <span class="pl-c1">%x</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>, <span class="pl-c1">1</span> + <span class="pl-c1">2</span>, <span class="pl-c1">0x1234abcd</span>);
+
+    <span class="pl-k">for</span> (;;) {
+        <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(<span class="pl-s"><span class="pl-pds">"</span>wfi<span class="pl-pds">"</span></span>);
+    }
+}
+</code></pre>
+<p>最後に<code>common.c</code>をコンパイル対象に追加します。</p>
+<pre><code class="language-bash:run.sh"><span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
+    kernel.c common.c
+</code></pre>
+<p>では<code>run.sh</code>を実行してみましょう。次のように、<code>Hello World!</code>と<code>1 + 2 = 3, 1234abcd</code>が表示されたら成功です。</p>
+<pre><code class="language-plain">$ ./run.sh
+
+Hello World!
+1 + 2 = 3, 1234abcd
+</code></pre>
+<p>これでプログラミングの強い味方「printfデバッグ」が仲間に加わりました！</p></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/06-libc">C標準ライブラリ ⏩</a><a href="/ja/04-boot" class="sm:-order-1">⏪ ブート</a></div></footer></body></html>

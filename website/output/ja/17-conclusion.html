@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><title>おわりに - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - おわりに</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="font-bold">おわりに</a></li></ol></div></header><main><p>ここで本書は終わりです。1000行足らずではありますが、なかなか大変だったのではないでしょうか。</p>
+<p>「まだ物足りない！まだ何か続けたい」という方のために「次にすること」をいくつか紹介します。</p>
+<h2 id="hinaosやxv6を読もう"><a class="anchor" href="#hinaosやxv6を読もう">HinaOSやxv6を読もう</a></h2>
+<p>ページングや例外処理といった、アプリケーション開発では見られない独特な機能の実装を学んだ今、一番おすすめなのが「既存のOSの実装を読んでみる」ことです。自分の実装と比較して「他の人がどう実装しているのか」を学ぶのは大変勉強になります。</p>
+<p>おすすめが2つあります。1つ目は拙作の<a href="https://github.com/nuta/microkernel-book">HinaOS</a>です。本書と同じくRISC-V 32ビット向けの教育用OSです。マルチプロセッサ対応のマイクロカーネルOSで、TCP/IPプロトコルスタックも実装されています。筆者が書いたOSということもあり、本書を読んだ方なら比較的読みやすいでしょう。</p>
+<p>2つ目は<a href="https://github.com/mit-pdos/xv6-riscv">RISC-V版 xv6</a>です。こちらは教育用UNIX風OSで、<a href="https://pdos.csail.mit.edu/6.828/2022/">解説書 (英語)</a>もあります。<code>fork(2)</code>のようなUNIX特有の機能の仕組みを学びたい方におすすめです。</p>
+<h2 id="新しい機能を追加しよう"><a class="anchor" href="#新しい機能を追加しよう">新しい機能を追加しよう</a></h2>
+<p>本書では、カーネルの基本的な機能を実装しました。しかし、まだまだ実装できる機能はたくさんあります。例えば、次のような機能を実装してみると面白いでしょう。</p>
+<ul>
+<li>まともなメモリアロケータ</li>
+<li>割り込み</li>
+<li>本格的なファイルシステム</li>
+<li>ネットワーク通信 (TCP/IP)</li>
+</ul>
+<p><a href="https://github.com/nuta/microkernel-book/blob/main/IDEAS.md">HinaOSの実験テーマ集</a> もアイデア出しに役立つでしょう。</p></main><footer class="mt-8 border-t border-gray-200 py-4"><div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 text-lg"><a href="/ja/16-file-system" class="sm:-order-1">⏪ ファイルシステム</a></div></footer></body></html>
