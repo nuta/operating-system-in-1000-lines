@@ -4,17 +4,19 @@ layout: chapter
 lang: en
 ---
 
-ディスクの読み書きができるようになったので、ファイルの読み書きを実装しましょう。
+# Implementing file read and write operations
 
-## tarファイルシステム
+Now that we can read and write to the disk, let's implement file operations.
 
-本書では、ちょっぴり面白いアプローチでファイルシステムを実装します。それは「tarファイルをファイルシステムとして使う」というものです。
+## Tar file system
 
-tarファイルは、複数のファイルをまとめるアーカイブファイルです。tarファイルの中には、ファイルの内容とファイル名、作成日時などファイルシステムとして必要な情報が含まれています。FATやext2などの一般的なファイルシステム形式に比べ非常に簡素なデータ構造であるのと、馴染み深いであろうtarコマンドを使ってファイルシステムイメージを操作できるので、教育用にはもってこいのファイル形式なのです。
+In this book, we'll take an interesting approach to implementing a file system: using a tar file as our file system.
 
-## ディスクイメージの作成
+Tar files are archive files that can contain multiple files. They include file contents, filenames, creation dates, and other information necessary for a file system. Compared to common file system formats like FAT or ext2, tar files have a much simpler data structure. Additionally, you can manipulate the file system image using the familiar tar command, making it an ideal file format for educational purposes.
 
-まずはファイルシステムの内容を用意しましょう。`disk`ディレクトリを作成し、その中に適当なファイルを作成します。一つは`hello.txt`という名前にしておきます。
+## Creating a disk image
+
+Let's start by preparing the contents of our file system. Create a directory called `disk` and add some files to it. Name one of them `hello.txt`:
 
 ```plain
 $ mkdir disk
@@ -22,7 +24,7 @@ $ vim disk/hello.txt
 $ vim disk/meow.txt
 ```
 
-ビルドスクリプトにtarファイルの作成コマンドを追加し、それをディスクイメージとしてQEMUに渡すようにします。
+Add a command to the build script to create a tar file and pass it as a disk image to QEMU:
 
 ```bash:run.sh {1,5}
 (cd disk && tar cf ../disk.tar --format=ustar ./*.txt)
@@ -34,37 +36,37 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -kernel kernel.elf
 ```
 
-ここで使われている`tar`コマンドのオプションは次のとおりです:
+The `tar` command options used here are:
 
-- `cf`: tarファイルを作成する
-- `--format=ustar`: ustar形式のtarファイルを作成する
+- `cf`: Create tar file
+- `--format=ustar`: Create in ustar format
 
-なお、tarコマンドの行が丸括弧 `(...)` で囲われているのは、囲われたコマンドを独立したシェルで実行する **サブシェル** という機能です。これを使うことで、`cd` コマンドでのディレクトリ移動が括弧外に影響しないようにできます。
+The parentheses `(...)` create a subshell, isolating the `cd` command's effect.
 
-## tarファイルの構造
+## Tar file structure
 
-tarファイルは、次のような構造をしています。
+A tar file has the following structure:
 
 ```plain
 +----------------+
-|   tar ヘッダ    |
+|   tar header   |
 +----------------+
-|  ファイルデータ  |
+|   file data    |
 +----------------+
-|   tar ヘッダ    |
+|   tar header   |
 +----------------+
-|  ファイルデータ  |
+|   file data    |
 +----------------+
 |      ...       |
 ```
 
-つまり、「tarヘッダ」と「ファイルデータ」のペアがファイルの数だけ続いたものがtarファイルです。tarにはいくつかの種類がありますが、本書では **ustar形式** ([Wikipedia](https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format)) を使います。
+In summary, a tar file is essentially a series of "tar header" and "file data" pairs, one for each file. There are several types of tar formats, but we will use the **ustar format** ([Wikipedia](https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format)).
 
-今回は、このファイル構造をそのままファイルシステムのデータ構造として利用します。
+We will use this file structure directly as the data structure for our file system.
 
-## ファイルシステムの読み込み
+## Reading the file system
 
-まずはファイルシステム関連のデータ構造を定義します。`kernel.h`に次のように定義します。
+First, let's define the data structures related to the file system. Add the following definitions to `kernel.h`:
 
 ```c:kernel.h
 #define FILES_MAX      2
@@ -88,20 +90,21 @@ struct tar_header {
     char devminor[8];
     char prefix[155];
     char padding[12];
-    char data[];      // ヘッダに続くデータ領域を指す配列 (フレキシブル配列メンバ)
+    char data[];      // Array pointing to the data area following the header
+                      // (flexible array member)
 } __attribute__((packed));
 
 struct file {
-    bool in_use;      // このファイルエントリが使われているか
-    char name[100];   // ファイル名
-    char data[1024];  // ファイルの内容
-    size_t size;      // ファイルサイズ
+    bool in_use;      // Indicates if this file entry is in use
+    char name[100];   // File name
+    char data[1024];  // File content
+    size_t size;      // File size
 };
 ```
 
-本書のファイルシステム実装では、全てのファイルを起動時にディスクからメモリへ読み込みます。各ファイルのtarヘッダ (`struct tar_header`) と、それに続くファイルの内容を`file`構造体へ読み込みます。`FILES_MAX`が読み込む最大ファイル数、`DISK_MAX_SIZE`がディスクイメージの最大サイズです。
+In our file system implementation, all files are read from the disk into memory at startup. Each file's tar header (`struct tar_header`) and its subsequent content are loaded into a `file` structure. `FILES_MAX` defines the maximum number of files that can be loaded, and `DISK_MAX_SIZE` specifies the maximum size of the disk image.
 
-実際にファイルを読み込む処理が、次の`fs_init`関数です。
+The actual file reading process is handled by `fs_init` function:
 
 ```c:kernel.c
 struct file files[FILES_MAX];
@@ -144,11 +147,11 @@ void fs_init(void) {
 }
 ```
 
-この関数では、まず`read_write_disk`関数を使ってディスクイメージをメモリ上 (`disk`変数) に読み込みます。`disk`変数はローカル変数 (スタック上) ではなく、わざと静的変数 (`static`) として宣言しています。スタックの大きさには限りがあるので、このようなデータ領域はなるべくスタックの利用を避けることが望ましいです。
+In this function, we first use the `read_write_disk` function to load the disk image into memory (`disk` variable). The `disk` variable is declared as a static variable instead of a local (stack) variable. This is because the stack has limited size, and it's preferable to avoid using it for large data areas.
 
-ディスクの内容を読み込んだあとは、それをtarファイルと同じように順番に`files`変数のエントリとしてコピーしていきます。注意点として **tarヘッダの数値は8進数表記** です。`oct2int`関数で、8進数表記の文字列を整数に変換しています。
+After loading the disk contents, we sequentially copy them into the `files` variable entries as if they were in a tar file. Note that **the numbers in the tar header are in octal format**. The `oct2int` function is used to convert these octal string values to integers.
 
-最後に、`fs_init`関数を`kernel_main`関数から呼び出すようにして完了です。
+Lastly, make sure to call the `fs_init` function from the `kernel_main` function to complete the process:
 
 ```c:kernel.c {5}
 void kernel_main(void) {
@@ -157,13 +160,13 @@ void kernel_main(void) {
     virtio_blk_init();
     fs_init();
 
-    /* 省略 */
+    /* omitted */
 }
 ```
 
-## ファイルシステムの読み込みテスト
+## Testing file reads
 
-実際に動かしてみましょう。`disk`ディレクトリに用意したファイル名とその大きさが表示されれば成功です。
+Let's try! It should print the file names and their sizes in `disk` directory:
 
 ```plain
 $ ./run.sh
@@ -173,13 +176,13 @@ file: world.txt, size=0
 file: hello.txt, size=22
 ```
 
-## ディスクへの書き込み戻し
+## Writing to the disk
 
-ファイルシステムを読み込めるようになったので、次はファイルの書き込みを実装しましょう。ファイルの書き込みは、`files`変数の内容を、tarファイルの形式でディスクに書き込むことで実現します。
+Now that we can read the file system, let's implement file writing. Writing files will involve taking the contents of the `files` variable and writing them back to the disk in tar file format.
 
 ```c:kernel.c
 void fs_flush(void) {
-    // files変数の各ファイルの内容をdisk変数に書き込む
+    // Copy all file contents into `disk` buffer.
     memset(disk, 0, sizeof(disk));
     unsigned off = 0;
     for (int file_i = 0; file_i < FILES_MAX; file_i++) {
@@ -195,14 +198,14 @@ void fs_flush(void) {
         strcpy(header->version, "00");
         header->type = '0';
 
-        // ファイルサイズを8進数文字列に変換
+        // Turn the file size into an octal string.
         int filesz = file->size;
         for (int i = sizeof(header->size); i > 0; i--) {
             header->size[i - 1] = (filesz % 8) + '0';
             filesz /= 8;
         }
 
-        // チェックサムを計算
+        // Calculate the checksum.
         int checksum = ' ' * sizeof(header->checksum);
         for (unsigned i = 0; i < sizeof(struct tar_header); i++)
             checksum += (unsigned char) disk[off + i];
@@ -212,12 +215,12 @@ void fs_flush(void) {
             checksum /= 8;
         }
 
-        // ファイルデータをコピー
+        // Copy file data.
         memcpy(header->data, file->data, file->size);
         off += align_up(sizeof(struct tar_header) + file->size, SECTOR_SIZE);
     }
 
-    // disk変数の内容をディスクに書き込む
+    // Write `disk` buffer into the virtio-blk.
     for (unsigned sector = 0; sector < sizeof(disk) / SECTOR_SIZE; sector++)
         read_write_disk(&disk[sector * SECTOR_SIZE], sector, true);
 
@@ -225,11 +228,11 @@ void fs_flush(void) {
 }
 ```
 
-この関数では、まず`files`変数の内容をtarファイル形式で`disk`変数に書き込み、その後`disk`変数の内容をディスクに書き込みます。tarヘッダの各フィールドの値は8進数の文字列であるため、`strcpy`関数など文字列を扱う処理がみられます。
+In this function, the contents of the `files` variable are first written to the `disk` variable in tar file format, and then the contents of the `disk` variable are written to the disk.
 
-## ファイルの読み書きAPI
+## File read/write API
 
-ファイルシステムの読み書きを実装したところで、アプリケーションからファイルの読み書きを行えるようにしましょう。本書ではファイルの読み込みを行う`readfile`、ファイルの書き込みを行う`writefile`というシステムコールを用意します。どちらもファイル名、読み書きに使うメモリバッファ、そしてバッファのサイズを引数に取ります。
+Now that we have implemented file system read and write operations, let's make it possible for applications to read and write files. In this book, we'll provide two system calls: `readfile` for reading files and `writefile` for writing files. Both take as arguments the filename, a memory buffer for reading or writing, and the size of the buffer.
 
 ```c:common.h
 #define SYS_READFILE  4
@@ -253,11 +256,11 @@ int writefile(const char *filename, const char *buf, int len);
 
 > [!TIP]
 >
-> 一般的なOSのシステムコールの設計を読んでみて、何が省略されているのかを比較すると面白いでしょう。
+> It would be interesting to read the design of system calls in general operating systems and compare what has been omitted.
 
-## システムコールの実装
+## Implementation of System Calls
 
-前節で定義したシステムコールを実装しましょう。
+Let's implement the system calls we defined in the previous section.
 
 ```c:kernel.c {1-9,14-39}
 struct file *fs_lookup(const char *filename) {
@@ -272,7 +275,7 @@ struct file *fs_lookup(const char *filename) {
 
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
-        /* 省略 */
+        /* omitted */
         case SYS_READFILE:
         case SYS_WRITEFILE: {
             const char *filename = (const char *) f->a0;
@@ -305,15 +308,15 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-ファイルの読み書き処理は共通する処理が多いので、同じところにまとめています。`fs_lookup`関数でファイル名から`files`変数のエントリを探し出し、読み込みであれば、ファイルエントリからデータを読み込み、書き込みであればファイルエントリの内容を書き換え、最後に`fs_flush`関数でディスクに書き込みます。
+File read and write operations share many common processes, so they are grouped together in the same place. The `fs_lookup` function searches for an entry in the `files` variable based on the filename. For reading, it reads data from the file entry, and for writing, it modifies the contents of the file entry. Finally, the `fs_flush` function writes to the disk.
 
 > [!WARNING]
 >
->簡単のため、アプリケーションから渡されたポインタ (ユーザーポインタ) をそのまま参照していますが、これはセキュリティ上の問題があります。ユーザーが任意のメモリ領域を指定できてしまうと、システムコール経由でカーネルのメモリ領域を読み書きできてしまいます。
+> For simplicity, we are directly referencing pointers passed from applications (user pointers), but this poses security issues. If users can specify arbitrary memory areas, they could read and write kernel memory areas through system calls.
 
-## ファイルの読み書きコマンド
+## File Read and Write Commands
 
-システムコールを実装したところで、シェルからファイルの読み書きを試してみましょう。シェルはコマンドライン引数のパースを実装していないので、とりあえず`hello.txt`を決めうちで読み書きする`readfile`と`writefile`コマンドを実装します。
+Now that we've implemented the system calls, let's try reading and writing files from the shell. Since the shell doesn't implement command-line argument parsing, we'll implement `readfile` and `writefile` commands that read and write a hardcoded `hello.txt` file for now:
 
 ```c:shell.c
         else if (strcmp(cmdline, "readfile") == 0) {
@@ -326,7 +329,7 @@ void handle_syscall(struct trap_frame *f) {
             writefile("hello.txt", "Hello from shell!\n", 19);
 ```
 
-実行してみると、次のようにページフォルトが発生してしまいます。
+However, they cause a page fault:
 
 ```plain
 $ ./run.sh
@@ -335,7 +338,7 @@ $ ./run.sh
 PANIC: kernel.c:561: unexpected trap scause=0000000d, stval=01000423, sepc=8020128a
 ```
 
-`sepc`の値を`llvm-addr2line`で見てみると、`strcmp`関数でページフォルトが発生していることがわかります。
+According the `llvm-objdump`, it happens in `strcmp` function:
 
 ```plain
 $ llvm-objdump -d kernel.elf
@@ -354,7 +357,7 @@ $ llvm-objdump -d kernel.elf
 80201298: 93 b6 16 00   seqz    a3, a3
 ```
 
-ページテーブルの内容を確認してみると、`0x1000423`のページ (`vaddr = 01000000`) は確かに読み・書き・実行可能 (`rwx`) なユーザーページ (`u`) としてマップされています。
+Upon checking the page table contents, the page at `0x1000423` (with `vaddr = 01000000`) is indeed mapped as a user page (`u`) with read, write, and execute (`rwx`) permissions:
 
 ```plain
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -364,7 +367,7 @@ vaddr    paddr            size     attr
 01000000 000000008026c000 00001000 rwxu-a-
 ```
 
-試しに仮想アドレスでメモリダンプ (`x`コマンド) をしてみましょう。
+Let's try dumping the memory (`x` command) using virtual addresses:
 
 ```plain
 (qemu) x /10c 0x1000423
@@ -373,26 +376,26 @@ vaddr    paddr            size     attr
 01000443: 't' '\x00' 'w' 'r' 'i' 't' 'e' 'f'
 ```
 
-ページテーブルの設定が正しくない場合、`x`コマンドはエラーを表示します。ここでは、ページテーブルが正しく設定されており、ポインタは確かに`hello.txt`の文字列を指していることがわかります。
+If the page table settings are incorrect, the `x` command will display an error. Here, we can see that the page table is correctly configured, and the pointer is indeed pointing to the string "hello.txt".
 
-答えを言ってしまうと「`sstatus`レジスタの`SUM`ビットがセットされていない」ことが原因です。
+To give away the answer, the cause is that the `SUM` bit in the `sstatus` register is not set.
 
-## ユーザーポインタへのアクセス
+## Accessing User Pointers
 
-RISC-Vでは、`sstatus`レジスタによってS-Mode (カーネル) の振る舞いを変更できます。その中の一つが **SUM (permit Supervisor User Memory access) ビット** です。これがセットされていない場合、S-Modeのプログラム (カーネル) はU-Mode (ユーザー) のページにアクセスできません。
+In RISC-V, the behavior of S-Mode (kernel) can be modified using the `sstatus` register. One of its features is the **SUM (permit Supervisor User Memory access) bit**. When this bit is not set, S-Mode programs (kernel) cannot access U-Mode (user) pages.
 
 > [!TIP]
 >
-> 意図せずユーザーのメモリ領域を参照しないようにする、一種の安全策です。
-ちなみにIntelのCPUにも「SMAP (Supervisor Mode Access Prevention)」という名前で実装されています。
+> This is a kind of safety measure to prevent unintended references to user memory areas.
+> Incidentally, Intel CPUs also have this implemented under the name "SMAP (Supervisor Mode Access Prevention)".
 
-`SUM`ビットの位置を次のように定義します。
+Let's define the position of the `SUM` bit as follows:
 
 ```c:kernel.h
 #define SSTATUS_SUM  (1 << 18)
 ```
 
-あとはユーザー空間に入る時に`sstatus`レジスタにセットすれば修正完了です。
+All that remains is to set the `SUM` bit in the `sstatus` register when entering user space, and the fix is complete:
 
 ```c:kernel.c {8}
 __attribute__((naked)) void user_entry(void) {
@@ -406,22 +409,21 @@ __attribute__((naked)) void user_entry(void) {
     );
 }
 ```
-
 > [!TIP]
 >
-> ここでは「SUMビットが原因」とさらっと説明していますが「自分でこれを見つけられるか？」というのは難しい問題です。ページフォルトが起きていることは分かっても、その具体的な原因は分からないことがほとんどです。CPUは困ったことに細かいエラーコードすら出してくれないのです。筆者がなぜ気づいたかというと「SUMビットを知っていたから」です。
+> I explained that *"the SUM bit was the cause"*, but you may wonder how you could find this on your own. It is a difficult question. Even if you know a page fault is occurring, it's often hard to narrow down. Unfrotunately, CPUs don't even provide detailed error codes. The reason I noticed was, simply because I knew about the SUM bit.
 >
-> このような「上手く動かない」場合のデバッグ方法は次のようなものがあります。
+> Here are some debugging methods for when things "don't work properly":
 >
-> - RISC-Vの仕様書をよく読む。「SUMビットが立っていると、S-ModeでもU-Mode用ページにアクセスできる」と一応書いてある。
-> - QEMU本体の実装を読む。前述のページフォルトの原因は[ココで実装されている](https://github.com/qemu/qemu/blob/d1181d29370a4318a9f11ea92065bea6bb159f83/target/riscv/cpu_helper.c#L1008)。ただし仕様書をよく読むのと同等かそれ以上に大変。
-> - ChatGPTとかに上手く聞き出す ([成功例](https://sdk.vercel.ai/r/H0gm2Ky))。
+> - Read the RISC-V specification carefully. It does mention that "when the SUM bit is set, S-Mode can access U-Mode pages."
+> - Read QEMU's source code. The aforementioned page fault cause is [implemented here](https://github.com/qemu/qemu/blob/d1181d29370a4318a9f11ea92065bea6bb159f83/target/riscv/cpu_helper.c#L1008). However, this can be as challenging or more so than reading the specification thoroughly.
+> - Ask ChatGPT.
 >
-> これが「ゼロからOSを作る」のが時間泥棒で挫折しやすい大きな理由のひとつです。ただ、辛い分だけ解決した時の達成感は他のソフトウェア開発では味わえないものがあります。辛い思いをするのがゼロからのOS自作の醍醐味とも言えるでしょう。
+> This is one of the major reasons why building an OS from scratch is a time sink and prone to giving up. However, the sense of accomplishment when solving these issues is unparalleled in other software development. The struggle itself can be said to be the essence of building an OS from scratch.
 
-## ファイルの読み書きテスト
+## Testing File Read and Write
 
-`SUM`ビットをセットしたところで、ファイルの読み書きを試してみましょう。次のように`hello.txt`に書き込んでおいた文章が表示されたら成功です。
+Now that we've set the `SUM` bit, let's try reading and writing files. It's successful if the text we wrote to `hello.txt` is displayed as follows:
 
 ```
 $ ./run.sh
@@ -430,14 +432,13 @@ $ ./run.sh
 Can you see me? Ah, there you are! You've unlocked the achievement "Virtio Newbie!"
 ```
 
-ファイルの書き込みも試してみましょう。書き込みが成功すると、次のように書き込んだバイト数が表示されます。
-
+Let's also try writing to a file. If the write operation is successful, the number of bytes written will be displayed as follows:
 ```
 > writefile
 wrote 2560 bytes to disk
 ```
 
-QEMUを終了して、`disk.tar`を展開してみましょう。`disk.tar`を`virtio-blk`のディスクイメージとして指定しているので、ディスクへの書き込みがあり次第、QEMUがそのファイルを更新します。ファイルシステムとvirtio-blkを正しく実装できていれば、`writefile`システムコールで書き込んだ文章が表示されます。
+Exit QEMU and extract `disk.tar`. Since we specified `disk.tar` as the disk image for `virtio-blk`, QEMU updates this file whenever there's a write operation to the disk. If you've correctly implemented the file system and virtio-blk, the text you wrote using the `writefile` system call should be displayed:
 
 ```
 $ mkdir tmp
@@ -453,4 +454,4 @@ $ cat hello.txt
 Hello from shell!
 ```
 
-これでOSの基本機能である「ファイルシステム」を手に入れました！
+You've implemented a key feature *"file system"*! Yay!
