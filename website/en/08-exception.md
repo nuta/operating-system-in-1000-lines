@@ -20,12 +20,12 @@ When an exception occurs in RISC-V, the process follows this flow:
 
 The CSRs updated in step 2 are mainly as follows. The kernel's exception handler uses this information to determine necessary actions, and to save and restore the state at the time of the exception.
 
-| Register Name | Content |
-|---------------|---------|
-| `scause` | Type of exception. The kernel reads this to identify the type of exception. |
-| `stval` | Additional information about the exception (e.g., memory address that caused the exception). Specific content depends on the type of exception. |
-| `sepc` | Program counter at the point where the exception occurred |
-| `sstatus` | Operation mode (U-Mode/S-Mode) at the time of exception |
+| Register Name | Content                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scause`      | Type of exception. The kernel reads this to identify the type of exception.                                                                     |
+| `stval`       | Additional information about the exception (e.g., memory address that caused the exception). Specific content depends on the type of exception. |
+| `sepc`        | Program counter at the point where the exception occurred                                                                                       |
+| `sstatus`     | Operation mode (U-Mode/S-Mode) at the time of exception                                                                                         |
 
 The most important thing to be careful about in implementing the kernel's exception handler is correctly saving and restoring the state at the time of the exception. For example, if you accidentally overwrite the a0 register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason".
 

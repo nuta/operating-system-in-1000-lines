@@ -4,8 +4,6 @@ layout: chapter
 lang: en
 ---
 
-
-
 Hey there! In this book, we're going to build a small operating system from scratch, step by step.
 
 Now, don't get intimidated when you hear "OS"! The basic functions of an OS (especially the kernel) are surprisingly simple. Even Linux, which is often cited as a huge open-source software, was only 8,413 lines in version 0.01. Today's Linux kernel is overwhelmingly large, but it started with a tiny codebase, just like your hobby project.

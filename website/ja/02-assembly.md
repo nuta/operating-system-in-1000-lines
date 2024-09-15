@@ -47,23 +47,23 @@ lang: ja
 
 CPUでは動作モードによって実行できる命令や挙動が異なります。RISC-Vでは、次の3つの動作モードがあります。
 
-| モード | 概要 |
-| --- | --- |
-| M-mode | OpenSBIが動作するモード。 |
-| S-mode | カーネルが動作するモード。 |
+| モード | 概要                               |
+| ------ | ---------------------------------- |
+| M-mode | OpenSBIが動作するモード。          |
+| S-mode | カーネルが動作するモード。         |
 | U-mode | アプリケーションが動作するモード。 |
 
 ## 特権命令
 
 CPUの命令の中には、特権命令と呼ばれるアプリケーションが実行できない類があります。本書では、CPUの動作設定を変更する特権命令がいくつか登場します。以下の命令が本書で登場する特権命令です。
 
-| 命令とオペランド | 概要 | 擬似コード |
-| --- | --- | --- |
-| `csrr rd, csr` | CSRの読み出し | `rd = csr;` |
-| `csrw csr, rs` | CSRの書き込み | `csr = rs;` |
-| `csrrw rd, csr, rs` | CSRの読み出しと書き込みを一度に行う | `tmp = csr; csr = rs; rd = tmp;` |
-| `sret` | トラップハンドラからの復帰 (プログラムカウンタ・動作モードの復元など) | |
-| `sfence.vma` | Translation Lookaside Buffer (TLB) のクリア | |
+| 命令とオペランド    | 概要                                                                  | 擬似コード                       |
+| ------------------- | --------------------------------------------------------------------- | -------------------------------- |
+| `csrr rd, csr`      | CSRの読み出し                                                         | `rd = csr;`                      |
+| `csrw csr, rs`      | CSRの書き込み                                                         | `csr = rs;`                      |
+| `csrrw rd, csr, rs` | CSRの読み出しと書き込みを一度に行う                                   | `tmp = csr; csr = rs; rd = tmp;` |
+| `sret`              | トラップハンドラからの復帰 (プログラムカウンタ・動作モードの復元など) |                                  |
+| `sfence.vma`        | Translation Lookaside Buffer (TLB) のクリア                           |                                  |
 
 ここで登場するCSR (Control and Status Register) とは、CPUの動作設定を格納するレジスタです。各CSRの説明は本書中にありますが、一覧を見たい場合は [RISC-Vの仕様書 (PDF) ](https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf)を参照してください。
 
@@ -124,4 +124,3 @@ csrw  sscratch, a0   // sscratch レジスタに a0 レジスタの値を書き�
 > インラインアセンブリは、C言語の仕様にはないコンパイラの独自拡張機能です。詳細な使い方は[GCCのドキュメント](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html)で確認できます。ただし、CPUアーキテクチャによって制約の書き方が違っていたり、機能が多く複雑だったりと理解に時間を要する機能です。
 >
 > 初学者におすすめなのは実例に多く触れることです。例えば、[HinaOSのインラインアセンブリ集](https://github.com/nuta/microkernel-book/blob/52d66bd58cd95424f009e2df8bc1184f6ffd9395/kernel/riscv32/asm.h)が参考になるでしょう。
-

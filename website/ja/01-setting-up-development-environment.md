@@ -10,7 +10,7 @@ lang: ja
 
 ### macOS
 
-[Homebrew](https://brew.sh/index\_ja) をインストールしたのち、次のコマンドで必要なパッケージをインストールします。
+[Homebrew](https://brew.sh/index_ja) をインストールしたのち、次のコマンドで必要なパッケージをインストールします。
 
 ```
 brew install llvm qemu
@@ -43,13 +43,13 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 どうしても他のOSを使いたい場合は、次のコマンドを頑張ってインストールしてください。
 
-* `bash`: コマンドラインシェル。UNIX系OSには基本的に最初から入っている。
-* `tar`: tarアーカイブ操作ツール。UNIX系OSには基本的に最初から入っている。GNU版の`tar`がおすすめ。
-* `clang`: Cコンパイラ。32ビットRISC-V CPUに対応していること (下記参照)。
-* `llvm-objcopy`: オブジェクトファイル編集ツール。よくLLVMパッケージに入っている。(GNU binutilsの`objcopy`でも代用可)。
-* `llvm-objdump`: 逆アセンブラ。`llvm-objcopy`と同様。
-* `llvm-readelf`: ELFファイル解析ツール。`llvm-objcopy`と同様。
-* `qemu-system-riscv32`: 32ビットRISC-V CPUのエミュレータ。QEMUパッケージに入っている。
+- `bash`: コマンドラインシェル。UNIX系OSには基本的に最初から入っている。
+- `tar`: tarアーカイブ操作ツール。UNIX系OSには基本的に最初から入っている。GNU版の`tar`がおすすめ。
+- `clang`: Cコンパイラ。32ビットRISC-V CPUに対応していること (下記参照)。
+- `llvm-objcopy`: オブジェクトファイル編集ツール。よくLLVMパッケージに入っている。(GNU binutilsの`objcopy`でも代用可)。
+- `llvm-objdump`: 逆アセンブラ。`llvm-objcopy`と同様。
+- `llvm-readelf`: ELFファイル解析ツール。`llvm-objcopy`と同様。
+- `qemu-system-riscv32`: 32ビットRISC-V CPUのエミュレータ。QEMUパッケージに入っている。
 
 > [!TIP]
 >

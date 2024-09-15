@@ -17,14 +17,14 @@ We'll use the Sv32 mode of RISC-V's paging mechanism, which uses a two-level pag
 This is easier to understand by looking at some example values:
 
 | Virtual Address | `VPN[1]` (10 bits) | `VPN[0]` (10 bits) | Offset (12 bits) |
-|-----------------|---------------------|---------------------|-------------------|
-| 0x1000_0000     | 0x040               | 0x000               | 0x000             |
-| 0x1000_0000     | 0x040               | 0x000               | 0x000             |
-| 0x1000_1000     | 0x040               | 0x001               | 0x000             |
-| 0x1000_f000     | 0x040               | 0x00f               | 0x000             |
-| 0x2000_f0ab     | 0x080               | 0x00f               | 0x0ab             |
-| 0x2000_f012     | 0x080               | 0x00f               | 0x012             |
-| 0x2000_f034     | 0x080               | 0x00f               | 0x045             |
+| --------------- | ------------------ | ------------------ | ---------------- |
+| 0x1000_0000     | 0x040              | 0x000              | 0x000            |
+| 0x1000_0000     | 0x040              | 0x000              | 0x000            |
+| 0x1000_1000     | 0x040              | 0x001              | 0x000            |
+| 0x1000_f000     | 0x040              | 0x00f              | 0x000            |
+| 0x2000_f0ab     | 0x080              | 0x00f              | 0x0ab            |
+| 0x2000_f012     | 0x080              | 0x00f              | 0x012            |
+| 0x2000_f034     | 0x080              | 0x00f              | 0x045            |
 
 > [!TIP]
 >
@@ -49,7 +49,6 @@ Let's construct a page table using the Sv32 method. First, we'll define some mac
 #define PAGE_X    (1 << 3)   // Executable
 #define PAGE_U    (1 << 4)   // User (accessible in user mode)
 ```
-
 
 ## Mapping pages
 
@@ -304,6 +303,7 @@ When you actually run this, it should appear to be working correctly. This is be
 (qemu) info mem
 No translation or protection
 ```
+
 ### Specifying physical address instead of physical page number
 
 Next, let's look at the case where we mistakenly specify the page table using a physical address instead of a physical page number.
@@ -370,4 +370,4 @@ Here's what you can infer from the logs:
 
 - Looking at the `info registers` command, the value of the `satp` register is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
 
-In this way, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing in debugging is to *"read the specification carefully."* It's very common to overlook or misunderstand descriptions in the specification.
+In this way, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing in debugging is to _"read the specification carefully."_ It's very common to overlook or misunderstand descriptions in the specification.

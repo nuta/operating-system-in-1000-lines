@@ -92,7 +92,7 @@ void kernel_main(void) {
 }
 ```
 
-We'll verify that the first address (`paddr0`) matches the address of `__free_ram`, and that the next address (`paddr1`) matches an address that's 2 * 4KB (or 0x2000 in hexadecimal) ahead of the first address:
+We'll verify that the first address (`paddr0`) matches the address of `__free_ram`, and that the next address (`paddr1`) matches an address that's 2 \* 4KB (or 0x2000 in hexadecimal) ahead of the first address:
 
 ```plain
 $ ./run.sh

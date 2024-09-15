@@ -43,13 +43,13 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 If you're using a different OS and feeling brave, try to install these commands:
 
-* `bash`: Your friendly neighborhood command-line shell. Usually comes pre-installed on UNIX-like OSes.
-* `tar`: For handling those tar archives. Usually pre-installed on UNIX-like OSes too. Prefer GNU version, not BSD.
-* `clang`: Your C compiler. Make sure it's ready for 32-bit RISC-V CPU (more on this below).
-* `llvm-objcopy`: For editing object files. Often comes with the LLVM package. (You can use GNU binutils' `objcopy` in a pinch).
-* `llvm-objdump`: Your trusty disassembler. Same deal as `llvm-objcopy`.
-* `llvm-readelf`: For analyzing ELF files. Again, same as `llvm-objcopy`.
-* `qemu-system-riscv32`: This emulates a 32-bit RISC-V CPU. It's part of the QEMU package.
+- `bash`: Your friendly neighborhood command-line shell. Usually comes pre-installed on UNIX-like OSes.
+- `tar`: For handling those tar archives. Usually pre-installed on UNIX-like OSes too. Prefer GNU version, not BSD.
+- `clang`: Your C compiler. Make sure it's ready for 32-bit RISC-V CPU (more on this below).
+- `llvm-objcopy`: For editing object files. Often comes with the LLVM package. (You can use GNU binutils' `objcopy` in a pinch).
+- `llvm-objdump`: Your trusty disassembler. Same deal as `llvm-objcopy`.
+- `llvm-readelf`: For analyzing ELF files. Again, same as `llvm-objcopy`.
+- `qemu-system-riscv32`: This emulates a 32-bit RISC-V CPU. It's part of the QEMU package.
 
 > [!TIP]
 >

@@ -3,6 +3,7 @@ title: Hello World!
 layout: chapter
 lang: en
 ---
+
 In the previous chapter, we successfully booted our first kernel. Although we could confirm this by reading the register dump, it still feels somewhat unsatisfactory. So this time, let's try to output a string from the kernel.
 
 ## Say "hello" to SBI

@@ -8,11 +8,11 @@ lang: en
 
 Virtio is a mechanism for exchanging data between a virtual machine and the host OS. Each virtio device has one or more virtqueues. A virtqueue consists of the following three ring buffers:
 
-| Ring Buffer | Written by | Content | Each Entry's Content |
-| --- | --- | --- | --- |
-| Descriptor Ring | Driver | Information indicating the storage location of processing request data | Memory address, length, index of the next descriptor |
-| Available Ring | Driver | Processing requests to the device | Index of the head of the descriptor chain |
-| Used Ring | Device | Processing requests handled by the device | Index of the head of the descriptor chain |
+| Ring Buffer     | Written by | Content                                                                | Each Entry's Content                                 |
+| --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| Descriptor Ring | Driver     | Information indicating the storage location of processing request data | Memory address, length, index of the next descriptor |
+| Available Ring  | Driver     | Processing requests to the device                                      | Index of the head of the descriptor chain            |
+| Used Ring       | Device     | Processing requests handled by the device                              | Index of the head of the descriptor chain            |
 
 Each processing request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
 
@@ -225,7 +225,7 @@ The addresses specified here are the allocated areas for `struct virtio_virtq`. 
 
 ## Sending IO requests
 
-Now that initialization is complete, let's send an IO request to the disk. IO requests to the disk are made by *"adding processing requests to the virtqueue"* as follows:
+Now that initialization is complete, let's send an IO request to the disk. IO requests to the disk are made by _"adding processing requests to the virtqueue"_ as follows:
 
 ```c
 // Notifies the device that there is a new request. `desc_index` is the index
@@ -324,7 +324,6 @@ Because we busy-wait until the processing is complete every time, we can simply 
 ## Driver initialization
 
 First, map the `virtio-blk` MMIO region to the page table of each process:
-
 
 ```c:kernel.c {8}
 struct process *create_process(const void *image, size_t image_size) {

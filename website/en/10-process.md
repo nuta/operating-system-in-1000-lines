@@ -8,7 +8,7 @@ A process is essentially an instance of an application, with each process having
 
 ## Process control structure
 
-The following `process` structure summarizes the information for a process. This structure is called a *"Process Control Block (PCB)"*.
+The following `process` structure summarizes the information for a process. This structure is called a _"Process Control Block (PCB)"_.
 
 ```c
 #define PROCS_MAX 8       // Maximum number of processes
@@ -26,9 +26,9 @@ struct process {
 The kernel stack contains CPU registers at context switch, return addresses (where it was called from), and local variables for each function. By preparing a kernel stack for each process, we can have separate execution contexts and save and restore states during context switching.
 
 > [!TIP]
-> 
+>
 > There's a kernel implementation technique called "single kernel stack" where instead of having a kernel stack for each process (thread), there's only one per CPU. seL4 adopts this method (reference).
-> 
+>
 > This issue of "where to store the program's context" is also a topic discussed in asynchronous processing runtimes of programming languages like Go and Rust. Try searching for "stackless/stackful async".
 
 ## Context switch
@@ -286,6 +286,7 @@ void yield(void) {
     switch_context(&prev->sp, &next->sp);
 }
 ```
+
 Since the stack pointer extends towards lower addresses (the stack area is used from the end), we set the address at the `sizeof(next->stack)`th byte as the initial value of the kernel stack.
 
 The modifications to the exception handler are as follows:

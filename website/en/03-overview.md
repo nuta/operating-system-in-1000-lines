@@ -47,4 +47,4 @@ We'll build from scratch gradually, but the final file structure will look like 
 
 > [!TIP]
 >
-> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *applciations*.
+> In this book, _"user land"_ is sometimes abbreviated as _"user"_. Consider it as _applciations_.

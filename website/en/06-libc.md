@@ -84,12 +84,12 @@ void *memcpy(void *dst, const void *src, size_t n) {
 > [!TIP]
 >
 > There are several instances where we perform pointer dereferencing and pointer manipulation in a single operation, like `*p++ = c;`. If we break this down for clarity, it would look like this:
-> 
+>
 > ```c
 > *p = c;    // Dereference the pointer
 > p = p + 1; // Advance the pointer after the assignment
 > ```
-> 
+>
 > This is a commonly used expression in C language.
 
 ## String Operations

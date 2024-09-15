@@ -184,7 +184,6 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 >
 > 「yield」は「譲る」という意味の英単語です。「CPU時間という資源を譲る」という意味合いで、プロセスが自発的に呼び出すAPIの名前としてよく使われます。
 
-
 ```c:kernel.c
 struct process *current_proc; // 現在実行中のプロセス
 struct process *idle_proc;    // アイドルプロセス
@@ -393,7 +392,6 @@ xv6 (有名な教育用UNIX風OS) のRISC-V版実装では、(1)と(2)の時用�
 > [!TIP]
 >
 > 余談ですが、Googleが開発しているOSのFuchsiaには、ユーザーから任意のプログラムカウンタの値を設定できる実装が[脆弱性になっていたケース](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html)がありました。「ユーザー (アプリケーション) からの入力を信頼しない」というのは、堅牢なカーネルを実装する上で非常に重要な習慣です。
-
 
 ## 次のステップ
 

@@ -49,7 +49,9 @@ The QEMU startup options are as follows:
 > ```plain
 > $ ls $(brew --prefix)/bin/qemu-system-riscv32
 > /opt/homebrew/bin/qemu-system-riscv32
-```
+> ```
+
+````
 
 When you start it, you'll see a log like this:
 
@@ -72,7 +74,7 @@ Platform HART Count       : 1
 Platform IPI Device       : aclint-mswi
 Platform Timer Device     : aclint-mtimer @ 10000000Hz
 ...
-```
+````
 
 After the large OpenSBI banner is displayed, various execution environment information is shown.
 

@@ -47,23 +47,23 @@ Also, it's educational to specify optimization options like `-O0` (optimization 
 
 In CPUs, the executable instructions and behavior differ depending on the operation mode. RISC-V has the following three operation modes:
 
-| Mode | Overview |
-| --- | --- |
-| M-mode | Mode in which OpenSBI operates. |
-| S-mode | Mode in which the kernel operates. |
+| Mode   | Overview                            |
+| ------ | ----------------------------------- |
+| M-mode | Mode in which OpenSBI operates.     |
+| S-mode | Mode in which the kernel operates.  |
 | U-mode | Mode in which applications operate. |
 
 ## Privileged instructions
 
 Among CPU instructions, there are types called privileged instructions that applications cannot execute. In this book, several privileged instructions that change CPU operation settings will appear. The following are the privileged instructions that appear in this book:
 
-| Instruction and Operands | Overview | Pseudocode |
-| --- | --- | --- |
-| `csrr rd, csr` | Read from CSR | `rd = csr;` |
-| `csrw csr, rs` | Write to CSR | `csr = rs;` |
-| `csrrw rd, csr, rs` | Read from and write to CSR at once | `tmp = csr; csr = rs; rd = tmp;` |
-| `sret` | Return from trap handler (restoring program counter, operation mode, etc.) | |
-| `sfence.vma` | Clear Translation Lookaside Buffer (TLB) | |
+| Instruction and Operands | Overview                                                                   | Pseudocode                       |
+| ------------------------ | -------------------------------------------------------------------------- | -------------------------------- |
+| `csrr rd, csr`           | Read from CSR                                                              | `rd = csr;`                      |
+| `csrw csr, rs`           | Write to CSR                                                               | `csr = rs;`                      |
+| `csrrw rd, csr, rs`      | Read from and write to CSR at once                                         | `tmp = csr; csr = rs; rd = tmp;` |
+| `sret`                   | Return from trap handler (restoring program counter, operation mode, etc.) |                                  |
+| `sfence.vma`             | Clear Translation Lookaside Buffer (TLB)                                   |                                  |
 
 CSR (Control and Status Register) mentioned here is a register that stores CPU operation settings. Explanations for each CSR are in the book, but if you want to see a list,
 

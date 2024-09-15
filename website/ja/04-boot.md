@@ -244,7 +244,6 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 > /opt/homebrew/opt/llvm/bin/clang
 > ```
 
-
 clangに指定しているオプション (`CFLAGS`変数) は次のとおりです。
 
 - `-std=c11`: C11を使用する。

@@ -178,6 +178,7 @@ __attribute__((naked)) void user_entry(void) {
     );
 }
 ```
+
 The switch from S-Mode to U-Mode is done with the `sret` instruction. However, before changing the operation mode, we're making two preparations:
 
 - Set the program counter for when transitioning to U-Mode in the `sepc` register.

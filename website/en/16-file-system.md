@@ -60,7 +60,7 @@ A tar file has the following structure:
 |      ...       |
 ```
 
-In summary, a tar file is essentially a series of "tar header" and "file data" pairs, one for each file. There are several types of tar formats, but we will use the **ustar format** ([Wikipedia](https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format)).
+In summary, a tar file is essentially a series of "tar header" and "file data" pairs, one for each file. There are several types of tar formats, but we will use the **ustar format** ([Wikipedia](<https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format>)).
 
 We will use this file structure directly as the data structure for our file system.
 
@@ -409,9 +409,10 @@ __attribute__((naked)) void user_entry(void) {
     );
 }
 ```
+
 > [!TIP]
 >
-> I explained that *"the SUM bit was the cause"*, but you may wonder how you could find this on your own. It is a difficult question. Even if you know a page fault is occurring, it's often hard to narrow down. Unfrotunately, CPUs don't even provide detailed error codes. The reason I noticed was, simply because I knew about the SUM bit.
+> I explained that _"the SUM bit was the cause"_, but you may wonder how you could find this on your own. It is a difficult question. Even if you know a page fault is occurring, it's often hard to narrow down. Unfrotunately, CPUs don't even provide detailed error codes. The reason I noticed was, simply because I knew about the SUM bit.
 >
 > Here are some debugging methods for when things "don't work properly":
 >
@@ -433,6 +434,7 @@ Can you see me? Ah, there you are! You've unlocked the achievement "Virtio Newbi
 ```
 
 Let's also try writing to a file. If the write operation is successful, the number of bytes written will be displayed as follows:
+
 ```
 > writefile
 wrote 2560 bytes to disk
@@ -454,4 +456,4 @@ $ cat hello.txt
 Hello from shell!
 ```
 
-You've implemented a key feature *"file system"*! Yay!
+You've implemented a key feature _"file system"_! Yay!

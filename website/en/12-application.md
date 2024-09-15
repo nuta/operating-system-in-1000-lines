@@ -12,7 +12,6 @@ In the previous chapter, we implemented independent virtual address spaces for e
 
 Let's create a new linker script (`user.ld`) that defines where to place the application's executable file:
 
-
 ```plain:user.ld
 ENTRY(start)
 
