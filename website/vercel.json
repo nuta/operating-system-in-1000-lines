@@ -1,0 +1,31 @@
+{
+    "framework": null,
+    "buildCommand": "docship",
+    "installCommand": "npm i -g docship",
+    "outputDirectory": "output",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "github": {
+      "silent": true
+    },
+    "redirects": [
+        { "source": "/ja/01-welcome", "dest": "ja", "permanent": true },
+        { "source": "/ja/02-setting-up-development-environment", "dest": "ja/01-setting-up-development-environment", "permanent": true },
+        { "source": "/ja/03-assembly", "dest": "ja/02-assembly", "permanent": true },
+        { "source": "/ja/04-overview", "dest": "ja/03-overview", "permanent": true },
+        { "source": "/ja/05-boot", "dest": "ja/04-boot", "permanent": true },
+        { "source": "/ja/06-hello-world", "dest": "ja/05-hello-world", "permanent": true },
+        { "source": "/ja/07-libc", "dest": "ja/06-libc", "permanent": true },
+        { "source": "/ja/08-kernel-panic", "dest": "ja/07-kernel-panic", "permanent": true },
+        { "source": "/ja/09-exception", "dest": "ja/08-exception", "permanent": true },
+        { "source": "/ja/10-memory-allocation", "dest": "ja/09-memory-allocation", "permanent": true },
+        { "source": "/ja/11-process", "dest": "ja/10-process", "permanent": true },
+        { "source": "/ja/12-page-table", "dest": "ja/11-page-table", "permanent": true },
+        { "source": "/ja/13-application", "dest": "ja/12-application", "permanent": true },
+        { "source": "/ja/14-user-mode", "dest": "ja/13-user-mode", "permanent": true },
+        { "source": "/ja/15-system-call", "dest": "ja/14-system-call", "permanent": true },
+        { "source": "/ja/16-virtio-blk", "dest": "ja/15-virtio-blk", "permanent": true },
+        { "source": "/ja/17-file-system", "dest": "ja/16-file-system", "permanent": true },
+        { "source": "/ja/18-conclusion", "dest": "ja/17-conclusion", "permanent": true }
+    ]      
+}
