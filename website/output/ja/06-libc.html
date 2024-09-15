@@ -5,7 +5,7 @@
 </blockquote>
 <h2 id="基本的な型"><a class="anchor" href="#基本的な型">基本的な型</a></h2>
 <p>まずは基本的な型といくつかのマクロを定義します。</p>
-<pre><code class="language-c:common.h"><span class="pl-k">typedef</span> <span class="pl-k">int</span> <span class="pl-k">bool</span>;
+<pre><div class="code-block-title">common.h</div><code class="language-c"><span class="pl-k">typedef</span> <span class="pl-k">int</span> <span class="pl-k">bool</span>;
 <span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">char</span> <span class="pl-c1">uint8_t</span>;
 <span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">short</span> <span class="pl-c1">uint16_t</span>;
 <span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">int</span> <span class="pl-c1">uint32_t</span>;
@@ -47,7 +47,7 @@
 <h2 id="メモリ操作"><a class="anchor" href="#メモリ操作">メモリ操作</a></h2>
 <p>次のメモリ操作関数を実装します。<code>memcpy</code>関数は<code>src</code>から<code>n</code>バイト分を<code>dst</code>にコピーします。</p>
 <p><code>memset</code>関数は<code>buf</code>の先頭から<code>n</code>バイト分を<code>c</code>で埋めます。この関数は、bssセクションの初期化のために5章で実装済みです。<code>kernel.c</code>から<code>common.c</code>に移動させましょう。</p>
-<pre><code class="language-c:common.c"><span class="pl-k">void</span> *<span class="pl-en">memset</span>(<span class="pl-k">void</span> *buf, <span class="pl-k">char</span> c, <span class="pl-c1">size_t</span> n) {
+<pre><div class="code-block-title">common.c</div><code class="language-c"><span class="pl-k">void</span> *<span class="pl-en">memset</span>(<span class="pl-k">void</span> *buf, <span class="pl-k">char</span> c, <span class="pl-c1">size_t</span> n) {
     <span class="pl-c1">uint8_t</span> *p = (<span class="pl-c1">uint8_t</span> *) buf;
     <span class="pl-k">while</span> (n--)
         *p++ = c;
@@ -68,7 +68,7 @@ p = p + <span class="pl-c1">1</span>; <span class="pl-c">// 代入を済ませ�
 </code></pre>
 <h2 id="文字列操作"><a class="anchor" href="#文字列操作">文字列操作</a></h2>
 <p>まずは、<code>strcpy</code>関数です。この関数は<code>src</code>の文字列を<code>dst</code>にコピーします。</p>
-<pre><code class="language-c:common.c"><span class="pl-k">char</span> *<span class="pl-en">strcpy</span>(<span class="pl-k">char</span> *dst, <span class="pl-k">const</span> <span class="pl-k">char</span> *src) {
+<pre><div class="code-block-title">common.c</div><code class="language-c"><span class="pl-k">char</span> *<span class="pl-en">strcpy</span>(<span class="pl-k">char</span> *dst, <span class="pl-k">const</span> <span class="pl-k">char</span> *src) {
     <span class="pl-k">char</span> *d = dst;
     <span class="pl-k">while</span> (*src)
         *d++ = *src++;
@@ -81,7 +81,7 @@ p = p + <span class="pl-c1">1</span>; <span class="pl-c">// 代入を済ませ�
 <p>本書では簡単のため<code>strcpy</code>を使いますが、余力があれば代替の関数 (<code>strcpy_s</code>) を実装して代わりに使ってみてください。</p>
 </blockquote>
 <p>次に<code>strcmp</code>関数です。<code>s1</code>と<code>s2</code>を比較します。<code>s1</code>と<code>s2</code>が等しい場合は0を、<code>s1</code>の方が大きい場合は正の値を、<code>s2</code>の方が大きい場合は負の値を返します。</p>
-<pre><code class="language-c:common.c"><span class="pl-k">int</span> <span class="pl-en">strcmp</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *s1, <span class="pl-k">const</span> <span class="pl-k">char</span> *s2) {
+<pre><div class="code-block-title">common.c</div><code class="language-c"><span class="pl-k">int</span> <span class="pl-en">strcmp</span>(<span class="pl-k">const</span> <span class="pl-k">char</span> *s1, <span class="pl-k">const</span> <span class="pl-k">char</span> *s2) {
     <span class="pl-k">while</span> (*s1 &#x26;&#x26; *s2) {
         <span class="pl-k">if</span> (*s1 != *s2)
             <span class="pl-k">break</span>;

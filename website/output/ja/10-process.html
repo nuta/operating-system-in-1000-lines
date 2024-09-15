@@ -2,7 +2,7 @@
 <html><head><title>プロセス - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - プロセス</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="font-bold">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>プロセスは、アプリケーションのいわばインスタンスで、各プロセスが独立の実行コンテキストと、仮想アドレス空間といった資源を持ちます。OSによっては実行コンテキストを「スレッド」という別の概念で提供していることもありますが、本書では、簡単のため1プロセスにつき1スレッドとして一緒くたに扱います。</p>
 <h2 id="プロセス管理構造体"><a class="anchor" href="#プロセス管理構造体">プロセス管理構造体</a></h2>
 <p>プロセスの情報をまとめたのが次の<code>process</code>構造体です。この構造体のことを「プロセス管理構造体 (PCB: Process Control Block)」と呼びます。</p>
-<pre><code class="language-c:kernel.h">#<span class="pl-k">define</span> <span class="pl-en">PROCS_MAX</span> <span class="pl-c1">8</span>       <span class="pl-c">// 最大プロセス数</span>
+<pre><div class="code-block-title">kernel.h</div><code class="language-c">#<span class="pl-k">define</span> <span class="pl-en">PROCS_MAX</span> <span class="pl-c1">8</span>       <span class="pl-c">// 最大プロセス数</span>
 #<span class="pl-k">define</span> <span class="pl-en">PROC_UNUSED</span>   <span class="pl-c1">0</span>   <span class="pl-c">// 未使用のプロセス管理構造体</span>
 #<span class="pl-k">define</span> <span class="pl-en">PROC_RUNNABLE</span> <span class="pl-c1">1</span>   <span class="pl-c">// 実行可能なプロセス</span>
 
@@ -20,7 +20,7 @@
 </blockquote>
 <h2 id="コンテキストスイッチ"><a class="anchor" href="#コンテキストスイッチ">コンテキストスイッチ</a></h2>
 <p>コンテキストスイッチは本書中の解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process procs[PROCS_MAX];
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">struct</span> process procs[PROCS_MAX];
 
 <span class="pl-en">__attribute__</span>((naked)) void switch_context(<span class="pl-c1">uint32_t</span> *prev_sp,
                                            <span class="pl-c1">uint32_t</span> *next_sp) {
@@ -60,7 +60,7 @@
 }
 </code></pre>
 <p>プロセスの初期化処理が次の<code>create_process</code>関数です。この関数は実行開始アドレス (<code>pc</code>) を受け取り、プロセス管理構造体を初期化して返します。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *<span class="pl-en">create_process</span>(<span class="pl-c1">uint32_t</span> pc) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">struct</span> process *<span class="pl-en">create_process</span>(<span class="pl-c1">uint32_t</span> pc) {
     <span class="pl-c">// 空いているプロセス管理構造体を探す</span>
     <span class="pl-k">struct</span> process *proc = <span class="pl-c1">NULL</span>;
     <span class="pl-k">int</span> i;
@@ -99,7 +99,7 @@
 </code></pre>
 <h2 id="コンテキストスイッチのテスト"><a class="anchor" href="#コンテキストスイッチのテスト">コンテキストスイッチのテスト</a></h2>
 <p>これでプロセスの最も基本的な機能である「複数のプログラムの並行実行」が実装できました。早速、2つのプロセスを作成してみましょう。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *proc_a;
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">struct</span> process *proc_a;
 <span class="pl-k">struct</span> process *proc_b;
 
 <span class="pl-k">void</span> <span class="pl-en">proc_a_entry</span>(<span class="pl-k">void</span>) {
@@ -151,7 +151,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 <blockquote class="callout callout-tip">
 <p>「yield」は「譲る」という意味の英単語です。「CPU時間という資源を譲る」という意味合いで、プロセスが自発的に呼び出すAPIの名前としてよく使われます。</p>
 </blockquote>
-<pre><code class="language-c:kernel.c"><span class="pl-k">struct</span> process *current_proc; <span class="pl-c">// 現在実行中のプロセス</span>
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">struct</span> process *current_proc; <span class="pl-c">// 現在実行中のプロセス</span>
 <span class="pl-k">struct</span> process *idle_proc;    <span class="pl-c">// アイドルプロセス</span>
 
 <span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
@@ -176,7 +176,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 }
 </code></pre>
 <p>ここで、2つのグローバル変数を導入しています。<code>current_proc</code>は現在実行中のプロセスを指します。<code>idle_proc</code>はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。<code>idle_proc</code>はプロセスIDが<code>-1</code>のプロセスとして、次のように起動時に作成しておきます。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
     <span class="pl-c1">memset</span>(__bss, <span class="pl-c1">0</span>, (<span class="pl-c1">size_t</span>) __bss_end - (<span class="pl-c1">size_t</span>) __bss);
 
     <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n\n</span><span class="pl-pds">"</span></span>);
@@ -197,7 +197,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 <p>この初期化処理のキーポイントが <code>current_proc = idle_proc</code> です。こうすることで、ブート処理の実行コンテキストがアイドルプロセスのそれとして保存・復元されます。最初の<code>yield</code>関数の呼び出しではアイドルプロセス→プロセスAに切り替わり、アイドルプロセスに切り替わるときには、この<code>yield</code>関数の呼び出しから戻ってきたかのように動きます。</p>
 <p>ブート時のスタックがアイドルプロセスのスタックとして使われる (<code>switch_context</code>関数で保存・復元される) ため、<code>process</code>構造体に割り当ててある<code>stack</code>フィールドは使われません。</p>
 <p>最後に、<code>proc_a_entry</code>と<code>proc_b_entry</code>関数を次のように変更して、<code>switch_context</code>関数を直接呼び出す代わりに、<code>yield</code>関数を呼び出すようにします。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">proc_a_entry</span>(<span class="pl-k">void</span>) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">proc_a_entry</span>(<span class="pl-k">void</span>) {
     <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>starting process A<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
     <span class="pl-k">while</span> (<span class="pl-c1">1</span>) {
         <span class="pl-c1">putchar</span>(<span class="pl-s"><span class="pl-pds">'</span>A<span class="pl-pds">'</span></span>);
@@ -223,7 +223,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 <h2 id="例外ハンドラの修正"><a class="anchor" href="#例外ハンドラの修正">例外ハンドラの修正</a></h2>
 <p>例外ハンドラではスタックに実行状態を保存していましたが、プロセスごとに別のカーネルスタックを使うようになったので少し修正が必要です。</p>
 <p>まずはプロセス切り替え時に<code>sscratch</code>レジスタへ、実行中プロセスのカーネルスタックの初期値を設定するようにします。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
     <span class="pl-c">/* 省略 */</span>
 
     <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
@@ -240,7 +240,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 </code></pre>
 <p>スタックポインタは下位アドレスの方向に伸びる (スタック領域の末尾から使われていく) ため、<code>sizeof(next->stack)</code>バイト目のアドレスをカーネルスタックの初期値として設定します。</p>
 <p>例外ハンドラの修正は次のとおりです。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">kernel_entry</span>(<span class="pl-k">void</span>) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">kernel_entry</span>(<span class="pl-k">void</span>) {
     <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
         <span class="pl-c">// 実行中プロセスのカーネルスタックをsscratchから取り出す</span>
         <span class="pl-c">// tmp = sp; sp = sscratch; sscratch = tmp;</span>

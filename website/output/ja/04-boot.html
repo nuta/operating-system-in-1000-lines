@@ -9,7 +9,7 @@
 <pre><code class="language-plain">$ touch run.sh
 $ chmod +x run.sh
 </code></pre>
-<pre><code class="language-bash:run.sh"><span class="pl-c">#!/bin/bash</span>
+<pre><div class="code-block-title">run.sh</div><code class="language-bash"><span class="pl-c">#!/bin/bash</span>
 <span class="pl-c1">set</span> -xue
 
 <span class="pl-c"># QEMUのファイルパス</span>
@@ -72,7 +72,7 @@ C-a C-a  sends C-a
 <h2 id="リンカスクリプト"><a class="anchor" href="#リンカスクリプト">リンカスクリプト</a></h2>
 <p>リンカスクリプトは、プログラムの各データ領域をメモリ上にどう配置するかを定義するファイルです。</p>
 <p>新たに、次のように<code>kernel.ld</code>というファイルを作成しましょう。リンカはプログラムをリンクする際に、このファイルに従って各関数・変数の最終的なメモリアドレスを決定します。</p>
-<pre><code class="language-plain:kernel.ld">ENTRY(boot)
+<pre><div class="code-block-title">kernel.ld</div><code class="language-plain">ENTRY(boot)
 
 SECTIONS {
     . = 0x80200000;
@@ -125,7 +125,7 @@ SECTIONS {
 </blockquote>
 <h2 id="最小限のカーネル"><a class="anchor" href="#最小限のカーネル">最小限のカーネル</a></h2>
 <p>まずは、最小限のカーネルを作成してみましょう。次のように<code>kernel.c</code>という名前のC言語のソースコードを作成しましょう。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">char</span> <span class="pl-c1">uint8_t</span>;
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">char</span> <span class="pl-c1">uint8_t</span>;
 <span class="pl-k">typedef</span> <span class="pl-k">unsigned</span> <span class="pl-k">int</span> <span class="pl-c1">uint32_t</span>;
 <span class="pl-k">typedef</span> <span class="pl-c1">uint32_t</span> <span class="pl-c1">size_t</span>;
 
@@ -163,7 +163,7 @@ void boot(<span class="pl-k">void</span>) {
 <p><code>kernel_main</code>関数では、まず<code>memset</code>関数を使って<code>.bss</code>領域をゼロで初期化します。ブートローダが<code>.bss</code>領域を認識してゼロクリアしてくれることもありますが、その確証がないため自らの手で初期化するのがおすすめです。最後に無限ループに入って終了です。</p>
 <h2 id="動かしてみよう"><a class="anchor" href="#動かしてみよう">動かしてみよう</a></h2>
 <p>最後に<code>run.sh</code>へカーネルのコンパイルと、QEMUの起動オプション (<code>-kernel kernel.elf</code>) を次のように追加しましょう。</p>
-<pre><code class="language-bash:run.sh"><span class="pl-c">#!/bin/bash</span>
+<pre><div class="code-block-title">run.sh</div><code class="language-bash"><span class="pl-c">#!/bin/bash</span>
 <span class="pl-c1">set</span> -xue
 
 QEMU=qemu-system-riscv32

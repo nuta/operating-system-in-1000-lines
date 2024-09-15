@@ -16,7 +16,7 @@
 <p>CPUはメモリアクセスする際に、<code>VPN[1]</code>と<code>VPN[0]</code>で対応するページテーブルのエントリを特定し、そのエントリの物理アドレスと<code>offset</code>を足し合わせることで、最終的にアクセスする物理アドレスを計算します。</p>
 <h2 id="ページテーブルの構築"><a class="anchor" href="#ページテーブルの構築">ページテーブルの構築</a></h2>
 <p>ではSv32方式のページテーブルを構築してみましょう。まずは、いくつかのマクロを定義します。<code>SATP_SV32</code>は「Sv32モードでページングを有効化する」ことを示す<code>satp</code>レジスタのビット、<code>PAGE_*</code>はページテーブルエントリに設定するビットです。</p>
-<pre><code class="language-c:kernel.h">#<span class="pl-k">define</span> <span class="pl-en">SATP_SV32</span> (<span class="pl-c1">1u</span> &#x3C;&#x3C; <span class="pl-c1">31</span>)
+<pre><div class="code-block-title">kernel.h</div><code class="language-c">#<span class="pl-k">define</span> <span class="pl-en">SATP_SV32</span> (<span class="pl-c1">1u</span> &#x3C;&#x3C; <span class="pl-c1">31</span>)
 #<span class="pl-k">define</span> <span class="pl-en">PAGE_V</span>    (<span class="pl-c1">1</span> &#x3C;&#x3C; <span class="pl-c1">0</span>)   <span class="pl-c">// 有効化ビット</span>
 #<span class="pl-k">define</span> <span class="pl-en">PAGE_R</span>    (<span class="pl-c1">1</span> &#x3C;&#x3C; <span class="pl-c1">1</span>)   <span class="pl-c">// 読み込み可能</span>
 #<span class="pl-k">define</span> <span class="pl-en">PAGE_W</span>    (<span class="pl-c1">1</span> &#x3C;&#x3C; <span class="pl-c1">2</span>)   <span class="pl-c">// 書き込み可能</span>
@@ -24,7 +24,7 @@
 #<span class="pl-k">define</span> <span class="pl-en">PAGE_U</span>    (<span class="pl-c1">1</span> &#x3C;&#x3C; <span class="pl-c1">4</span>)   <span class="pl-c">// ユーザーモードでアクセス可能</span>
 </code></pre>
 <p>次の<code>map_page</code>関数は、1段目のページテーブル (<code>table1</code>)、マップしたい仮想アドレス (<code>vaddr</code>)、マップ先の物理アドレス (<code>paddr</code>)、ページテーブルエントリに設定するフラグ (<code>flags</code>) を受け取り、ページテーブルを構築します。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">map_page</span>(<span class="pl-c1">uint32_t</span> *table1, <span class="pl-c1">uint32_t</span> vaddr, <span class="pl-c1">paddr_t</span> paddr, <span class="pl-c1">uint32_t</span> flags) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">map_page</span>(<span class="pl-c1">uint32_t</span> *table1, <span class="pl-c1">uint32_t</span> vaddr, <span class="pl-c1">paddr_t</span> paddr, <span class="pl-c1">uint32_t</span> flags) {
     <span class="pl-k">if</span> (!<span class="pl-c1">is_aligned</span>(vaddr, PAGE_SIZE))
         <span class="pl-c1">PANIC</span>(<span class="pl-s"><span class="pl-pds">"</span>unaligned vaddr <span class="pl-c1">%x</span><span class="pl-pds">"</span></span>, vaddr);
 
@@ -50,7 +50,7 @@
 <p>ページテーブルにはアプリケーション (ユーザー空間) のマッピングだけでなく、カーネルのそれも設定する必要があります。</p>
 <p>本書では、カーネルのマッピングは、カーネルの仮想アドレスと物理アドレスが一致するように設定します。こうすることで、ページングを有効化しても同じコードを引き続き実行できるようになります。</p>
 <p>まずはカーネルのリンカスクリプトの修正です。カーネルが利用するアドレスの先頭 (<code>__kernel_base</code>) を定義します。</p>
-<pre><code class="language-plain:kernel.ld">ENTRY(boot)
+<pre><div class="code-block-title">kernel.ld</div><code class="language-plain">ENTRY(boot)
 
 SECTIONS {
     . = 0x80200000;
@@ -60,7 +60,7 @@ SECTIONS {
 <p><code>. = 0x80200000</code>の<strong>後ろ</strong>に定義するよう注意してください。順番が逆だと、<code>__kernel_base</code>の値がゼロになります。</p>
 </blockquote>
 <p>次にプロセス管理構造体にページテーブルを追加します。1段目のページテーブルを指すポインタです。</p>
-<pre><code class="language-c:kernel.h"><span class="pl-k">struct</span> process {
+<pre><div class="code-block-title">kernel.h</div><code class="language-c"><span class="pl-k">struct</span> process {
     <span class="pl-k">int</span> pid;
     <span class="pl-k">int</span> state;
     <span class="pl-c1">vaddr_t</span> sp;
@@ -69,7 +69,7 @@ SECTIONS {
 };
 </code></pre>
 <p>最後に、<code>create_process</code>関数でカーネルのページをマッピングします。カーネルのページは、<code>__kernel_base</code>から<code>__free_ram_end</code>までの範囲です。こうすることで、静的に配置される領域 (<code>.text</code>など) と、<code>alloc_pages</code>関数で動的に割り当てられる領域の両方を、カーネルはいつでもアクセスできるようにしておきます。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">extern</span> <span class="pl-k">char</span> __kernel_base[];
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">extern</span> <span class="pl-k">char</span> __kernel_base[];
 
 <span class="pl-k">struct</span> process *<span class="pl-en">create_process</span>(<span class="pl-c1">uint32_t</span> pc) {
     <span class="pl-c">/* 省略 */</span>
@@ -90,7 +90,7 @@ SECTIONS {
 </code></pre>
 <h2 id="ページテーブルの切り替え"><a class="anchor" href="#ページテーブルの切り替え">ページテーブルの切り替え</a></h2>
 <p>最後に、プロセスの切り替え時にページテーブルを切り替えるようにします。</p>
-<pre><code class="language-c:kernel.c"><span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
+<pre><div class="code-block-title">kernel.c</div><code class="language-c"><span class="pl-k">void</span> <span class="pl-en">yield</span>(<span class="pl-k">void</span>) {
     <span class="pl-c">/* 省略 */</span>
 
     <span class="pl-k">__asm__</span> <span class="pl-smi">__volatile__</span>(
@@ -202,7 +202,7 @@ vaddr    paddr            size     attr
 <p>ページテーブルの設定は難易度が少し高く、ミスに気づきにくいものです。そこで、本章ではよくあるページングのミスを題材に、どうデバッグできるかを見ていきます。</p>
 <h3 id="モードの設定し忘れ"><a class="anchor" href="#モードの設定し忘れ">モードの設定し忘れ</a></h3>
 <p>まずは<code>satp</code>レジスタにモードを設定し忘れた場合です。次のように抜いてみましょう。</p>
-<pre><code class="language-c:kernel.c">    <span class="pl-k">__asm__</span> <span class="pl-en">__volatile__</span>(
+<pre><div class="code-block-title">kernel.c</div><code class="language-c">    <span class="pl-k">__asm__</span> <span class="pl-en">__volatile__</span>(
         <span class="pl-s"><span class="pl-pds">"</span>sfence.vma<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
         <span class="pl-s"><span class="pl-pds">"</span>csrw satp, %[satp]<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
         <span class="pl-s"><span class="pl-pds">"</span>sfence.vma<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
@@ -216,7 +216,7 @@ No translation or protection
 </code></pre>
 <h3 id="物理ページ番号ではなく物理アドレスを指定している"><a class="anchor" href="#物理ページ番号ではなく物理アドレスを指定している">物理ページ番号ではなく物理アドレスを指定している</a></h3>
 <p>次に物理ページ番号ではなく物理アドレスでページテーブルを指定してしまった時です。</p>
-<pre><code class="language-c:kernel.c">    <span class="pl-k">__asm__</span> <span class="pl-en">__volatile__</span>(
+<pre><div class="code-block-title">kernel.c</div><code class="language-c">    <span class="pl-k">__asm__</span> <span class="pl-en">__volatile__</span>(
         <span class="pl-s"><span class="pl-pds">"</span>sfence.vma<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
         <span class="pl-s"><span class="pl-pds">"</span>csrw satp, %[satp]<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
         <span class="pl-s"><span class="pl-pds">"</span>sfence.vma<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>
@@ -245,7 +245,7 @@ CPU#0
 </code></pre>
 <p><code>80200188</code>を<code>llvm-addr2line</code>で確認すると例外ハンドラの先頭アドレス、例外の発生理由 (<code>scause</code>レジスタ) は仕様書によると「Instruction page fault」に該当します。ページテーブルを切り替えて次の命令を実行するとき、CPUはページテーブルからプログラムカウンタの仮想アドレスを物理アドレスに変換しようとします。しかし、ページテーブルのアドレス (<code>satp</code>レジスタ) が正しくないため、変換に失敗し、ページフォルトが発生しています。</p>
 <p>より具体的に何が起きているのかをQEMUのログから見てみましょう。</p>
-<pre><code class="language-bash:run.sh"><span class="pl-smi">$QEMU</span> -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
+<pre><div class="code-block-title">run.sh</div><code class="language-bash"><span class="pl-smi">$QEMU</span> -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
     -kernel kernel.elf
 </code></pre>

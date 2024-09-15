@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html><head><title>Hello World! - 1000行で作るOS</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/styles.css"><meta name="generator" content="Docship (https://github.com/nuta/docship)"></head><body class="mx-auto max-w-3xl w-full py-8 px-4"><header><h1 class="text-center mb-8 text-xl font-bold">1000行で作るOS - Hello World!</h1><div class="mb-8 container mx-auto flex justify-center"><ol class="w-full my-0 sm:w-fit grid grid-rows-[repeat(9,auto)] grid-flow-col gap-x-4" start="0"><li class="my-1"><a href="/ja/index" class="">はじめに</a></li><li class="my-1"><a href="/ja/01-setting-up-development-environment" class="">開発環境</a></li><li class="my-1"><a href="/ja/02-assembly" class="">RISC-V入門</a></li><li class="my-1"><a href="/ja/03-overview" class="">OSの全体像</a></li><li class="my-1"><a href="/ja/04-boot" class="">ブート</a></li><li class="my-1"><a href="/ja/05-hello-world" class="font-bold">Hello World!</a></li><li class="my-1"><a href="/ja/06-libc" class="">C標準ライブラリ</a></li><li class="my-1"><a href="/ja/07-kernel-panic" class="">カーネルパニック</a></li><li class="my-1"><a href="/ja/08-exception" class="">例外処理</a></li><li class="my-1"><a href="/ja/09-memory-allocation" class="">メモリ割り当て</a></li><li class="my-1"><a href="/ja/10-process" class="">プロセス</a></li><li class="my-1"><a href="/ja/11-page-table" class="">ページテーブル</a></li><li class="my-1"><a href="/ja/12-application" class="">アプリケーション</a></li><li class="my-1"><a href="/ja/13-user-mode" class="">ユーザーモード</a></li><li class="my-1"><a href="/ja/14-system-call" class="">システムコール</a></li><li class="my-1"><a href="/ja/15-virtio-blk" class="">ディスク読み書き</a></li><li class="my-1"><a href="/ja/16-file-system" class="">ファイルシステム</a></li><li class="my-1"><a href="/ja/17-conclusion" class="">おわりに</a></li></ol></div></header><main><p>前章では初めてのカーネルの起動に成功しました。レジスタダンプを読むことで確認できたとはいえ、なんだか物足りません。そこで今回は、カーネルから文字列を出力してみましょう。</p>
 <h2 id="初めてのsbi"><a class="anchor" href="#初めてのsbi">初めてのSBI</a></h2>
-<pre><code class="language-c:kernel.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
+<pre><div class="code-block-title">kernel.c</div><code class="language-c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
 
 <span class="pl-k">extern</span> <span class="pl-k">char</span> __bss[], __bss_end[], __stack_top[];
 
@@ -40,7 +40,7 @@
 }
 </code></pre>
 <p>加えて、新しく<code>kernel.h</code>を作成し、SBIの処理結果を返すための構造体を定義しましょう。</p>
-<pre><code class="language-c:kernel.h">#<span class="pl-k">pragma</span> once
+<pre><div class="code-block-title">kernel.h</div><code class="language-c">#<span class="pl-k">pragma</span> once
 
 <span class="pl-k">struct</span> sbiret {
     <span class="pl-k">long</span> error;
@@ -104,7 +104,7 @@ Hello World!
 <p><code>printf</code>関数は、第1引数にフォーマット文字列を取り、第2引数以降にフォーマット文字列に埋め込む値を取ります。例えば、<code>printf("1 + 2 = %d", 1 + 2)</code>とすると、<code>1 + 2 = 3</code>と表示されます。</p>
 <p>C標準ライブラリに入っているような<code>printf</code>関数は非常に豊富な機能を持っていますが、今回は最低限の機能に絞って実装してみましょう。具体的には<code>%d</code> (10進数)、<code>%x</code> (16進数)、<code>%s</code> (文字列) の3つのフォーマット文字列に対応した<code>printf</code>関数を実装します。</p>
 <p><code>printf</code>関数は将来アプリケーション側でも使いたいので、<code>kernel.c</code>ではなくカーネル・ユーザーランド共通のコード用のファイル<code>common.c</code>を新しく作ることにします。以下が<code>printf</code>関数の全体像です。</p>
-<pre><code class="language-c:common.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
+<pre><div class="code-block-title">common.c</div><code class="language-c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
 
 <span class="pl-k">void</span> <span class="pl-en">putchar</span>(<span class="pl-k">char</span> ch);
 
@@ -172,7 +172,7 @@ end:
 <p>10進数の場合は、まず<code>value</code>が負の数であれば<code>-</code>を出力してから、その絶対値を<code>value</code>に代入します。次に、<code>value</code>の最上位の桁を求めるために「何桁まであるか」を計算して<code>divisor</code> (英語で「割る数」) に入れておきます。あとは、<code>divisor</code>を使って<code>value</code>の最上位の桁から順に出力していきます。</p>
 <p>16進数の場合は、最上位のニブル (16進数の1桁、4ビット) から順に出力していきます。ここで<code>nibble</code>は0から15の整数になるので、<code>"0123456789abcdef"</code>という文字列の何文字目かで<code>nibble</code>に対応する文字を取り出しています。</p>
 <p><code>va_list</code>などは、C標準ライブラリの<code>&#x3C;stdarg.h></code>に定義されているマクロですが、本書では標準ライブラリに頼らずに自前で用意します。具体的には<code>common.h</code>に次のように定義しておきます。</p>
-<pre><code class="language-c:common.h">#<span class="pl-k">pragma</span> once
+<pre><div class="code-block-title">common.h</div><code class="language-c">#<span class="pl-k">pragma</span> once
 
 #<span class="pl-k">define</span> <span class="pl-en">va_list</span>  __builtin_va_list
 #<span class="pl-k">define</span> <span class="pl-en">va_start</span> __builtin_va_start
@@ -183,7 +183,7 @@ end:
 </code></pre>
 <p>単純に<code>__builtin_</code>がついたものの別名として定義しています。では、<code>__builtin_</code>がついたものは誰が用意するのかというと、コンパイラ (clang) が用意しているものです (<a href="https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins">参考: clangのドキュメント</a>)。あとはコンパイラがよしなにやってくれるので、特に気にする必要はありません。</p>
 <p>これで<code>printf</code>関数が使えるようになりました。<code>kernel.c</code>にいくつか<code>printf</code>関数を使ったコードを書いてみましょう。</p>
-<pre><code class="language-c:kernel.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
+<pre><div class="code-block-title">kernel.c</div><code class="language-c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>kernel.h<span class="pl-pds">"</span></span>
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
 
 <span class="pl-k">void</span> <span class="pl-en">kernel_main</span>(<span class="pl-k">void</span>) {
@@ -196,7 +196,7 @@ end:
 }
 </code></pre>
 <p>最後に<code>common.c</code>をコンパイル対象に追加します。</p>
-<pre><code class="language-bash:run.sh"><span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
+<pre><div class="code-block-title">run.sh</div><code class="language-bash"><span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c common.c
 </code></pre>
 <p>では<code>run.sh</code>を実行してみましょう。次のように、<code>Hello World!</code>と<code>1 + 2 = 3, 1234abcd</code>が表示されたら成功です。</p>

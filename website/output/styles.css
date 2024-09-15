@@ -448,6 +448,27 @@ video {
   line-height: 1.5rem;
 }
 
+  .code-block-title {
+    font-family: monospace;
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+    width: -moz-fit-content;
+    width: fit-content;
+    -webkit-user-select: all;
+       -moz-user-select: all;
+            user-select: all;
+    border-radius: 0.25rem;
+    --tw-bg-opacity: 1;
+    background-color: rgb(229 231 235 / var(--tw-bg-opacity));
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 700;
+    --tw-text-opacity: 1;
+    color: rgb(55 65 81 / var(--tw-text-opacity));
+  }
+
   pre {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
@@ -849,14 +870,14 @@ video {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
 }
+    .mb-4 {
+  margin-bottom: 1rem;
+}
     .mb-8 {
   margin-bottom: 2rem;
 }
     .mt-8 {
   margin-top: 2rem;
-}
-    .mb-4 {
-  margin-bottom: 1rem;
 }
     .block {
   display: block;
@@ -935,14 +956,6 @@ video {
     .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
-}
-    .text-2xl {
-  font-size: 1.5rem;
-  line-height: 2rem;
-}
-    .text-4xl {
-  font-size: 2.25rem;
-  line-height: 2.5rem;
 }
     .font-bold {
   font-weight: 700;

@@ -3,7 +3,7 @@
 <h2 id="メモリレイアウト"><a class="anchor" href="#メモリレイアウト">メモリレイアウト</a></h2>
 <p>前章ではページングという仕組みを使ってプロセスごとの独立した仮想アドレス空間を実現しました。本章では、アプリケーションを仮想アドレス空間上のどこに配置するかを考えます。</p>
 <p>アプリケーションの実行ファイルをどこに配置するかを定義する、新しいリンカスクリプト (<code>user.ld</code>) を作成しましょう。</p>
-<pre><code class="language-plain:user.ld">ENTRY(start)
+<pre><div class="code-block-title">user.ld</div><code class="language-plain">ENTRY(start)
 
 SECTIONS {
     . = 0x1000000;
@@ -36,7 +36,7 @@ SECTIONS {
 <p>ここで登場している<code>ASSERT</code>は、第一引数の条件が満たされていなければリンク処理 (本書ではclangコマンド) を失敗させるものです。ここでは、<code>.bss</code>セクションの末尾、つまりアプリケーションの末尾が <code>0x1800000</code> を超えていないことを確認しています。実行ファイルが意図せず大きすぎることのないようにするためです。</p>
 <h2 id="ユーザーランド用ライブラリ"><a class="anchor" href="#ユーザーランド用ライブラリ">ユーザーランド用ライブラリ</a></h2>
 <p>次にユーザーランド用ライブラリを作成しましょう。まずはアプリケーションの起動に必要な処理だけを書きます。</p>
-<pre><code class="language-c:user.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
+<pre><div class="code-block-title">user.c</div><code class="language-c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
 
 <span class="pl-k">extern</span> <span class="pl-k">char</span> __stack_top[];
 
@@ -65,7 +65,7 @@ void start(<span class="pl-k">void</span>) {
 <p>ゼロクリアは実用的なOSでも行われている処理で、ゼロで埋めないと以前そのメモリ領域を使っていた他のプロセスの情報が残ってしまうためです。パスワードのような機密情報が残ってしまっていたら大変です。</p>
 </blockquote>
 <p>加えて、ユーザランド用ライブラリのヘッダファイル (<code>user.h</code>) も用意しておきましょう。</p>
-<pre><code class="language-c:user.h">#<span class="pl-k">pragma</span> once
+<pre><div class="code-block-title">user.h</div><code class="language-c">#<span class="pl-k">pragma</span> once
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>common.h<span class="pl-pds">"</span></span>
 
 <span class="pl-en">__attribute__</span>((noreturn)) void exit(<span class="pl-k">void</span>);
@@ -73,7 +73,7 @@ void start(<span class="pl-k">void</span>) {
 </code></pre>
 <h2 id="最初のアプリケーション"><a class="anchor" href="#最初のアプリケーション">最初のアプリケーション</a></h2>
 <p>最初のアプリケーション (<code>shell.c</code>) は次のものを用意します。カーネルの時と同じく、文字を表示するのにも一手間必要なので、無限ループを行うだけにとどめておきます。</p>
-<pre><code class="language-c:shell.c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
+<pre><div class="code-block-title">shell.c</div><code class="language-c">#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>user.h<span class="pl-pds">"</span></span>
 
 <span class="pl-k">void</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
     <span class="pl-k">for</span> (;;);
@@ -81,7 +81,7 @@ void start(<span class="pl-k">void</span>) {
 </code></pre>
 <h2 id="アプリケーションのビルド"><a class="anchor" href="#アプリケーションのビルド">アプリケーションのビルド</a></h2>
 <p>最後にアプリケーションのビルド処理です。</p>
-<pre><code class="language-bash:run.sh">OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+<pre><div class="code-block-title">run.sh</div><code class="language-bash">OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
 <span class="pl-c"># シェルをビルド</span>
 <span class="pl-smi">$CC</span> <span class="pl-smi">$CFLAGS</span> -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf shell.c user.c common.c
