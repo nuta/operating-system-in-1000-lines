@@ -4,7 +4,7 @@ layout: chapter
 lang: en
 ---
 
-# Memory management and virtual addressing
+## Memory management and virtual addressing
 
 When a program accesses memory, the CPU performs a conversion from virtual addresses to physical addresses. The table that maps virtual addresses to physical addresses is called a **page table**. By switching page tables, the same virtual address can access different physical addresses. This allows isolation of memory spaces (virtual address spaces) for each process and separation of kernel and application memory areas, enhancing system security.
 
