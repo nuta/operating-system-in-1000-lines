@@ -35,7 +35,9 @@ export default async function EntryLayout({ children, meta, pages }) {
         <meta name="viewport" content="width=device-width" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <script>
-          window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+          {`
+            window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+          `}
         </script>
         <script defer src="/_vercel/insights/script.js"></script>
       </head>
