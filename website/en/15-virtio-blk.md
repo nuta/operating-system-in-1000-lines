@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 ## Virtio introduction
 

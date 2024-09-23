@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 The first thing we need is the boot process. For applications, the OS conveniently calls the `main` function, but for kernels, we need to write our own initialization process according to hardware specifications.
 

@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 This is where the book ends. Although it's less than 1000 lines, it must have been quite challenging.
 

@@ -6,3 +6,5 @@
 *.log
 *.pcap
 
+# docship
+/output

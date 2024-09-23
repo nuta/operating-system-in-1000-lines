@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 In this chapter, we'll try running the application execution image we created in the previous chapter.
 

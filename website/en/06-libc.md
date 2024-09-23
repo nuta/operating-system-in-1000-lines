@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 Now that we've completed the Hello World, let's implement basic types and memory operations, as well as string manipulation functions. Typically, we would use the C standard library (e.g., `stdint.h` or `string.h`), but for the purpose of learning, we'll create these from scratch.
 

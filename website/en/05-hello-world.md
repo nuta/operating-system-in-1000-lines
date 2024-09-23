@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 In the previous chapter, we successfully booted our first kernel. Although we could confirm this by reading the register dump, it still feels somewhat unsatisfactory. So this time, let's try to output a string from the kernel.
 

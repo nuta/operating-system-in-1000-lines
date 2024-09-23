@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 An exception is a mechanism that switches processing to a program (exception handler) pre-set by the OS when a "program execution cannot continue" state occurs, such as invalid memory access (e.g., null pointer dereference).
 

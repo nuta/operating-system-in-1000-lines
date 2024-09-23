@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 A kernel panic occurs when the kernel encounters an unrecoverable error, similar to the concept of `panic` in Go or Rust. The following `PANIC` macro is the implementation of kernel panic:
 

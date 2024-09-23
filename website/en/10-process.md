@@ -4,7 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE] Translation of this English version is in progress.
+> [!NOTE]
+>
+> **Translation of this English version is in progress.**
 
 A process is essentially an instance of an application, with each process having its own independent execution context and resources such as a virtual address space. Some OSes provide the execution context as a separate concept called a "thread", but for simplicity, in this book we'll treat each process as having a single thread.
 
