@@ -4,29 +4,25 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
-
 ## Features in 1K LoC OS
 
 In this book, we will implement the following major features:
 
-- **Multitasking**: Switch between processes, making multiple programs appear to run simultaneously.
-- **Exception handler**: Handle events requiring OS intervention, such as runtime errors.
-- **Paging**: Independent memory spaces for each process.
-- **System call**: Allow applications to call OS features.
-- **Device drivers**: Abstract hardware functionalities, such as reading and writing to disks.
+- **Multitasking**: Switch between processes to allow multiple applications to share the CPU.
+- **Exception handler**: Handle events requiring OS intervention, such as illegal instruction.
+- **Paging**: Provide an isolated memory address space for each application.
+- **System call**: Allow applications to call kernel features.
+- **Device drivers**: Abstract hardware functionalities, such as disk read/write.
 - **File system**: Manage files on disk.
 - **Command-line shell**: User interface for humans.
 
 ## Features not implemented
 
-Conversely, the following major features are omitted:
+The following major features are not implemented in this book:
 
-- **Interrupt handling**: Implemented using a polling method (periodically check for new data on devices), aka busy waiting.
-- **Timer processing**: Preemptive multitasking is not implemented. Cooperative multitasking is implemented where each process voluntarily yields CPU.
-- **Inter-process communication**: Such as pipe, UNIX domain socket, etc.
+- **Interrupt handling**: Instead, we will use a polling method (periodically check for new data on devices), aka busy waiting.
+- **Timer processing**: Preemptive multitasking is not implemented. Cooperative multitasking, where each process voluntarily yields CPU, is implemented.
+- **Inter-process communication**: Such as pipe, UNIX domain socket, and shared memory, are not implemented.
 - **Multi-processor support**: Only single processor is supported.
 
 ## Source code structure
@@ -49,4 +45,4 @@ We'll build from scratch incrementally, and the final file structure will look l
 
 > [!TIP]
 >
-> In this book, _"user land"_ is sometimes abbreviated as _"user"_. Consider it as _applciations_.
+> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *applciations*. Do not confuse it with *"user account"*!
