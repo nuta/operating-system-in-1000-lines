@@ -45,4 +45,4 @@ We'll build from scratch incrementally, and the final file structure will look l
 
 > [!TIP]
 >
-> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *applciations*. Do not confuse it with *"user account"*!
+> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *"applications"*. Do not confuse it with *"user account"*!

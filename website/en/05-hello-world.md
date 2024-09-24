@@ -4,13 +4,13 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+In the previous chapter, we successfully booted our first kernel. Although we could confirm it works by reading the register dump, it still feels somewhat unsatisfactory.
 
-In the previous chapter, we successfully booted our first kernel. Although we could confirm this by reading the register dump, it still feels somewhat unsatisfactory. So this time, let's try to output a string from the kernel.
+In this chapter, let's make it more obvious by outputting a string from the kernel.
 
 ## Say "hello" to SBI
+
+In the previous chapter, we learned that SBI is an "API for OS". To call the SBI to use its function, we use the `ecall` instruction:
 
 ```c:kernel.c {1, 5-26, 29-32}
 #include "kernel.h"
@@ -52,7 +52,7 @@ void kernel_main(void) {
 }
 ```
 
-In addition, let's create a new `kernel.h` file and define a structure to return the results of SBI processing.
+Also, create a new `kernel.h` file and define the return value structure:
 
 ```c:kernel.h
 #pragma once
@@ -63,7 +63,7 @@ struct sbiret {
 };
 ```
 
-We've newly added the `sbi_call` function. This function is designed to call OpenSBI according to the SBI specification. The specific calling convention is as follows:
+We've newly added the `sbi_call` function. This function is designed to call OpenSBI as specified in the SBI specification. The specific calling convention is as follows:
 
 > **Chapter 3. Binary Encoding**
 >
@@ -86,15 +86,15 @@ We've newly added the `sbi_call` function. This function is designed to call Ope
 
 > [!TIP]
 >
-> The statement in the calling convention that says "All registers except `a0` & `a1` must be preserved across an SBI call by the callee" means that "the callee (OpenSBI side) must not change the values of registers other than `a0` and `a1`". In other words, from the kernel's perspective, it is guaranteed that the values of registers from `a2` to `a7` will remain the same after the call.
->
-> TIP: The opposite of callee (the called party) is caller (the calling party).
+> *"All registers except `a0` & `a1` must be preserved across an SBI call by the callee"* means that the callee (OpenSBI side) must not change the values of ***except*** `a0` and `a1`. In other words, from the kernel's perspective, it is guaranteed that the registers (`a2` to `a7`) will remain the same after the call.
 
-The `register` and `__asm__("register name")` used in each local variable declaration are instructions to the compiler to place values in specified registers. This is a common idiom that often appears in system call invocations (e.g., [Linux system call invocation process](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h)). Ideally, this should be specified in inline assembly, but since it's not possible in C language (more precisely, in GCC/clang proprietary extensions), this trick is often used.
+The `register` and `__asm__("register name")` used in each local variable declaration asks the compiler to place values in the specified registers. This is a common idiom in system call invocations (e.g., [Linux system call invocation process](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h)).
 
-After preparing the arguments, the `ecall` instruction is executed in inline assembly. When this is called, the CPU's execution mode switches from kernel mode (S-Mode) to OpenSBI mode (M-Mode), and OpenSBI's processing handler is invoked. When OpenSBI processing is complete, it switches back to kernel mode, and execution resumes from the line following the `ecall` instruction. Incidentally, the `ecall` instruction is also used when applications call the kernel (system calls). This instruction has the function of "calling the layer one level below."
+After preparing the arguments, the `ecall` instruction is executed in inline assembly. When this is called, the CPU's execution mode switches from kernel mode (S-Mode) to OpenSBI mode (M-Mode), and OpenSBI's processing handler is invoked. Once it's done, it switches back to kernel mode, and execution resumes after the `ecall` instruction. 
 
-To display characters, we use the following `Console Putchar` function.
+The `ecall` instruction is also used when applications call the kernel (system calls). This instruction behaves like a function call to the more privileged CPU mode.
+
+To display characters, we can use `Console Putchar` function:
 
 > 5.2. Extension: Console Putchar (EID #0x01)
 >
@@ -110,9 +110,11 @@ To display characters, we use the following `Console Putchar` function.
 >
 > -- "RISC-V Supervisor Binary Interface Specification" v2.0-rc1
 
-`Console Putchar` is a function that outputs the character passed as an argument to the debug console. We'll use this function to output the string one character at a time.
+`Console Putchar` is a function that outputs the character passed as an argument to the debug console.
 
-Once the implementation is complete, let's run it using `run.sh`. If you see `Hello World!` displayed as shown below, it's a success.
+### Try it out
+
+Let's try your implementation. You should see `Hello World!` if it works:
 
 ```plain
 $ ./run.sh
@@ -123,24 +125,30 @@ Hello World!
 
 > [!TIP]
 >
-> When SBI is called, characters are displayed through the following process:
+> **Life of Hello World:**
 >
-> 1. When the OS executes the `ecall` instruction, the CPU jumps to the M-mode trap handler (the `mtvec` register). This trap handler is set by OpenSBI during startup.
-> 2. After saving registers and other necessary operations, the [trap handler written in C](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) is called.
+> When SBI is called, characters will be displayed as follows:
+>
+> 1. The kernel executes `ecall` instruction. The CPU jumps to the M-mode trap handler (`mtvec` register), which is set by OpenSBI during startup.
+> 2. After saving registers, the [trap handler written in C](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) is called.
 > 3. Based on the `eid`, the [corresponding SBI processing function is called](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65).
 > 4. The [device driver](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77) for the 8250 UART ([Wikipedia](https://en.wikipedia.org/wiki/8250_UART)) sends the character to QEMU.
 > 5. QEMU's 8250 UART emulation implementation receives the character and sends it to the standard output.
 > 6. The terminal emulator displays the character.
+>
+> That is, by calling `Console Putchar` function is not a magic at all - it just uses the device driver implemented in OpenSBI!
 
 ## `printf` function
 
-Finally, it's starting to feel like kernel development! Once we can display characters, the next thing we want is the `printf` function.
+We've successfully printed some characters. The next item is implementing `printf` function.
 
-The `printf` function takes a format string as its first argument, and the values to be embedded in the format string as subsequent arguments. For example, `printf("1 + 2 = %d", 1 + 2)` will display `1 + 2 = 3`.
+`printf` function takes a format string, and the values to be embedded in the output. For example, `printf("1 + 2 = %d", 1 + 2)` will display `1 + 2 = 3`.
 
-While the `printf` function included in the C standard library has a very rich set of features, let's implement a minimal version for now. Specifically, we'll implement a `printf` function that supports three format specifiers: `%d` (decimal), `%x` (hexadecimal), and `%s` (string).
+While `printf` bundled in the C standard library has a very rich set of features, let's start with a minimal version. Specifically, we'll implement a `printf` that supports three format specifiers: `%d` (decimal), `%x` (hexadecimal), and `%s` (string).
 
-Since we'll want to use the `printf` function in user applications in the future, we'll create a new file `common.c` for code that's shared between the kernel and userland, rather than putting it in `kernel.c`. Here's an overview of the `printf` function:
+Since we'll use `printf` in applications too, let's create a new file `common.c` for code shared between the kernel and userland.
+
+Here's the implementation of the `printf` function:
 
 ```c:common.c
 #include "common.h"
@@ -153,15 +161,15 @@ void printf(const char *fmt, ...) {
 
     while (*fmt) {
         if (*fmt == '%') {
-            fmt++;
-            switch (*fmt) {
-                case '\0':
+            fmt++; // Skip '%'
+            switch (*fmt) { // Read the next character
+                case '\0': // '%' at the end of the format string
                     putchar('%');
                     goto end;
-                case '%':
+                case '%': // Print '%'
                     putchar('%');
                     break;
-                case 's': {
+                case 's': { // Print a NULL-terminated string.
                     const char *s = va_arg(vargs, const char *);
                     while (*s) {
                         putchar(*s);
@@ -169,7 +177,7 @@ void printf(const char *fmt, ...) {
                     }
                     break;
                 }
-                case 'd': {
+                case 'd': { // Print an integer in decimal.
                     int value = va_arg(vargs, int);
                     if (value < 0) {
                         putchar('-');
@@ -188,7 +196,7 @@ void printf(const char *fmt, ...) {
 
                     break;
                 }
-                case 'x': {
+                case 'x': { // Print an integer in hexadecimal.
                     int value = va_arg(vargs, int);
                     for (int i = 7; i >= 0; i--) {
                         int nibble = (value >> (i * 4)) & 0xf;
@@ -208,13 +216,13 @@ end:
 }
 ```
 
-It's surprisingly concise, isn't it? We go through the string character by character, and if we encounter a `%`, we look at the next character and perform the corresponding formatting operation. Characters other than `%` are output as is.
+It's surprisingly concise, isn't it? It goes through the format string character by character, and if we encounter a `%`, we look at the next character and perform the corresponding formatting operation. Characters other than `%` are printed as is.
 
-For decimal numbers, if `value` is negative, we first output a `-` and then assign its absolute value to `value`. Next, to find the most significant digit of `value`, we calculate "how many digits there are" and store it in `divisor`. Then, we use `divisor` to output the digits of `value` from the most significant to the least significant.
+For decimal numbers, if `value` is negative, we first output a `-` and then get its absolute value. We then calculate the divisor to get the most significant digit and output the digits one by one.
 
-For hexadecimal numbers, we output from the most significant nibble (one hexadecimal digit, 4 bits) to the least significant. Here, `nibble` is an integer from 0 to 15, so we use it to index into the string `"0123456789abcdef"` to get the corresponding character.
+For hexadecimal numbers, we output from the most significant *nibble* (a hexadecimal digit, 4 bits) to the least significant. Here, `nibble` is an integer from 0 to 15, so we use it as the index in string `"0123456789abcdef"` to get the corresponding character.
 
-`va_list` and related macros are defined in the C standard library's `<stdarg.h>`, but in this book, we'll prepare our own versions without relying on the standard library. Specifically, we'll define them in `common.h` as follows:
+`va_list` and related macros are defined in the C standard library's `<stdarg.h>`. In this book, we use compiler builtins directly without relying on the standard library. Specifically, we'll define them in `common.h` as follows:
 
 ```c:common.h
 #pragma once
@@ -227,9 +235,9 @@ For hexadecimal numbers, we output from the most significant nibble (one hexadec
 void printf(const char *fmt, ...);
 ```
 
-We're simply defining these as aliases for the versions with `__builtin_` prefixed. Now, you might wonder who provides these `__builtin_` versions. They are actually provided by the compiler (clang) itself ([Reference: clang documentation](https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins)). The compiler will handle the rest appropriately, so we don't need to worry about it further.
+We're simply defining these as aliases for the versions with `__builtin_` prefixed. They are builtin features provided by the compiler (clang) itself ([Reference: clang documentation](https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins)). The compiler will handle the rest appropriately, so we don't need to worry about it.
 
-Now we can use the `printf` function. Let's write some code in `kernel.c` that uses the `printf` function.
+Now we've implemented `printf`. Let's add a "Hello World" from the kernel:
 
 ```c:kernel.c {2,5-6}
 #include "kernel.h"
@@ -245,14 +253,14 @@ void kernel_main(void) {
 }
 ```
 
-Lastly, add `common.c` to the compilation targets:
+Also, Add `common.c` to the compilation targets:
 
 ```bash:run.sh {2}
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c common.c
 ```
 
-Now, let's run `run.sh`. If you see `Hello World!` and `1 + 2 = 3, 1234abcd` displayed as shown below, it's a success:
+Now, let's try! You will see `Hello World!` and `1 + 2 = 3, 1234abcd` as shown below:
 
 ```plain
 $ ./run.sh
@@ -261,4 +269,4 @@ Hello World!
 1 + 2 = 3, 1234abcd
 ```
 
-With this, the powerful ally "printf debugging" has joined your toolkit!
+The powerful ally "printf debugging" has joined your OS!
