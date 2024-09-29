@@ -24,7 +24,7 @@ export default async function EntryLayout({ children, meta, pages }) {
       "Operating System in 1,000 Lines": {
         ja: "1000行で作るOS",
       },
-    }
+    }[key] ?? ''
   }
 
   return (
