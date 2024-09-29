@@ -4,11 +4,9 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+In this chapter, we'll implement a simple memory allocation function in our kernel.
 
-## Linker script
+## Revisting the linker script
 
 Let's define the memory regions to be dynamically allocated in the linker script:
 
@@ -30,7 +28,7 @@ By defining this in the linker script instead of hardcoding addresses, the linke
 
 In practical operating systems, besides defining memory sizes for each device like this, it's also common to determine available memory regions by obtaining information from hardware at boot time (for example, UEFI's `GetMemoryMap`).
 
-## Probably the world's simplest memory allocation algorithm
+## The world's simplest memory allocation algorithm, AFAIK ;)
 
 Now that we've defined the dynamic allocation area, let's implement a function to actually allocate memory dynamically. However, instead of allocating by byte like the `malloc` function, we'll allocate in larger units called "pages". One page is typically 4KB (4096 bytes).
 

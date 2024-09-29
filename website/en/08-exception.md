@@ -4,38 +4,34 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+Exception is a CPU feature that allows the kernel to handle various events, such as invalid memory access (aka. page faults), illegal instructions, and system calls.
 
-An exception is a mechanism that switches processing to a program (exception handler) pre-set by the OS when a "program execution cannot continue" state occurs, such as invalid memory access (e.g., null pointer dereference).
+Exception is like a hardware-assited `try-catch` mechanism in C++ or Java. Until CPU encounters the situation where kernel intervention is required, it continues to execute the program. The key difference from `try-catch` is that the kernel can resume the exection from the point where the exception occurred, as if nothing happened. Doesn't it sound like cool CPU feature?
 
-Exception occurrences can be confirmed in QEMU's debug log (`-d` option), but reading through lengthy logs is tedious, and it's not easy for beginners to notice when QEMU resets due to an exception. Therefore, it's recommended to implement an exception handler early on that outputs the exception occurrence location and triggers a kernel panic. For those familiar with JavaScript, this might feel similar to "adding an Unhandled Rejection handler as a first step".
+Exception can also be triggered in kernel mode and mostly they are fatal kernel bugs. If QEMU resets unexpectedly or the kernel does not work as expected, it's likely that an exception occurred. I recommend to implement an exception handler early to crash gracefully with a kernel panic. It's similar to adding an unhandled rejection handler as the first step in JavaScript development.
 
-## Exception handling flow
+## Life of an exception
 
-When an exception occurs in RISC-V, the process follows this flow:
+In RISC-V, an exception will be handled as follows:
 
-1. The CPU checks the `medeleg` register to determine which operation mode should handle the exception. In this book, OpenSBI is configured so that if major exceptions occur in either U-Mode (userland) or S-Mode (kernel), they are handled in S-Mode.
-2. The CPU state at the time of the exception is saved to various CSRs.
-3. The value of the `stvec` register is set to the program counter, jumping to the kernel's exception handling program (exception handler).
-4. The exception handler cleverly uses the `sscratch` register (which the kernel can freely use) to save the values of general-purpose registers (i.e., the execution state at the time of the exception), and performs processing according to the type of exception.
-5. After completing exception processing, it restores the saved execution state and calls the `sret` instruction to resume execution from the point where the exception occurred.
+1. CPU checks the `medeleg` register to determine which operation mode should handle the exception. In our case, OpenSBI has already configured to handle U-Mode/S-mode exceptions in S-Mode's handler.
+2. CPU saves its state (registers) into various CSRs (see below).
+3. The value of the `stvec` register is set to the program counter, jumping to the kernel's exception handler.
+4. The exception handler saves general-purpose registers (i.e. the program state), and handles the exception.
+5. Once it's done, the exception handler restores the saved execution state and calls the `sret` instruction to resume execution from the point where the exception occurred.
 
-The CSRs updated in step 2 are mainly as follows. The kernel's exception handler uses this information to determine necessary actions, and to save and restore the state at the time of the exception.
+The CSRs updated in step 2 are mainly as follows. The kernel's exception determines necessary actions based on the CSRs:
 
 | Register Name | Content                                                                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scause`      | Type of exception. The kernel reads this to identify the type of exception.                                                                     |
-| `stval`       | Additional information about the exception (e.g., memory address that caused the exception). Specific content depends on the type of exception. |
-| `sepc`        | Program counter at the point where the exception occurred                                                                                       |
-| `sstatus`     | Operation mode (U-Mode/S-Mode) at the time of exception                                                                                         |
-
-The most important thing to be careful about in implementing the kernel's exception handler is correctly saving and restoring the state at the time of the exception. For example, if you accidentally overwrite the a0 register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason".
+| `stval`       | Additional information about the exception (e.g., memory address that caused the exception). Depends on the type of exception. |
+| `sepc`        | Program counter at the point where the exception occurred.                                                                                       |
+| `sstatus`     | Operation mode (U-Mode/S-Mode) when the exception has occurred.                                                                                        |
 
 ## Exception Handler
 
-Now that we're prepared, let's receive an exception. First, here's the entry point that gets executed first. We'll set the address of this `kernel_entry` function to the `stvec` register later:
+Now let's write your first exception handler! Here's the entry point of the exception handler to be regisq  tered in the `stvec` register:
 
 ```c:kernel.c
 __attribute__((naked))
@@ -117,14 +113,20 @@ void kernel_entry(void) {
 }
 ```
 
-The key points of implementation are as follows:
+Here are some key points:
 
-- The `sscratch` register is used to save the stack pointer at the time of exception occurrence, which is later restored. In this way, the `sscratch` register can be used for temporary storage.
-- Floating-point registers are not used within the kernel, so there's no need to save them here. Generally, they are saved and restored during thread switching.
+- `sscratch` register is used as a temporary storage to save the stack pointer at the time of exception occurrence, which is later restored.
+- Floating-point registers are not used within the kernel, and thus there's no need to save them here. Generally, they are saved and restored during thread switching.
 - The stack pointer is set in the `a0` register, and the `handle_trap` function is called. At this point, the address pointed to by the stack pointer contains register values stored in the same structure as the `trap_frame` structure described later.
 - Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary. This is because the `stvec` register not only holds the address of the exception handler but also has flags representing the mode in its lower 2 bits.
 
-The function called within this function is the following `handle_trap` function:
+> [!NOTE]
+>
+> The entry point of exception handlers is one of most critical and error-prone parts of the kernel. Reading the code closely, you'll notice that *orignal* values of general-purpose registers are saved onto the stack, even `sp` by using `sscratch`.
+>
+> If you accidentally overwrite `a0` register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason". Save the program state perfectly not to spend your precious Saturday night debugging!
+
+In the entry point, the following `handle_trap` function is called to handle the exception in our favorite C langauge:
 
 ```c:kernel.c
 void handle_trap(struct trap_frame *f) {
@@ -136,7 +138,9 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-It retrieves the cause of the exception (`scause`) and the program counter at the time of exception (`sepc`), and triggers a kernel panic for debugging purposes. Let's define the various macros used here in `kernel.h` as follows:
+It reads why the exception has occurred, and triggers a kernel panic for debugging purposes.
+
+Let's define the various macros used here in `kernel.h:
 
 ```c:kernel.h
 #include "common.h"
@@ -189,21 +193,35 @@ struct trap_frame {
     } while (0)
 ```
 
-The `trap_frame` structure represents the structure of the original execution state stacked on the stack. The `READ_CSR` macro and `WRITE_CSR` macro are convenient macros for reading and writing CSR registers.
+The `trap_frame` struct represents the program state saved in `kernel_entry`. `READ_CSR` and `WRITE_CSR` macros are convenient macros for reading and writing CSR registers.
 
-The last thing we need to do is to tell the CPU where the exception handler is located. Let's write the address of the exception handler to the `stvec` register in the `main` function as follows:
+The last thing we need to do is to tell the CPU where the exception handler is located. It's done by setting the `stvec` register in the `kernel_main` function:
 
 ```c:kernel.c {4-5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
-    WRITE_CSR(stvec, (uint32_t) kernel_entry);
-    __asm__ __volatile__("unimp"); // 無効な命令
+    WRITE_CSR(stvec, (uint32_t) kernel_entry); // new
+    __asm__ __volatile__("unimp"); // new
 ```
 
-In addition to setting the `stvec` register, we will execute the `unimp` instruction. This instruction is a fictitious instruction that doesn't exist in the RISC-V instruction set. It's a somewhat useful compiler feature that outputs a binary sequence that the CPU will recognize as an invalid machine code. (Reference: [Specific implementation of the unimp instruction](https://github.com/llvm/llvm-project/commit/26403def69f72c7938889c1902d62121095b93d7#diff-1d077b8beaff531e8d78ba5bb21c368714f270f1b13ba47bb23d5ad2a5d1f01bR410-R414))
+In addition to setting the `stvec` register, it executes `unimp` instruction. it's a pseudo instruction which triggers an illegal instruction exception.
 
-Let's run it and confirm that the exception handler is called:
+> [!NOTE]
+>
+> **`unimp` is a "pseudo" instruction**.
+>
+> According to [RISC-V Assembly Programmer's Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#instruction-aliases), the assembler translates `unimp` to the following instruction:
+>
+> ```
+> csrrw x0, cycle, x0
+> ```
+>
+> This reads and writes the `cycle` register into `x0`. Since `cycle` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception. 
+
+## Let's try it
+
+Let's try running it and confirm that the exception handler is called:
 
 ```plain
 $ ./run.sh
@@ -211,9 +229,9 @@ Hello World!
 PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=8020015e
 ```
 
-According to the specification, when the value of `scause` is 2, it indicates an "Illegal instruction," meaning an attempt was made to execute an invalid instruction. This is precisely the expected behavior of the `unimp` instruction.
+According to the specification, when the value of `scause` is 2, it indicates an "Illegal instruction," meaning that program tried to execute an invalid instruction. This is precisely the expected behavior of the `unimp` instruction!
 
-Let's also check where the value of `sepc` is pointing. If it's pointing to the line where the `unimp` instruction is called, then everything is working correctly:
+Let's also check where the value of `sepc` is pointing. If it's pointing to the line where the `unimp` instruction is called,  everything is working correctly:
 
 ```plain
 $ llvm-addr2line -e kernel.elf 8020015e

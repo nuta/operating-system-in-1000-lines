@@ -197,7 +197,7 @@ void kernel_main(void) {
     __asm__ __volatile__("unimp"); // 無効な命令
 ```
 
-`stvec`レジスタの設定に加えて、`unimp`命令を実行します。この命令はRISC-Vの命令セットには存在しない架空の命令で、CPUが無効な機械語であると判断するようなバイナリ列を出力してくれる少し便利なコンパイラの機能です (参考: [具体的なunimp命令の実装](https://github.com/llvm/llvm-project/commit/26403def69f72c7938889c1902d62121095b93d7#diff-1d077b8beaff531e8d78ba5bb21c368714f270f1b13ba47bb23d5ad2a5d1f01bR410-R414))。
+`stvec`レジスタの設定に加えて、`unimp`命令を実行します。この命令はRISC-Vの命令セットには存在しない架空の命令で、CPUが無効な機械語であると判断するようなバイナリ列を出力してくれる、少し便利なコンパイラの機能です (参考: [具体的なunimp命令の実装](https://github.com/llvm/llvm-project/commit/26403def69f72c7938889c1902d62121095b93d7#diff-1d077b8beaff531e8d78ba5bb21c368714f270f1b13ba47bb23d5ad2a5d1f01bR410-R414))。
 
 実行してみて、例外ハンドラが呼ばれることを確認しましょう。
 
