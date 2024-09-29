@@ -20,11 +20,17 @@ export default async function EntryLayout({ children, meta, pages }) {
       return key;
     }
 
-    return {
+    const value = {
       "Operating System in 1,000 Lines": {
         ja: "1000行で作るOS",
       },
-    }[key] ?? ''
+    }[key][meta.lang];
+
+    if (!value) {
+      throw new Error(`Translation not found: ${key}`);
+    }
+
+    return value;
   }
 
   return (
