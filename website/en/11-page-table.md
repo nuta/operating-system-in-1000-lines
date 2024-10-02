@@ -18,7 +18,9 @@ In this chapter, we'll implement the construction and switching of page tables t
 
 We'll use the Sv32 mode of RISC-V's paging mechanism, which uses a two-level page table. The 32-bit virtual address is divided into a first-level page table index (`VPN[1]`), a second-level index (`VPN[0]`), and a page offset.
 
-This is easier to understand by looking at some example values:
+This is easier to understand by looking at some example values. Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32.v0.build/)** to see how virtual addresses are broken down into page table indices and offsets.
+
+Here are some examples:
 
 | Virtual Address | `VPN[1]` (10 bits) | `VPN[0]` (10 bits) | Offset (12 bits) |
 | --------------- | ------------------ | ------------------ | ---------------- |
