@@ -4,21 +4,17 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
-
 ## Memory management and virtual addressing
 
-When a program accesses memory, the CPU performs a conversion from virtual addresses to physical addresses. The table that maps virtual addresses to physical addresses is called a **page table**. By switching page tables, the same virtual address can access different physical addresses. This allows isolation of memory spaces (virtual address spaces) for each process and separation of kernel and application memory areas, enhancing system security.
+When a program accesses memory, CPU translates the specified address (*virtual* address) into a physical address. The table that maps virtual addresses to physical addresses is called a *page table*. By switching page tables, the same virtual address can point to different physical addresses. This allows isolation of memory spaces (virtual address spaces) and separation of kernel and application memory areas, enhancing system security.
 
-In this chapter, we'll implement the construction and switching of page tables to realize independent memory spaces for each process.
+In this chapter, we'll implement the hardware-based memory isolation mechanism.
 
-## Structure of virtual addresses
+## Structure of virtual address
 
-We'll use the Sv32 mode of RISC-V's paging mechanism, which uses a two-level page table. The 32-bit virtual address is divided into a first-level page table index (`VPN[1]`), a second-level index (`VPN[0]`), and a page offset.
+In this book, we use one of RISC-V's paging mechanisms called Sv32, which uses a two-level page table. The 32-bit virtual address is divided into a first-level page table index (`VPN[1]`), a second-level index (`VPN[0]`), and a page offset.
 
-This is easier to understand by looking at some example values. Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32.v0.build/)** to see how virtual addresses are broken down into page table indices and offsets.
+Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32.v0.build/)** to see how virtual addresses are broken down into page table indices and offsets.
 
 Here are some examples:
 
@@ -34,18 +30,18 @@ Here are some examples:
 
 > [!TIP]
 >
-> Upon close observation, you may notice:
+> From the examples above, we can see the following characteristics of the indices:
 >
-> - Changing the middle bits (`VPN[0]`) doesn't affect the first-level index. This means page table entries for nearby addresses are concentrated in the same second-level page table.
-> - Changing the lower bits doesn't affect either `VPN[1]` or `VPN[0]`. This means addresses within the same 4KB page reference the same page table entry.
+> - Changing the middle bits (`VPN[0]`) doesn't affect the first-level index. This means page table entries for nearby addresses are concentrated in the same first-level page table.
+> - Changing the lower bits doesn't affect either `VPN[1]` or `VPN[0]`. This means addresses within the same 4KB page are in the same page table entry.
+>
+> This structure utilizes [the principle of locality](https://en.wikipedia.org/wiki/Locality_of_reference), allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
 
-This structure utilizes [the principle of locality](https://en.wikipedia.org/wiki/Locality_of_reference), allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
-
-When accessing memory, the CPU uses `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, then adds the physical address from that entry to the `offset` to calculate the final physical address to access.
+When accessing memory, CPU calculates `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, reads the mapped base phiysical address, and adds `offset` to get the final physical address.
 
 ## Constructing the page table
 
-Let's construct a page table using the Sv32 method. First, we'll define some macros. `SATP_SV32` is a bit in the `satp` register that indicates "enable paging in Sv32 mode", and `PAGE_*` are bits to be set in page table entries.
+Let's construct a page table in Sv32. First, we'll define some macros. `SATP_SV32` is a single bit in the `satp` register which indicates "enable paging in Sv32 mode", and `PAGE_*` are flags to be set in page table entries.
 
 ```c:kernel.h
 #define SATP_SV32 (1u << 31)
@@ -58,7 +54,7 @@ Let's construct a page table using the Sv32 method. First, we'll define some mac
 
 ## Mapping pages
 
-The following `map_page` function takes the first-level page table (`table1`), the virtual address to be mapped (`vaddr`), the physical address to map to (`paddr`), and the flags to set in the page table entry (`flags`):
+The following `map_page` function takes the first-level page table (`table1`), the virtual address (`vaddr`), the physical address (`paddr`), and page table entry flags (`flags`):
 
 ```c:kernel.c
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
@@ -82,15 +78,15 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-The function simply prepares the second-level page table, and sets the physical page number and flags for the desired page table entry in the second level.
+This function prepares the second-level page table, and fills the page table entry in the second level.
 
-It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself.
+It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself. Don't confuse the two!
 
-## Kernel page mapping
+## Mapping kernel memory area
 
-The page table must be configured not only for applications (user space) but also for the kernel.
+The page table must be configured not only for applications (user space), but also for the kernel.
 
-In this guide, the kernel's mapping is set so that the kernel's virtual addresses match the physical addresses. This allows the same code to continue running even after enabling paging.
+In this book, the kernel memory mapping is configured so that the kernel's virtual addresses match the physical addresses (i.e. `vaddr == paddr`). This allows the same code to continue running even after enabling paging.
 
 First, let's modify the kernel's linker script to define the starting address used by the kernel (`__kernel_base`):
 
@@ -106,19 +102,19 @@ SECTIONS {
 >
 > Define `__kernel_base` **after** the line `. = 0x80200000`. If the order is reversed, the value of `__kernel_base` will be zero.
 
-Next, we'll add the page table to the process management structure. This will be a pointer to the first-level page table.
+Next, add the page table to the process struct. This will be a pointer to the first-level page table.
 
 ```c:kernel.h {5}
 struct process {
     int pid;
     int state;
     vaddr_t sp;
-    uint32_t *page_table;
+    uint32_t *page_table; /* new */
     uint8_t stack[8192];
 };
 ```
 
-Lastly, we'll map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`) and dynamically allocated areas through the `alloc_pages` function:
+Lastly, map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`), and dynamically allocated areas managed by `alloc_pages`:
 
 ```c:kernel.c {1,6-11,16}
 extern char __kernel_base[];
@@ -126,9 +122,8 @@ extern char __kernel_base[];
 struct process *create_process(uint32_t pc) {
     /* omitted */
 
+    // Map kernel pages (new).
     uint32_t *page_table = (uint32_t *) alloc_pages(1);
-
-    // Map kernel pages.
     for (paddr_t paddr = (paddr_t) __kernel_base;
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
@@ -136,7 +131,7 @@ struct process *create_process(uint32_t pc) {
     proc->pid = i + 1;
     proc->state = PROC_RUNNABLE;
     proc->sp = (uint32_t) sp;
-    proc->page_table = page_table;
+    proc->page_table = page_table; /* new */
     return proc;
 }
 ```
@@ -149,6 +144,7 @@ Let's switch the process's page table when context switching:
 void yield(void) {
     /* omitted */
 
+    // Switch page table (new).
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -164,20 +160,20 @@ void yield(void) {
 }
 ```
 
-We can switch page tables by setting the first-level page table in the `satp` register. Note that we divide by `PAGE_SIZE` because it's the physical page number.
+We can switch page tables by specifying the first-level page table in `satp`. Note that we divide by `PAGE_SIZE` because it's the physical page number.
 
-The `sfence.vma` instructions added before and after setting the page table serve two purposes:
+`sfence.vma` instructions added before and after setting the page table serve two purposes:
 
 1. To ensure that changes to the page table are properly completed (similar to a memory fence).
 2. To clear the cache of page table entries (TLB).
 
 > [!TIP]
 >
-> At boot time, paging is disabled (the `satp` register is not set). As a result, virtual addresses behave as if they match physical addresses.
+> When the kernel starts, paging is disabled by default (the `satp` register is not set). Virtual addresses behave as if they match physical addresses.
 
 ## Testing paging
 
-Now that we've implemented paging, let's actually run it and see how it works.
+let's try it and see how it works!
 
 ```plain
 $ ./run.sh
@@ -187,7 +183,7 @@ Astarting process B
 BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 ```
 
-The output is exactly the same as in the previous chapter (context switching). There's no visible change even after enabling paging. So, let's use the QEMU monitor to check if we've set up the page tables correctly.
+The output is exactly the same as in the previous chapter (context switching). There's no visible change even after enabling paging. To check if we've set up the page tables correctly, let's inspect it with QEMU monitor!
 
 ## Examining page table contents
 
@@ -202,22 +198,22 @@ QEMU 8.0.2 monitor - type 'help' for more information
  ...
 ```
 
-The value of the `satp` register is `0x80080253`. According to the specification (RISC-V Sv32), interpreting this value gives us the first-level page table's starting physical address: `(0x80080253 & 0x3fffff) * 4096 = 0x80253000`.
+You can see that `satp` is `0x80080253`. According to the specification (RISC-V Sv32 mode), interpreting this value gives us the first-level page table's starting physical address: `(0x80080253 & 0x3fffff) * 4096 = 0x80253000`.
 
-Let's inspect the contents of the page table. QEMU provides commands to display memory contents (memory dump). By using the `xp` command, we can display the memory dump for a specified physical address. The `/x` option specifies hexadecimal display. Adding a number before `x` (e.g., `/1024x`) specifies the number of entries to display.
-
-> [!TIP]
->
-> Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in kernel space.
-
-Here, we want to know the second-level page table corresponding to the virtual address `0x80000000`. We will inspect the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
+Next, let's inspect the contents of the first-level page table. We want to know the second-level page table corresponding to the virtual address `0x80000000`. QEMU provides commands to display memory contents (memory dump). `xp` command dumps memory at the specified physical address. Dump the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
 
 ```plain
 (qemu) xp /x 0x80253000+512*4
 0000000080253800: 0x20095001
 ```
 
-The first column shows the physical address, and the subsequent columns show the memory values. We can see that some non-zero values are set. Interpreting this according to the specification, we find that the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. Let's examine the entire second-level table (1024 entries):
+The first column shows the physical address, and the subsequent columns show the memory values. We can see that some non-zero values are set. The `/x` option specifies hexadecimal display. Adding a number before `x` (e.g., `/1024x`) specifies the number of entries to display.
+
+> [!TIP]
+>
+> Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in our kernel space.
+
+According to the specification, the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. Let's dump the entire second-level table (1024 entries):
 
 ```
 (qemu) xp /1024x 0x80254000
@@ -239,9 +235,9 @@ The first column shows the physical address, and the subsequent columns show the
 ...
 ```
 
-The initial entries are filled with zeros, but values start appearing from the 512th entry (`(0x800 bytes) / 4 = 512th entry`). Since `512 << 12 = 0x200000`, we can see that the second-level table maps from the 0x200000 byte mark.
+The initial entries are filled with zeros, but values start appearing from the 512th entry (`254800`). This is because `__kernel_base` is `0x80200000`, and `VPN[1]` is `0x200`.
 
-We've been manually reading memory dumps up to this point, but QEMU actually provides a command that displays the current page table settings in a more readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
+We've manually read memory dumps up, but QEMU actually provides a command that displays the current page table mappings in human-readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
 
 ```plain
 (qemu) info mem
@@ -279,19 +275,21 @@ vaddr    paddr            size     attr
 84000000 0000000084000000 00241000 rwx----
 ```
 
-The columns represent, in order: virtual address, physical address (mapping destination), size (in hexadecimal bytes), and attributes. For the attributes, `r` means readable, `w` means writable, and `x` means executable. Additionally, `a` and `d` indicate that the CPU has "accessed the page" and "written to the page" respectively. These are auxiliary information for the OS to keep track of which pages are actually being used.
+The columns represent, in order: virtual address, physical address, size (in hexadecimal bytes), and attributes.
+
+Attributes are represented by a combination of `r` (readable), `w` (writable), `x` (executable), `a` (accessed), and `d` (written), where `a` and `d` indicate that the CPU has "accessed the page" and "written to the page" respectively. They are auxiliary information for the OS to keep track of which pages are actually being used/modified.
 
 > [!TIP]
 >
-> For beginners, debugging page table configuration errors can be quite challenging. If things aren't working as expected, refer to the "Appendix: Debugging Paging" section.
+> For beginners, debugging page table can be quite challenging. If things aren't working as expected, refer to the "Appendix: Debugging paging" section.
 
-## Appendix: debugging paging
+## Appendix: Debugging paging
 
-Setting up page tables can be a bit tricky, and mistakes can be hard to notice. In this section, we'll look at some common paging errors and how to debug them.
+Setting up page tables can be tricky, and mistakes can be hard to notice. In this appendix, we'll look at some common paging errors and how to debug them.
 
-### Forgetting to set the mode
+### Forgetting to set the paging mode
 
-First, let's consider the case where we forget to set the mode in the `satp` register. Try removing it like this:
+Let's say we forget to set the mode in the `satp` register:
 
 ```c:kernel.c {6}
     __asm__ __volatile__(
@@ -299,11 +297,14 @@ First, let's consider the case where we forget to set the mode in the `satp` reg
         "csrw satp, %[satp]\n"
         "sfence.vma\n"
         :
-        : [satp] "r" (((uint32_t) next->page_table / PAGE_SIZE)) // SATP_SV32を忘れた
+        : [satp] "r" (((uint32_t) next->page_table / PAGE_SIZE)) // Missing SATP_SV32!
     );
 ```
 
-When you actually run this, it should appear to be working correctly. This is because while the page table location is specified, paging remains disabled. In this case, if you check with the `info mem` command in the QEMU monitor, you'll see something like this:
+However, when you run the OS, you'll see that it works as usual. This is because paging remains disabled and 
+memory addresses are treated as physical addresses as before.
+
+To debug this case, try `info mem` command in the QEMU monitor. You'll see something like this:
 
 ```
 (qemu) info mem
@@ -312,7 +313,7 @@ No translation or protection
 
 ### Specifying physical address instead of physical page number
 
-Next, let's look at the case where we mistakenly specify the page table using a physical address instead of a physical page number.
+Let's say we mistakenly specify the page table using a physical *address* instead of a physical *page number*:
 
 ```c:kernel.c {6}
     __asm__ __volatile__(
@@ -320,11 +321,11 @@ Next, let's look at the case where we mistakenly specify the page table using a 
         "csrw satp, %[satp]\n"
         "sfence.vma\n"
         :
-        : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table)) // Forgot to shift
+        : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table)) // Forgot to shift!
     );
 ```
 
-When you boot the OS and check with the info mem command, you should see it's empty, like this:
+In this case, `info mem` will print no mappings:
 
 ```plain
 $ ./run.sh
@@ -336,7 +337,7 @@ vaddr    paddr            size     attr
 -------- ---------------- -------- -------
 ```
 
-Dump registers to see what the CPU is doing:
+To debug this, dump registers to see what the CPU is doing:
 
 ```plain
 (qemu) info registers
@@ -349,13 +350,13 @@ CPU#0
  ...
 ```
 
-If you check `80200188` with `llvm-addr2line`, you'll find it's the starting address of the exception handler. According to the specification, the reason for the exception (`scause` register) corresponds to an "Instruction page fault". When switching the page table and executing the next instruction, the CPU tries to translate the virtual address of the program counter to a physical address using the page table. However, since the page table address (in the `satp` register) is incorrect, the translation fails, resulting in a page fault.
+According to `llvm-addr2line`, `80200188` is the starting address of the exception handler. The exception reason in `scause` corresponds to "Instruction page fault". 
 
 Let's take a closer look at what's specifically happening by examining the QEMU logs:
 
 ```bash:run.sh {2}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
-    -d unimp,guest_errors,int,cpu_reset -D qemu.log \
+    -d unimp,guest_errors,int,cpu_reset -D qemu.log \  # new!
     -kernel kernel.elf
 ```
 
@@ -368,12 +369,12 @@ Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected
 riscv_cpu_do_interrupt: hart:0, async:0, cause:0000000c, epc:0x80200188, tval:0x80200188, desc=exec_page_fault
 ```
 
-Here's what you can infer from the logs:
+Here are what you can infer from the logs:
 
-- The value of the `epc` register, which indicates the location of the first page fault exception, is `0x80200580`. Checking with `llvm-objdump` shows that it points to the instruction immediately after setting the `satp` register. This means that a page fault occurs right after enabling paging.
+- `epc`, which indicates the location of the page fault exception, is `0x80200580`. `llvm-objdump` shows that it points to the instruction immediately after setting the `satp` register. This means that a page fault occurs right after enabling paging.
 
-- All subsequent page faults show the same value. The exception location is `0x80200188`, which `llvm-objdump` confirms is pointing to the beginning address of the exception handler. The fact that this log continues indefinitely indicates that another exception (page fault) occurs when trying to execute the exception handler.
+- All subsequent page faults show the same value. The exceptions occured at `0x80200188`, points to the starting address of the exception handler. Because this log continues indefinitely, the exceptions (page fault) occurs when trying to execute the exception handler.
 
-- Looking at the `info registers` command, the value of the `satp` register is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
+- Looking at the `info registers` in QEMU monitor, `satp` is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
 
-In this way, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing in debugging is to _"read the specification carefully."_ It's very common to overlook or misunderstand descriptions in the specification.
+To summarize, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing is to _"read the specification carefully."_ It's very common to overlook or misinterpret it.
