@@ -4,15 +4,15 @@ layout: chapter
 lang: en
 ---
 
+A process is an instance of an application. Each process has its own independent execution context and resources such as a virtual address space.
+
 > [!NOTE]
 >
-> **Translation of this English version is in progress.**
+> Practical operating systems provide the execution context as a separate concept called a *"thread"*. For simplicity, in this book we'll treat each process as having a single thread.
 
-A process is essentially an instance of an application, with each process having its own independent execution context and resources such as a virtual address space. Some OSes provide the execution context as a separate concept called a "thread", but for simplicity, in this book we'll treat each process as having a single thread.
+## Process control block
 
-## Process control structure
-
-The following `process` structure summarizes the information for a process. This structure is called a _"Process Control Block (PCB)"_.
+The following `process` structure defines a process object. It's also known as  _"Process Control Block (PCB)"_.
 
 ```c
 #define PROCS_MAX 8       // Maximum number of processes
@@ -22,31 +22,29 @@ The following `process` structure summarizes the information for a process. This
 struct process {
     int pid;             // Process ID
     int state;           // Process state
-    vaddr_t sp;          // Stack pointer at context switch
+    vaddr_t sp;          // Stack pointer
     uint8_t stack[8192]; // Kernel stack
 };
 ```
 
-The kernel stack contains CPU registers at context switch, return addresses (where it was called from), and local variables for each function. By preparing a kernel stack for each process, we can have separate execution contexts and save and restore states during context switching.
+The kernel stack contains saved CPU registers, return addresses (where it was called from), and local variables. By preparing a kernel stack for each process, we can implement context switching by saving and restoring CPU registers, and switching the stack pointer.
 
 > [!TIP]
 >
-> There's a kernel implementation technique called "single kernel stack" where instead of having a kernel stack for each process (thread), there's only one per CPU. seL4 adopts this method (reference).
+> There is another approach called *"single kernel stack"*. Instead of having a kernel stack for each process (or thread), there's only single stack per CPU. [seL4 adopts this method](https://trustworthy.systems/publications/theses_public/05/Warton%3Abe.abstract).
 >
-> This issue of "where to store the program's context" is also a topic discussed in asynchronous processing runtimes of programming languages like Go and Rust. Try searching for "stackless/stackful async".
+> This *"where to store the program's context"* issue is also a topic discussed in async runtimes of programming languages like Go and Rust. Try searching for *"stackless async"* if you're interested.
 
 ## Context switch
 
-The context switch implementation is the same as explained in this book. It saves the callee-saved registers to the stack, saves and restores the stack pointer, and then restores the callee-saved registers:
+Switching the process execution context is called *"context switching"*. The following `switch_context` function is the implementation of context switching. In a nutshell, it saves the callee-saved registers onto the stack, saves and restores the stack pointer, and then restores the callee-saved registers from the stack:
 
 ```c:kernel.c
-struct process procs[PROCS_MAX];
-
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                                            uint32_t *next_sp) {
     __asm__ __volatile__(
-        "addi sp, sp, -13 * 4\n"
-        "sw ra,  0  * 4(sp)\n"
+        "addi sp, sp, -13 * 4\n" // Allocate stack space for 13 4-byte registers
+        "sw ra,  0  * 4(sp)\n"   // Save callee-saved registers only
         "sw s0,  1  * 4(sp)\n"
         "sw s1,  2  * 4(sp)\n"
         "sw s2,  3  * 4(sp)\n"
@@ -59,9 +57,9 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
         "sw s9,  10 * 4(sp)\n"
         "sw s10, 11 * 4(sp)\n"
         "sw s11, 12 * 4(sp)\n"
-        "sw sp, (a0)\n"
-        "lw sp, (a1)\n"
-        "lw ra,  0  * 4(sp)\n"
+        "sw sp, (a0)\n"         // *prev_sp = sp;
+        "lw sp, (a1)\n"         // Switch stack pointer (sp) here
+        "lw ra,  0  * 4(sp)\n"  // Restore callee-saved registers only
         "lw s0,  1  * 4(sp)\n"
         "lw s1,  2  * 4(sp)\n"
         "lw s2,  3  * 4(sp)\n"
@@ -74,15 +72,20 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
         "lw s9,  10 * 4(sp)\n"
         "lw s10, 11 * 4(sp)\n"
         "lw s11, 12 * 4(sp)\n"
-        "addi sp, sp, 13 * 4\n"
+        "addi sp, sp, 13 * 4\n"  // We've popped 13 4-byte registers from the stack
         "ret\n"
     );
 }
 ```
 
-The following `create_process` function is the initialization process for a process. This function receives the execution start address (`pc`), initializes the process control structure, and returns it.
+> TODO: Explain callee-saved/caller-saved registers
+
+
+The following `create_process` function initializes a process. It takes the entry point as a parameter, and returns a pointer to the created `process` struct:
 
 ```c
+struct process procs[PROCS_MAX]; // All process control structures.
+
 struct process *create_process(uint32_t pc) {
     // Find an unused process control structure.
     struct process *proc = NULL;
@@ -97,7 +100,8 @@ struct process *create_process(uint32_t pc) {
     if (!proc)
         PANIC("no free process slots");
 
-    // Stack callee-saved registers so that switch_context() can restore.
+    // Stack callee-saved registers. These register values will be restored in
+    // the first context switch in switch_context.
     uint32_t *sp = (uint32_t *) &proc->stack[sizeof(proc->stack)];
     *--sp = 0;                      // s11
     *--sp = 0;                      // s10
@@ -123,7 +127,7 @@ struct process *create_process(uint32_t pc) {
 
 ## Testing context switch
 
-With this, we have implemented the most basic function of processes: "concurrent execution of multiple programs". Let's create two processes:
+We have implemented the most basic function of processes - concurrent execution of multiple programs. Let's create two processes:
 
 ```c:kernel.c {1-24,31-33}
 struct process *proc_a;
@@ -156,6 +160,7 @@ void kernel_main(void) {
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
+    /* new */
     proc_a = create_process((uint32_t) proc_a_entry);
     proc_b = create_process((uint32_t) proc_b_entry);
     proc_a_entry();
@@ -164,11 +169,11 @@ void kernel_main(void) {
 }
 ```
 
-The `proc_a_entry` function and `proc_b_entry` function are the entry points for Process A and Process B, respectively. After displaying a single character using the `putchar` function, they switch context to the other process using the `switch_context` function.
+The `proc_a_entry` function and `proc_b_entry` function are the entry points for Process A and Process B respectively. After displaying a single character using the `putchar` function, they switch context to the other process using the `switch_context` function.
 
-The nop instruction called by `__asm__ __volatile__("nop")` is a "do nothing" instruction. By including a loop that repeats this instruction for a while, we prevent the character output from becoming too fast, which would make the terminal inoperable.
+`nop` instruction called by `__asm__ __volatile__("nop")` is a "do nothing" instruction. By including a loop that repeats this instruction for a while, we prevent the character output from becoming too fast, which would make the terminal unresponsive.
 
-Now, let's try. The startup messages will be displayed once each, and then "ABABAB..." will be displayed alternately, as shown below:
+Now, let's try! The startup messages will be displayed once each, and then "ABABAB..." lasts forever:
 
 ```plain
 $ ./run.sh
@@ -180,13 +185,13 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 
 ## Scheduler
 
-In the previous experiment, we directly called the `switch_context` function to specify the "next process to execute". However, this method becomes complicated when determining "which process to switch to next" as the number of processes increases. So, let's implement a "scheduler" that decides the next process.
+In the previous experiment, we directly called the `switch_context` function to specify the "next process to execute". However, this method becomes complicated when determining which process to switch to next as the number of processes increases. To solve the issue, let's implement a *"scheduler"*, a kernel prgoram which decides the next process.
 
 The following `yield` function is the implementation of the scheduler:
 
 > [!TIP]
 >
-> "Yield" means "to give up" in English. It's often used as the name for an API that processes call voluntarily, with the connotation of "giving up the resource of CPU time".
+> The word "yield" is often used as the name for an API which allows giving up the CPU to another process voluntarily.
 
 ```c:kernel.c
 struct process *current_proc; // Currently running process
@@ -224,13 +229,16 @@ void kernel_main(void) {
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
+    /* new */
     idle_proc = create_process((uint32_t) NULL);
     idle_proc->pid = -1; // idle
     current_proc = idle_proc;
 
+    /* new */
     proc_a = create_process((uint32_t) proc_a_entry);
     proc_b = create_process((uint32_t) proc_b_entry);
 
+    /* new */
     yield();
     PANIC("switched to idle process");
 }
@@ -238,16 +246,14 @@ void kernel_main(void) {
 
 The key point of this initialization process is `current_proc = idle_proc`. This ensures that the execution context of the boot process is saved and restored as that of the idle process. During the first call to the `yield` function, it switches from the idle process to process A, and when switching back to the idle process, it behaves as if returning from this `yield` function call.
 
-Since the boot-time stack is used as the idle process's stack (saved and restored by the `switch_context` function), the `stack` field allocated in the `process` structure is not used.
-
-Finally, we modify the `proc_a_entry` and `proc_b_entry` functions as follows to call the `yield` function instead of directly calling the `switch_context` function:
+Lastly, modify `proc_a_entry` and `proc_b_entry` as follows to call the `yield` function instead of directly calling the `switch_context` function:
 
 ```c:kernel.c {5,16}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
         putchar('A');
-        yield();
+        yield(); /* new */
 
         for (int i = 0; i < 30000000; i++)
             __asm__ __volatile__("nop");
@@ -258,7 +264,7 @@ void proc_b_entry(void) {
     printf("starting process B\n");
     while (1) {
         putchar('B');
-        yield();
+        yield(); /* new */
 
         for (int i = 0; i < 30000000; i++)
             __asm__ __volatile__("nop");
@@ -266,18 +272,19 @@ void proc_b_entry(void) {
 }
 ```
 
-If "A" and "B" are displayed alternately, it's successful.
+If "A" and "B" are printed as before, it works perfectly!
 
 ## Changes in the exception handler
 
-In the exception handler, we were saving the execution state on the stack, but since we now use separate kernel stacks for each process, some modifications are necessary.
+In the exception handler, it saves the execution state onto the stack. However, since we now use separate kernel stacks for each process, we need to update it slightly.
 
-First, we need to set the initial value of the kernel stack for the currently executing process in the `sscratch` register during process switching.
+First, set the initial value of the kernel stack for the currently executing process in the `sscratch` register during process switching.
 
 ```c:kernel.c {4-8}
 void yield(void) {
     /* omitted */
 
+    /* new */
     __asm__ __volatile__(
         "csrw sscratch, %[sscratch]\n"
         :
@@ -291,15 +298,14 @@ void yield(void) {
 }
 ```
 
-Since the stack pointer extends towards lower addresses (the stack area is used from the end), we set the address at the `sizeof(next->stack)`th byte as the initial value of the kernel stack.
+Since the stack pointer extends towards lower addresses, we set the address at the `sizeof(next->stack)`th byte as the initial value of the kernel stack.
 
 The modifications to the exception handler are as follows:
 
 ```c:kernel.c {3-5,39-45}
 void kernel_entry(void) {
     __asm__ __volatile__(
-        // Retrieve the kernel stack of the running process from sscratch
-        // tmp = sp; sp = sscratch; sscratch = tmp;
+        // Retrieve the kernel stack of the running process from sscratch (new)
         "csrrw sp, sscratch, sp\n"
 
         "addi sp, sp, -4 * 31\n"
@@ -334,11 +340,11 @@ void kernel_entry(void) {
         "sw s10, 4 * 28(sp)\n"
         "sw s11, 4 * 29(sp)\n"
 
-        // Retrieve and save the sp at the time of exception
+        // Retrieve and save the sp at the time of exception (new)
         "csrr a0, sscratch\n"
         "sw a0,  4 * 30(sp)\n"
 
-        // Reset the kernel stack
+        // Reset the kernel stack (new)
         "addi a0, sp, 4 * 31\n"
         "csrw sscratch, a0\n"
 
@@ -346,25 +352,39 @@ void kernel_entry(void) {
         "call handle_trap\n"
 ```
 
-First, we set the address of the kernel stack of the running process from the `sscratch` register to the `sp` register, and simultaneously save the `sp` at the time of the exception to the `sscratch` register. The `csrrw` instruction is essentially a swap operation. After saving the state at the time of the exception, we retrieve and save the value of the `sp` register at the time of the exception, which was temporarily stored in the `sscratch` register. Finally, we reset the initial value of the kernel stack in the `sscratch` register.
+The first `csrrw` instruction is a swap operation in short:
 
-The key point here is that "each process has its own independent kernel stack". By switching the contents of `sscratch` during context switching, the trap handler can save and restore the state of each process at the time of trap occurrence.
+```
+tmp = sp;
+sp = sscratch;
+sscratch = tmp;
+```
+
+Thus, `sp` now points to the *kernel* (not *user*) stack of the currently running process. Also, `sscratch` now holds the original value of `sp` (user stack) at the time of the exception.
+
+After saving other registers onto the kernel stack, We restore the original `sp` value from `sscratch` and save it onto the kernel stack. Then, calculate the initial value of `sscratch` and restore it.
+
+The key point here is that each process has its own independent kernel stack. By switching the contents of `sscratch` during context switching, we can resume the execution of the process from the point where it was interrupted, as if nothing had happened.
 
 > [!TIP]
 >
-> Here, we are implementing the switching process for the "kernel" stack. The stack used by applications will be allocated separately from the kernel stack. This will be implemented in later chapters.
+> We've implemented the context switching mechanism for the "kernel" stack. The stack used by applications (so-called *user stack*) will be allocated separately from the kernel stack. This will be implemented in later chapters.
 
-## Why do we reset the stack pointer?
+## Appendix: Why do we reset the stack pointer?
 
-The above modification is to "not trust the stack pointer at the time of exception". Let's consider why we shouldn't trust it in the first place. In the exception handler, we need to consider the following three patterns:
+In the previous section, you might have wondered why we need to switch to the kernel stack by tweaking `sscratch`.
+
+This is because we must not trust the stack pointer at the time of exception. In the exception handler, we need to consider the following three patterns:
 
 1. An exception occurred in kernel mode.
-2. An exception occurred in kernel mode during exception handling (nested exception).
+2. An exception occurred in kernel mode, when handling another exception (nested exception).
 3. An exception occurred in user mode.
 
-In case (1), there's generally no problem even if we don't reset the stack pointer. In case (2), we would overwrite the saved area, but in this implementation, we don't assume recovery from nested exceptions and instead cause a kernel panic and halt, so it's not a problem.
+In case (1), there's generally no problem even if we don't reset the stack pointer. In case (2), we would overwrite the saved area, but our implementation triggers a kernel panic on nested exceptions, so it's OK.
 
-The problem is with case (3). In this case, `sp` points to the "user (application) stack area". If we implement it to use (trust) `sp` as is, setting invalid values and causing an exception could lead to a vulnerability that crashes the kernel. We'll experiment with this by running the following application after completing all the implementations up to Chapter 17 in this book:
+The problem is with case (3). In this case, `sp` points to the "user (application) stack area". If we implement it to use (trust) `sp` as is, it could lead to a vulnerability that crashes the kernel.
+
+Let's experiment with this by running the following application after completing all the implementations up to Chapter 17 in this book:
 
 ```c
 // An example of applications
@@ -372,13 +392,13 @@ The problem is with case (3). In this case, `sp` points to the "user (applicatio
 
 void main(void) {
     __asm__ __volatile__(
-        "li sp, 0xdeadbeef\n"
-        "unimp"
+        "li sp, 0xdeadbeef\n"  // Set an invalid address to sp
+        "unimp"                // Trigger an exception
     );
 }
 ```
 
-If we run this without applying the modifications from this chapter (restoring the kernel stack from `sscratch`), the kernel hangs without displaying anything, and the following output remains in the QEMU log:
+If we run this without applying the modifications from this chapter (i.e. restoring the kernel stack from `sscratch`), the kernel hangs without displaying anything, and you'll see the following output in QEMU's log:
 
 ```
 epc:0x0100004e, tval:0x00000000, desc=illegal_instruction <- unimp triggers the trap handler
@@ -389,16 +409,16 @@ epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault <- an aborted write to th
 ...
 ```
 
-First, an invalid instruction exception occurs with the `unimp` pseudo-instruction, transitioning to the kernel's trap handler. However, because the stack pointer points to an unmapped address (`0xdeadbeef`), an exception occurs when trying to save registers, jumping back to the beginning of the trap handler. This becomes an infinite loop, causing the kernel to hang. To prevent this, we retrieve a trusted stack area from `sscratch`.
+First, an invalid instruction exception occurs with the `unimp` pseudo-instruction, transitioning to the kernel's trap handler. However, because the stack pointer points to an unmapped address (`0xdeadbeef`), an exception occurs when trying to save registers, jumping back to the beginning of the trap handler. This becomes an infinite loop, causing the kernel to hang. To prevent this, we need to retrieve a trusted stack area from `sscratch`.
 
-In the RISC-V version of xv6 (a famous UNIX-like OS for education), there are separate exception handlers for cases (1) and (2) ([`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14)) and for case (3) ([`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)). In the former case, it inherits the stack pointer at the time of the exception, and in the latter case, it retrieves a separate kernel stack. The handler settings are [switched](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46) when entering and exiting the kernel. The implementation and explanation of xv6 ([Japanese translation](https://www.sugawara-lab.jp/lecture.html), around "4.2 Traps from kernel space") might be helpful.
+Another solution is to have multiple exception handlers. In the RISC-V version of xv6 (a famous educational UNIX-like OS), there are separate exception handlers for cases (1) and (2) ([`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14)) and for case (3) ([`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)). In the former case, it inherits the stack pointer at the time of the exception, and in the latter case, it retrieves a separate kernel stack. The trap handler is [switched](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46) when entering and exiting the kernel.
 
 > [!TIP]
 >
-> In Fuchsia, an OS developed by Google, there was a case where the implementation allowing arbitrary program counter values to be set from the user became [a vulnerability](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html). "Not trusting input from users (applications)" is an extremely important habit in implementing a robust kernel.
+> In Fuchsia, an OS developed by Google, there was a case where an API allowing arbitrary program counter values to be set from the user became [a vulnerability](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html). Not trusting input from users (applications) is an extremely important habit in kernel development.
 
 ## Next Steps
 
-We have now achieved the ability to run multiple processes in parallel, realizing a multitasking OS. From here, we can implement OS features in the same way as multithreaded programming in applications.
+We have now achieved the ability to run multiple processes concurrently, realizing a multi-tasking OS.
 
-However, as it stands, processes can freely read and write to the kernel's memory space. In the next chapter, we'll look at how to safely run applications, or in other words, how to isolate the kernel and applications.
+However, as it stands, processes can freely read and write to the kernel's memory space. It's super insecure! In the coming chapters, we'll look at how to safely run applications, in other words, how to isolate the kernel and applications.
