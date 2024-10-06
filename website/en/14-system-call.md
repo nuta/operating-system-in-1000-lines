@@ -4,25 +4,11 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+In this chapter, we will implement *"system calls"* that allow applications to invoke kernel functions. Time to Hello World from the userland!
 
-# Implementing system calls
+## User library
 
-In the previous chapter, we confirmed the transition to user mode by intentionally causing a page fault. In this chapter, we will implement "system calls" that allow applications running in user mode to invoke kernel functions.
-
-## System call library (userland)
-
-Let's start with the user-land implementation for invoking system calls. As a first step, we'll implement the `putchar` function, which outputs a character, as a system call. We'll define a number (`SYS_PUTCHAR`) in `common.h` to identify the system call:
-
-```c:common.h
-#define SYS_PUTCHAR 1
-```
-
-# System call handler (kernel)
-
-Next, let's look at the function that actually invokes the system call. The implementation is quite similar to [the SBI call implementation](/en/05-hello-world#say-hello-to-sbi) we've seen before:
+Invoking system call is quite similar to [the SBI call implementation](/en/05-hello-world#say-hello-to-sbi) we've seen before:
 
 ```c:user.c
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -40,11 +26,13 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
 }
 ```
 
-# Implementing the syscall function
-
 The `syscall` function sets the system call number in the `a3` register and the system call arguments in the `a0` to `a2` registers, then executes the `ecall` instruction. The `ecall` instruction is a special instruction used to delegate processing to the kernel. When the `ecall` instruction is executed, an exception handler is called, and control is transferred to the kernel. The return value from the kernel is set in the `a0` register.
 
-Finally, let's invoke the `putchar` system call in the `putchar` function as follows. In this system call, we pass the character as the first argument. For the second and subsequent unused arguments are set to 0:
+The first system call we will implement is `putchar`, which outputs a character, via system call. It takes a character as the first argument. For the second and subsequent unused arguments are set to 0:
+
+```c:common.h
+#define SYS_PUTCHAR 1
+```
 
 ```c:user.c {2}
 void putchar(char ch) {
@@ -52,9 +40,13 @@ void putchar(char ch) {
 }
 ```
 
-# Updating the exception handler
+## Handle `ecall` instruction in the kernel
 
-Next, we'll update the exception handler that is called when the `ecall` instruction is executed:
+Next, update the trap handler to handle `ecall` instruction:
+
+```c:kernel.h
+#define SCAUSE_ECALL 8
+```
 
 ```c:kernel.c {5-7,12}
 void handle_trap(struct trap_frame *f) {
@@ -72,17 +64,11 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-Whether the `ecall` instruction was called can be determined by checking the value of `scause`. Besides calling the `handle_syscall` function, we also add 4 to the value of `sepc`. This is because `sepc` points to the program counter that caused the exception, which in this case is the `ecall` instruction. If we don't change it, the `ecall` instruction would be executed repeatedly in an infinite loop. By adding the size of the instruction (4 bytes), we ensure that execution resumes from the next instruction when returning to user mode.
+Whether the `ecall` instruction was called can be determined by checking the value of `scause`. Besides calling the `handle_syscall` function, we also add 4 (the size of `ecall` instruction) to the value of `sepc`. This is because `sepc` points to the program counter that caused the exception, which points to the `ecall` instruction. If we don't change it, the kernel goes back to the same place, and the `ecall` instruction is executed repeatedly.
 
-Lastly, `SCAUSE_ECALL` is defined as 8:
+## System call handler
 
-```c:kernel.h
-#define SCAUSE_ECALL 8
-```
-
-# System call handler
-
-The following system call handler is called from the exception handler. It receives a structure of "registers at the time of exception" that was saved in the exception handler as an argument:
+The following system call handler is called from the trap handler. It receives a structure of "registers at the time of exception" that was saved in the trap handler:
 
 ```c:kernel.c
 void handle_syscall(struct trap_frame *f) {
@@ -96,11 +82,13 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-We branch the processing according to the type of system call. This time, we will implement the processing corresponding to `SYS_PUTCHAR`, which simply outputs the character stored in the `a0` register.
+It determines the type of system call by checking the value of the `a3` register. Now we only have one system call, `SYS_PUTCHAR`, which simply outputs the character stored in the `a0` register.
 
 ## Test the system call
 
-Now that we have implemented the system call, let's test it. Do you remember the implementation of the `printf` function in `common.c`? This function calls the `putchar` function to display characters. Since we have just implemented `putchar` in the userland library, we can use it as is:
+You've implemented the system call. Let's try it out!
+
+Do you remember the implementation of the `printf` function in `common.c`? It calls the `putchar` function to display characters. Since we have just implemented `putchar` in the userland library, we can use it as is:
 
 ```c:shell.c {2}
 void main(void) {
@@ -108,16 +96,20 @@ void main(void) {
 }
 ```
 
-You'll see the following output when it works perfectly:
+You'll see the charming message on the screen:
 
 ```plain
 $ ./run.sh
 Hello World from shell!
 ```
 
+Congratulations! You've successfully implemented the system call! But we're not done yet. Let's implement more system calls!
+
 ## Receive characters from keyboard (`getchar` system call)
 
-Let's implement a system call for character input. The SBI has a function to read "input to the debug console". If there is no input, it returns `-1`:
+Our next goal is to implement shell. To do that, we need to be able to receive characters from the keyboard.
+
+SBI provides an interface to read "input to the debug console". If there is no input, it returns `-1`:
 
 ```c:kernel.c
 long getchar(void) {
@@ -156,16 +148,20 @@ void handle_syscall(struct trap_frame *f) {
                 yield();
             }
             break;
-        /* 省略 */
+        /* omitted */
     }
 }
 ```
 
-The implementation of the `getchar` system call repeatedly calls the SBI until a character is input. However, simply repeating this would monopolize the CPU, so we call the `yield` system call to yield the CPU to other processes.
+The implementation of the `getchar` system call repeatedly calls the SBI until a character is input. However, simply repeating this prevents other processes from running, so we call the `yield` system call to yield the CPU to other processes.
+
+> [!NOTE]
+>
+> Strictly speaking, SBI does not read characters from keyboard, but from the serial port. It works because the keyboard (or QEMU's standard input) is connected to the serial port.
 
 ## Write a shell
 
-Now that we can input characters, let's write a shell. To begin with, we will implement a `hello` command that displays `Hello world from shell!`:
+Let's write a shell with a simple command `hello`, which displays `Hello world from shell!`:
 
 ```c:shell.c
 void main(void) {
@@ -196,9 +192,13 @@ prompt:
 }
 ```
 
-We will read characters until a newline is encountered and check if the entered string completely matches the command name. Note that on the debug console, the newline character is (`'\r'`).
+It reads characters until a newline comes, and check if the entered string matches the command name.
 
-Let's run it and verify if characters can be input and if the `hello` command works:
+> [!WARNING]
+>
+> Note that on the debug console, the newline character is (`'\r'`).
+
+Let's try typing `hello` command:
 
 ```plain
 $ ./run.sh
@@ -206,6 +206,8 @@ $ ./run.sh
 > hello
 Hello world from shell!
 ```
+
+Your OS is starting to look like a real OS! How fast you've come this far!
 
 ## Process termination (`exit` system call)
 
@@ -239,11 +241,11 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-First, change the process state to `PROC_EXITED` and call the `yield` system call to give up the CPU to other processes. The scheduler will only execute processes in the `PROC_RUNNABLE` state, so it will never return to this process. However, as a precaution, we use the `PANIC` macro to cause a panic in case it does return.
+The system call changes the process state to `PROC_EXITED`, and call `yield` to give up the CPU to other processes. The scheduler will only execute processes in `PROC_RUNNABLE` state, so it will never return to this process. However, `PANIC` macro is added to cause a panic in case it does return.
 
 > [!TIP]
 >
-> For simplicity, we only mark the process as exited (`PROC_EXITED`) and not free the process management structure. If you are building a practical OS, it is necessary to free resources held by the process, such as page tables and allocated memory regions.
+> For simplicity, we only mark the process as exited (`PROC_EXITED`). If you want to build a practical OS, it is necessary to free resources held by the process, such as page tables and allocated memory regions.
 
 Add the `exit` command to the shell:
 
@@ -266,4 +268,4 @@ process 2 exited
 PANIC: kernel.c:333: switched to idle process
 ```
 
-When the `exit` command is executed, the shell process terminates, and there are no other runnable processes remaining. As a result, the scheduler will select the idle process and cause a panic.
+When the `exit` command is executed, the shell process terminates via system call, and there are no other runnable processes remaining. As a result, the scheduler will select the idle process and cause a panic.

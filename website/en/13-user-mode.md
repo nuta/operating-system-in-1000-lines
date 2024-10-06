@@ -4,29 +4,25 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+In this chapter, we'll run the application we created in the previous chapter.
 
-In this chapter, we'll try running the application execution image we created in the previous chapter.
+## Extracting the executable file
 
-## Expanding the executable file
-
-First, let's make some definitions necessary for expanding the execution image. To start with, we have the base address of the execution image (`USER_BASE`). This needs to match the starting address defined in `user.ld`.
-
-For common executable file formats like ELF, the load address would be written in the file header (program header in the case of ELF). However, since our application's execution image in this book is a raw binary, we need to prepare it with a fixed value like this:
+In executable file formats like ELF, the load address are stored in its file header (program header in ELF). However, since our application's execution image is a raw binary, we need to prepare it with a fixed value like this:
 
 ```c:kernel.h
+// The base virtual address of an application image. This needs to match the
+// starting address defined in `user.ld`.
 #define USER_BASE 0x1000000
 ```
 
-Next, let's define the symbols for the pointer to the execution image and the image size contained in `shell.bin.o`:
+Next, define symbols to use the embedded raw binary in `shell.bin.o`:
 
 ```c:kernel.c
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 ```
 
-Also, we'll add the process of mapping the execution image to the process's address space in the `create_process` function:
+Also, update the `create_process` function to start the application:
 
 ```c:kernel.c {1-3,5,11,20-26}
 void user_entry(void) {
@@ -40,7 +36,7 @@ struct process *create_process(const void *image, size_t image_size) {
     *--sp = 0;                      // s2
     *--sp = 0;                      // s1
     *--sp = 0;                      // s0
-    *--sp = (uint32_t) user_entry;  // ra
+    *--sp = (uint32_t) user_entry;  // ra (changed!)
 
     uint32_t *page_table = (uint32_t *) alloc_pages(1);
 
@@ -49,7 +45,7 @@ struct process *create_process(const void *image, size_t image_size) {
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
 
-    // Map user (application) pages.
+    // Map user pages (new).
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
         memcpy((void *) page, image + off, PAGE_SIZE);
@@ -58,13 +54,13 @@ struct process *create_process(const void *image, size_t image_size) {
     }
 ```
 
-We've modified the `create_process` function to take the pointer to the execution image (`image`) and the image size (`image_size`) as arguments. It copies the execution image page by page for the specified size and maps it to user mode pages. Also, it sets the jump destination for the first context switch to `user_entry`. For now, we'll keep this as an empty function.
+We've modified `create_process` to take the pointer to the execution image (`image`) and the image size (`image_size`) as arguments. It copies the execution image page by page for the specified size and maps it to the process' page table. Also, it sets the jump destination for the first context switch to `user_entry`. For now, we'll keep this as an empty function.
 
 > [!WARNING]
 >
-> If you map the execution image directly without copying it, processes of the same application would end up sharing the same physical pages.
+> If you map the execution image directly without copying it, processes of the same application would end up sharing the same physical pages. IT ruins the memory isolation!
 
-Lastly, we'll modify the caller of the `create_process` function and make it create a user process:
+Lastly, modify the caller of the `create_process` function and make it create a user process:
 
 ```c:kernel.c {8,12}
 void kernel_main(void) {
@@ -74,10 +70,11 @@ void kernel_main(void) {
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
-    idle_proc = create_process(NULL, 0);
+    idle_proc = create_process(NULL, 0); // updated!
     idle_proc->pid = -1; // idle
     current_proc = idle_proc;
 
+    // new!
     create_process(_binary_shell_bin_start, (size_t) _binary_shell_bin_size);
 
     yield();
@@ -85,11 +82,7 @@ void kernel_main(void) {
 }
 ```
 
-Let's actually run it and check with the QEMU monitor if the execution image is mapped as expected.
-
-> [!TIP]
->
-> At this point, there's no process for transitioning to user mode yet, so the application won't run. For now, we're only checking if the execution image is correctly expanded.
+Let's try it and check with the QEMU monitor if the execution image is mapped as expected:
 
 ```plain
 (qemu) info mem
@@ -99,7 +92,7 @@ vaddr    paddr            size     attr
 01001000 0000000080267000 00010000 rwxu---
 ```
 
-We can see that the physical address `0x80265000` is mapped to the virtual address `0x1000000` (`USER_BASE`). Let's take a look at the contents of this physical address. To display the contents of physical memory, we use the `xp` command:
+We can see that the physical address `0x80265000` is mapped to the virtual address `0x1000000` (`USER_BASE`). Let's take a look at the contents of this physical address. To display the contents of physical memory, use `xp` command:
 
 ```plain
 (qemu) xp /32b 0x80265000
@@ -109,7 +102,7 @@ We can see that the physical address `0x80265000` is mapped to the virtual addre
 0000000080265018: 0x09 0xca 0xaa 0x86 0x7d 0x16 0x13 0x87
 ```
 
-It seems some data is present. If we check the contents of `shell.bin`, we can confirm that it indeed matches:
+It seems some data is present. Check the contents of `shell.bin` to confirm that it indeed matches:
 
 ```plain
 $ hexdump -C shell.bin | head
@@ -125,7 +118,7 @@ $ hexdump -C shell.bin | head
 00000090  6d f2 03 c5 05 00 93 75  f6 0f 33 85 a5 40 82 80  |m......u..3..@..|
 ```
 
-Since it's hard to understand in hexadecimal, let's use the `xp` command to disassemble the machine code in memory:
+Hmm, it's hard to understand in hexadecimal. Let's disassemble the machine code to see if it matches the expected instructions:
 
 ```plain
 (qemu) xp /8i 0x80265000
@@ -139,7 +132,7 @@ Since it's hard to understand in hexadecimal, let's use the `xp` command to disa
 0x80265012:  0000              illegal
 ```
 
-It's calculates/fills the initial stack pointer value, and then calls two different functions. If we compare this with the disassembly results of `shell.elf`, we can confirm that it indeed matches. It seems the expansion has been successful:
+It calculates/fills the initial stack pointer value, and then calls two different functions. If we compare this with the disassembly results of `shell.elf`, we can confirm that it indeed matches:
 
 ```plain
 $ llvm-objdump -d shell.elf | head -n20
@@ -163,7 +156,7 @@ Disassembly of section .text:
 
 ## Transition to user mode
 
-Now that we've successfully expanded the execution image, let's implement the final process. This is the "switching of CPU operation mode". The kernel operates in a privileged mode called S-Mode, but user programs operate in a non-privileged mode called U-Mode. Here's the implementation:
+To run applications, we use a CPU mode called *user mode*, or in RISC-V terms, *U-Mode*. It's surprisingly simple to switch to U-Mode. Here's how:
 
 ```c:kernel.h
 #define SSTATUS_SPIE (1 << 5)
@@ -173,9 +166,9 @@ Now that we've successfully expanded the execution image, let's implement the fi
 // ↓ __attribute__((naked)) is very important!
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
-        "csrw sepc, %[sepc]\n"
-        "csrw sstatus, %[sstatus]\n"
-        "sret\n"
+        "csrw sepc, %[sepc]        \n"
+        "csrw sstatus, %[sstatus]  \n"
+        "sret                      \n"
         :
         : [sepc] "r" (USER_BASE),
           [sstatus] "r" (SSTATUS_SPIE)
@@ -183,18 +176,18 @@ __attribute__((naked)) void user_entry(void) {
 }
 ```
 
-The switch from S-Mode to U-Mode is done with the `sret` instruction. However, before changing the operation mode, we're making two preparations:
+The switch from S-Mode to U-Mode is done with the `sret` instruction. However, before changing the operation mode, it does two writes to CSRs:
 
-- Set the program counter for when transitioning to U-Mode in the `sepc` register.
-- Set the `SPIE` bit in the `sstatus` register. Setting this enables interrupts when entering U-Mode, and the handler set in the `stvec` register will be called, similar to exceptions.
+- Set the program counter for when transitioning to U-Mode in the `sepc` register. That is, where `sret` jumps to.
+- Set the `SPIE` bit in the `sstatus` register. Setting this enables hardware interrupts when entering U-Mode, and the handler set in the `stvec` register will be called.
 
 > [!TIP]
 >
-> In this book, we don't use interrupts but use polling instead, so it's not necessary to set the `SPIE` bit. However, there's no harm in enabling it, so we'll set it. It's better to be clear rather than silently ignoring interrupts.
+> In this book, we don't use hardware interrupts but use polling instead, so it's not necessary to set the `SPIE` bit. However, it's better to be clear rather than silently ignoring interrupts.
 
-## Try user mode!
+## Try user mode
 
-Now let's try it. However, since `shell.c` just loops infinitely, we can't tell if it's working properly on the screen. Instead, let's take a look with the QEMU monitor.
+Now let's try it! That said, because `shell.c` just loops infinitely, we can't tell if it's working properly on the screen. Instead, let's take a look with the QEMU monitor:
 
 ```plain
 (qemu) info registers
@@ -204,20 +197,18 @@ CPU#0
  pc       01000010
 ```
 
-Looking at the register dump, it seems to be continuously executing `0x1000010`. It appears to be working properly, but somehow it doesn't feel satisfying. So, let's see if we can observe behavior specific to U-Mode. We'll add one line to `shell.c`:
+It seems CPU is continuously executing `0x1000010`. It appears to be working properly, but somehow it doesn't feel satisfying. So, let's see if we can observe behavior which is specific to U-Mode. Add one line to `shell.c`:
 
 ```c:shell.c {4}
 #include "user.h"
 
 void main(void) {
-    *((volatile int *) 0x80200000) = 0x1234; // New!
+    *((volatile int *) 0x80200000) = 0x1234; // new!
     for (;;);
 }
 ```
 
-This `0x80200000` is a memory area used by the kernel that is mapped on the page table. However, since it's a "kernel page" where the `U` bit in the page table entry is not set, an exception (page fault) should occur.
-
-An exception occurs as expected:
+This `0x80200000` is a memory area used by the kernel that is mapped on the page table. However, since it is a kernel page where the `U` bit in the page table entry is not set, an exception (page fault) should occur, and the kernel should panic. Let's try it:
 
 ```plain
 $ ./run.sh
@@ -225,11 +216,11 @@ $ ./run.sh
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
 ```
 
-If we check the 15th exception (`0xf = 15`) in the specification, it corresponds to "Store/AMO page fault". It seems the expected exception is occurring. Also, if we look at the program counter at the time of the exception in the `sepc` register, it indeed points to the line we added to `shell.c`:
+The 15th exception (`scause = 0xf = 15`), it corresponds to "Store/AMO page fault". It seems the expected exception happened! Also, the program counter in `sepc` points to the line we added to `shell.c`:
 
 ```plain
 $ llvm-addr2line -e shell.elf 0x100001a
 /Users/seiya/dev/os-from-scratch/shell.c:4
 ```
 
-Congrats! You've successfully executed our first application!
+Congrats! You've successfully executed your first application! Isn't it surprising how easy it is to implement user mode? The kernel is very similar to an application - it just has a few more privileges.

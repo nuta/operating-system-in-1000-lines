@@ -46,6 +46,10 @@ void putchar(char ch) {
 
 次に、`ecall` 命令を実行したときに呼び出される例外ハンドラを更新します。
 
+```c:kernel.h
+#define SCAUSE_ECALL 8
+```
+
 ```c:kernel.c {5-7,12}
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
@@ -63,12 +67,6 @@ void handle_trap(struct trap_frame *f) {
 ```
 
 `ecall` 命令が呼ばれたのかどうかは、`scause` の値を確認することで判定できます。`handle_syscall`関数を呼び出す以外にも、`sepc`の値に4を加えています。これは、`sepc`は例外を引き起こしたプログラムカウンタ、つまり`ecall`命令を指しています。変えないままだと、`ecall`命令を無限に繰り返し実行してしまうので、命令のサイズ分 (4バイト) だけ加算することで、ユーザーモードに戻る際に次の命令から実行を再開するようにしています。
-
-最後に `SCAUSE_ECALL` は次の通り8です。
-
-```c:kernel.h
-#define SCAUSE_ECALL 8
-```
 
 ## システムコールハンドラ
 
