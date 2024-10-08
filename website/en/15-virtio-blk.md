@@ -4,50 +4,64 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+In this chapter, we will implement a device driver for the virtio-blk, a virtual disk device. While virtio-blk does not exist in real hardware, it shares the very same interface as a real one.
 
-## Virtio introduction
+## Virtio
 
-Virtio is a mechanism for exchanging data between a virtual machine and the host OS. Each virtio device has one or more virtqueues. A virtqueue consists of the following three ring buffers:
+Virtio is a device interface standard for virtual devices (virtio devices). In other words, it is one of APIs for device drivers to control devices. Like you use HTTP to access web servers, you use virtio to access virtio devices. Virtio is widely used in virtualization environments such as QEMU and Firecracker.
 
-| Ring Buffer     | Written by | Content                                                                | Each Entry's Content                                 |
+### Virtqueue
+
+> TODO: Improve the explanation
+
+Virtio devices have a structure called a virtqueue. As the name suggests, it is a queue shared between the driver and the device. In a nutshell:
+
+A virtqueue consists of the following three ring buffers:
+
+| Ring Buffer     | Written by | Content                                                                | Contents                                 |
 | --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
-| Descriptor Ring | Driver     | Information indicating the storage location of processing request data | Memory address, length, index of the next descriptor |
-| Available Ring  | Driver     | Processing requests to the device                                      | Index of the head of the descriptor chain            |
-| Used Ring       | Device     | Processing requests handled by the device                              | Index of the head of the descriptor chain            |
+| Descriptor Ring | Driver     | Descriptors: the address and size of the request.                      | Memory address, length, index of the next descriptor |
+| Available Ring  | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
+| Used Ring       | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
 
-Each processing request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
+Each request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
+
+For example, when writing to a disk, virtqueue will be used as follows:
+
+1. The driver writes a read/write request in the Descriptor Ring.
+2. The driver adds the index of the head descriptor to the Available Ring.
+3. The driver notifies the device that there is a new request.
+4. The device reads a request from the Available Ring and processes it.
+3. The device writes the descriptor index to the Used Ring, and notifies the driver that it is complete.
 
 For details, refer to the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html). In this implementation, we will focus on a device called virtio-blk.
 
 ## Enabling virtio devices
 
-Before writing a virtio device driver, let's prepare a test file. Create a file named `lorem.txt` and fill it with some random text like the following:
+Before writing a device driver, let's prepare a test file. Create a file named `lorem.txt` and fill it with some random text like the following:
 
 ```plain
 $ echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In ut magna consequat, cursus velit aliquam, scelerisque odio. Ut lorem eros, feugiat quis bibendum vitae, malesuada ac orci. Praesent eget quam non nunc fringilla cursus imperdiet non tellus. Aenean dictum lobortis turpis, non interdum leo rhoncus sed. Cras in tellus auctor, faucibus tortor ut, maximus metus. Praesent placerat ut magna non tristique. Pellentesque at nunc quis dui tempor vulputate. Vestibulum vitae massa orci. Mauris et tellus quis risus sagittis placerat. Integer lorem leo, feugiat sed molestie non, viverra a tellus." > lorem.txt
 ```
 
-Also, add a virtio-blk device to QEMU by changing the options:
+Also, attach a virtio-blk device to QEMU:
 
 ```bash:run.sh {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
-    -drive id=drive0,file=lorem.txt,format=raw \
-    -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \
+    -drive id=drive0,file=lorem.txt,format=raw \                    # new
+    -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \  # new
     -kernel kernel.elf
 ```
 
 The newly added options are as follows:
 
-- `-drive id=drive0`: Defines disk `drive0`. Passes `lorem.txt` as the disk image to QEMU. The disk image format is `raw` (treats the file contents as-is as disk data).
-- `-device virtio-blk-device`: Adds a virtio-blk device. Connects to disk `drive0`. By specifying `bus=virtio-mmio-bus.0`, the device is mapped to the MMIO (Memory Mapped I/O) region.
+- `-drive id=drive0`: Defines disk named `drive0`, with `lorem.txt` as the disk image. The disk image format is `raw` (treats the file contents as-is as disk data).
+- `-device virtio-blk-device`: Adds a virtio-blk device with disk `drive0`. `bus=virtio-mmio-bus.0` maps the device into a virtio-mmio bus (virtio over Memory Mapped I/O).
 
-## Virtio-related definitions
+## Define C macros/structs
 
-First, let's add some miscellaneous definitions to `kernel.h`.
+First, let's add some virtio-related definitions to `kernel.h`:
 
 ```c:kernel.h
 #define SECTOR_SIZE       512
@@ -76,6 +90,7 @@ First, let's add some miscellaneous definitions to `kernel.h`.
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
+// Virtqueue Descriptor Ring entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
@@ -83,23 +98,27 @@ struct virtq_desc {
     uint16_t next;
 } __attribute__((packed));
 
+// Virtqueue Available Ring.
 struct virtq_avail {
     uint16_t flags;
     uint16_t index;
     uint16_t ring[VIRTQ_ENTRY_NUM];
 } __attribute__((packed));
 
+// Virtqueue Used Ring entry.
 struct virtq_used_elem {
     uint32_t id;
     uint32_t len;
 } __attribute__((packed));
 
+// Virtqueue Used Ring.
 struct virtq_used {
     uint16_t flags;
     uint16_t index;
     struct virtq_used_elem ring[VIRTQ_ENTRY_NUM];
 } __attribute__((packed));
 
+// Virtqueue.
 struct virtio_virtq {
     struct virtq_desc descs[VIRTQ_ENTRY_NUM];
     struct virtq_avail avail;
@@ -109,6 +128,7 @@ struct virtio_virtq {
     uint16_t last_used_index;
 } __attribute__((packed));
 
+// Virtio-blk request.
 struct virtio_blk_req {
     uint32_t type;
     uint32_t reserved;
@@ -118,7 +138,11 @@ struct virtio_blk_req {
 } __attribute__((packed));
 ```
 
-Next, we'll add utility functions to `kernel.c` for manipulating registers on the MMIO of virtio devices:
+> [!NOTE]
+>
+> `__attribute__((packed))` is a compiler extension that tells the compiler to pack the struct members without *padding*. Otherwise, the compiler may add hidden padding bytes and driver/device may see different values.
+
+Next, add utility functions to `kernel.c` for accessing MMIO registers:
 
 ```c:kernel.c
 uint32_t virtio_reg_read32(unsigned offset) {
@@ -138,9 +162,28 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 }
 ```
 
+> [!WARNING]
+>
+> Accessing MMIO registers are not same as accessing normal memory. You should use `volatile` keyword to prevent the compiler from optimizing out the read/write operations. In MMIO, memory access may trigger side effects (e.g., sending a command to the device).
+
+## Map the MMIO region
+
+First, map the `virtio-blk` MMIO region to the page table so that the kernel can access the MMIO registers. It's super simple:
+
+```c:kernel.c {8}
+struct process *create_process(const void *image, size_t image_size) {
+    /* omitted */
+
+    for (paddr_t paddr = (paddr_t) __kernel_base;
+         paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+
+    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W); // new
+```
+
 ## Virtio device initialization
 
-The initialization process for virtio devices is detailed in the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003):
+The initialization process is detailed in the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003):
 
 > 3.1.1 Driver Requirements: Device Initialization
 > The driver MUST follow this sequence to initialize a device:
@@ -154,7 +197,7 @@ The initialization process for virtio devices is detailed in the [virtio specifi
 > 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
 > 8. Set the DRIVER_OK status bit. At this point the device is “live”.
 
-Below is the implementation of the virtio device initialization process. It is a somewhat sloppy implementation that skips a few steps, but it works for now:
+You might be overwhelmed by lengthy steps, but don't worry. A naive implementation is very simple:
 
 ```c:kernel.c
 struct virtio_virtq *blk_request_vq;
@@ -193,9 +236,17 @@ void virtio_blk_init(void) {
 }
 ```
 
+```c:kernel.c {5}
+void kernel_main(void) {
+    memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
+    WRITE_CSR(stvec, (uint32_t) kernel_entry);
+
+    virtio_blk_init(); // new
+```
+
 ## Virtqueue initialization
 
-Virtqueues also need to be initialized. Below is the initialization process for virtqueues as described in the specification:
+Virtqueues also need to be initialized. Let's read the specification:
 
 > The virtual queue is configured as follows:
 >
@@ -207,8 +258,11 @@ Virtqueues also need to be initialized. Below is the initialization process for 
 > 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
 > 7. Write the physical number of the first page of the queue to the QueuePFN register.
 
+Here's a simple implementation:
+
 ```c:kernel.c
 struct virtio_virtq *virtq_init(unsigned index) {
+    // Allocate a region for the virtqueue.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
@@ -225,11 +279,15 @@ struct virtio_virtq *virtq_init(unsigned index) {
 }
 ```
 
-The addresses specified here are the allocated areas for `struct virtio_virtq`. This structure contains the descriptor ring, available ring, and used ring.
+This function allocates a memory region for a virtqueue, and tells the its physical address to the device. The device will use this memory region to read/write requests.
 
-## Sending IO requests
+> [!TIP]
+>
+> What drivers do in the initialization process is to check device capabilities/features, allocating OS resources (e.g., memory regions), and setting parameters. Isn't it similar to handshakes in network protocols?
 
-Now that initialization is complete, let's send an IO request to the disk. IO requests to the disk are made by _"adding processing requests to the virtqueue"_ as follows:
+## Sending I/O requests
+
+We now have an initialized virtio-blk device. Let's send an I/O request to the disk. I/O requests to the disk is implemented by _"adding processing requests to the virtqueue"_ as follows:
 
 ```c
 // Notifies the device that there is a new request. `desc_index` is the index
@@ -297,16 +355,16 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 }
 ```
 
-Overall, the request is sent in the following steps:
+A request is sent in the following steps:
 
-1. Construct the request in `blk_req`. Specify the sector number you want to access and the type of read/write.
-2. Construct a descriptor chain pointing to each area of `blk_req`.
-3. Add the index of the head descriptor of the descriptor chain to the `avail` ring.
-4. Notify the device that there is a "new processing request to be handled".
-5. Wait until the device finishes processing.
+1. Construct a request in `blk_req`. Specify the sector number you want to access and the type of read/write.
+2. Construct a descriptor chain pointing to each area of `blk_req` (see below).
+3. Add the index of the head descriptor of the descriptor chain to the Available Ring.
+4. Notify the device that there is a new pending request.
+5. Wait until the device finishes processing (aka *busy-waiting* or *polling*).
 6. Check the response from the device.
 
-Here, we are constructing a descriptor chain consisting of 3 descriptors. The reason for splitting into 3 parts is that each descriptor has different attributes (`flags`) as follows:
+Here, we construct a descriptor chain consisting of 3 descriptors. We need 3 descriptors because each descriptor has different attributes (`flags`) as follows:
 
 ```c
 struct virtio_blk_req {
@@ -323,51 +381,24 @@ struct virtio_blk_req {
 } __attribute__((packed));
 ```
 
-Because we busy-wait until the processing is complete every time, we can simply use the first 3 descriptors. However, in practice, you may need to track free/used descriptors to process multiple requests simultaneously.
+Because we busy-wait until the processing is complete every time, we can simply use the *first* 3 descriptors in the ring. However, in practice, you need to track free/used descriptors to process multiple requests simultaneously.
 
-## Driver initialization
+## Try it out
 
-First, map the `virtio-blk` MMIO region to the page table of each process:
-
-```c:kernel.c {8}
-struct process *create_process(const void *image, size_t image_size) {
-    /* omitted */
-
-    for (paddr_t paddr = (paddr_t) __kernel_base;
-         paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
-        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
-
-    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
-```
-
-Call the driver initialization function when boot:
-
-```c:kernel.c {4}
-void kernel_main(void) {
-    memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
-    WRITE_CSR(stvec, (uint32_t) kernel_entry);
-    virtio_blk_init();
-
-    /* omitted */
-}
-```
-
-## Testing
-
-Lastly, let's test the disk I/O. Add the following code to `kernel.c`:
+Lastly, let's try disk I/O. Add the following code to `kernel.c`:
 
 ```c:kernel.c {3-8}
     virtio_blk_init();
 
     char buf[SECTOR_SIZE];
-    read_write_disk(buf, 0, false);
+    read_write_disk(buf, 0, false /* read from the disk */);
     printf("first sector: %s\n", buf);
 
     strcpy(buf, "hello from kernel!!!\n");
-    read_write_disk(buf, 0, true);
+    read_write_disk(buf, 0, true /* write to the disk */);
 ```
 
-Since we specify `lorem.txt` as the (raw) disk image, the contents of the file should be displayed as-is:
+Since we specify `lorem.txt` as the (raw) disk image, its contents should be displayed as-is:
 
 ```plain
 $ ./run.sh
@@ -376,10 +407,15 @@ virtio-blk: capacity is 1024 bytes
 first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 ```
 
-If `lorem.txt` is updated with the content written to the first sector, the implementation is successful:
+Also, the first sector is overwritten with the string "hello from kernel!!!":
 
 ```plain
 $ head lorem.txt
 hello from kernel!!!
 amet, consectetur adipiscing elit ...
 ```
+
+Congratulations! You've successfully implemented a disk I/O driver!
+
+> [!TIP]
+> As you would notice, device drivers are just a "glue" between the OS and the device's. Device will do the rest of all the heavy lifting, like moving disk read/write heads. Drivers communicate with another software running on the device (e.g., firmware), not controlling the hardware directly.

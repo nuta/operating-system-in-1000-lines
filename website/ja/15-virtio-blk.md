@@ -134,6 +134,21 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 }
 ```
 
+## デバイスドライバの初期化
+
+まずは、各プロセスのページテーブルに `virtio-blk` のMMIO領域をマップします。一行付け足すだけです。
+
+```c:kernel.c {8}
+struct process *create_process(const void *image, size_t image_size) {
+    /* 省略 */
+
+    for (paddr_t paddr = (paddr_t) __kernel_base;
+         paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+
+    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W); // new
+```
+
 ## Virtioデバイスの初期化
 
 virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003) に載っています。
@@ -187,6 +202,14 @@ void virtio_blk_init(void) {
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
     blk_req = (struct virtio_blk_req *) blk_req_paddr;
 }
+```
+
+```c:kernel.c {5}
+void kernel_main(void) {
+    memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
+    WRITE_CSR(stvec, (uint32_t) kernel_entry);
+
+    virtio_blk_init();
 ```
 
 ## Virtqueueの初期化
@@ -320,33 +343,6 @@ struct virtio_blk_req {
 ```
 
 今回は処理が終わるまでビジーウェイトしているため、毎回同じディスクリプタを使っています (0から2番目)。
-
-## デバイスドライバの初期化
-
-最後に必要な処理を追加します。まずは、各プロセスのページテーブルに `virtio-blk` のMMIO領域をマップします。
-
-```c:kernel.c {8}
-struct process *create_process(const void *image, size_t image_size) {
-    /* 省略 */
-
-    for (paddr_t paddr = (paddr_t) __kernel_base;
-         paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
-        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
-
-    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
-```
-
-また、virtioの初期化関数を起動時に呼び出します。
-
-```c:kernel.c {4}
-void kernel_main(void) {
-    memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
-    WRITE_CSR(stvec, (uint32_t) kernel_entry);
-    virtio_blk_init();
-
-    /* 省略 */
-}
-```
 
 ## ディスクの読み込みテスト
 

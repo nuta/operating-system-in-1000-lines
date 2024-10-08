@@ -4,27 +4,27 @@ layout: chapter
 lang: en
 ---
 
-> [!NOTE]
->
-> **Translation of this English version is in progress.**
+Congratulations! You've completed the book. You've learned how to implement a simple OS kernel from scratch. You've learned about the basic concepts of operating systems, such as booting CPU, context switching, page table, user mode, system call, disk I/O, and file system.
 
-This is where the book ends. Although it's less than 1000 lines, it must have been quite challenging.
+Although it's less than 1000 lines, it must have been quite challenging. This is because you built the core of the core of the core of kernel.
 
 For those who are not satisfied yet and wants to continue with something, here are somew next steps:
 
-## Read HinaOS or xv6
+## Read xv6
 
-Now that you've learned about implementing unique features like paging and exception handling, which are not seen in application development, the most recommended next step is to "read the implementation of existing OSes." Comparing your implementation with others and learning "how others implement it" is very educational.
+The most recommended next step is to read the implementation of existing OSes. Comparing your implementation with others and learning how others implemented is very educational.
 
 One of examples is [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv). This is a UNIX-like OS for educational purposes, and it comes with an [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/). It's recommended for those who want to learn about UNIX-specific features like `fork(2)`.
 
-## Add New Features
+## Add new features
 
-In this book, we implemented the basic functions of a kernel. However, there are still many features that can be implemented. For example, it would be interesting to implement the following features:
+In this book, we implemented the basic features of a kernel. However, there are still many features that can be implemented. For example, it would be interesting to implement the following features:
 
-- A proper memory allocator
-- Interrupts
-- A full-fledged file system
-- Network communication (TCP/IP)
+- A proper memory allocator that allows freeing memory.
+- Interrupt handling. Do not busy-wait for disk I/O.
+- A full-fledged file system. Implementing ext2 would be a good start.
+- Network communication (TCP/IP). It's not hard to implement UDP/IP (TCP is somewhat advanced). Virtio-net is very similar to virtio-blk!
 
-Happy your endless OS programming!
+## Feedbacks are very welcome!
+
+If you have any questions or feedback, please feel free to ask on [GitHub](https://github.com/nuta/operating-system-in-1000-lines/issues), or [send me an email](https://seiya.me) if you prefer. Happy your endless OS programming! 
