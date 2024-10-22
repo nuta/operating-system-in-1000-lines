@@ -28,33 +28,133 @@ In this book, we support the QEMU `virt` machine ([documentation](https://www.qe
 
 ## RISC-V assembly 101
 
-A quick way to learn assembly is to observe how C code translates into assembly. 
+RISC-V can be seen as an API for software developers. It defines the instructions that can be executed by the CPU, and the behavior of the CPU when executing those instructions.
 
-<!--
-- Assembly is written as a string literal. Each instruction has the structure `opcode operand1, operand2, ...`. The opcode is the assembly instruction name, and operands are the arguments for the instruction.
-- Generally, one instruction is written per line in assembly. In terms of general programming languages, it's like a series of function calls. When writing multiple instructions, separate them with newline characters, e.g. `"addi x1, x2, 3\naddi x3, x4, 5"`.
--->
-
-> [!NOTE]
+> [!TIP]
 >
-> **TODO:** The explanation of assembly in this English version is currently omitted. Ask ChatGPT for the following topics for now.
+> **Try Compiler Explorer!**
 > 
-> - What are registers
-> - Arithmetic operations
-> - Memory access
-> - Branch instructions
-> - Function calls
-> - Stack/heap
-
-### Try Compiler Explorer
-
-A useful tool for learning assembly is [Compiler Explorer](https://godbolt.org/), an online compiler. As you type C code, it shows the corresponding assembly code.
-
-Also, it would be interesting to specify optimization options like `-O0` (optimization off) or `-O2` (optimization level 2) in the compiler options and see how the assembly changes.
-
-> [!WARNING]
+> A useful tool for learning assembly is [Compiler Explorer](https://godbolt.org/), an online compiler. As you type C code, it shows the corresponding assembly code.
 >
 > By default, Compiler Explorer uses x86-64 CPU assembly. Specify `RISC-V rv32gc clang (trunk)` in the right pane to output 32-bit RISC-V assembly.
+> 
+> Also, it would be interesting to specify optimization options like `-O0` (optimization off) or `-O2` (optimization level 2) in the compiler options and see how the assembly changes.
+
+### Assembly language basics
+
+Assembly language is a (mostly) direct representation of machine code. Let's take a look at a simple example:
+
+```asm
+addi a0, a1, 123
+```
+
+Typically, each line of assembly code corresponds to a single instruction. The first column (`addi`) is the instruction name, also known as the *opcode*. The following columns (`a0, a1, 123`) are the *operands*, which are the arguments for the instruction. In this case, the `addi` instruction adds the value `123` to the value in register `a1`, and stores the result in register `a0`.
+
+### Registers
+
+Registers are like temporary variables in the CPU. They are way faster than memory, but there are only a few of them. Here are some common registers:
+
+| Register | ABI Name (alias) | Description |
+|---| -------- | ----------- |
+| `pc` | `pc`       | Program counter (where the next instruction is) |
+| `x0` |`zero`     | Hardwired zero (always reads as zero) |
+| `x1` |`ra`         | Return address |
+| `x2` |`sp`         | Stack pointer |
+| `x5` - `x7` | `t0` - `t2` | Temporary registers |
+| `x8` | `fp`      | Stack frame pointer |
+| `x10` - `x11` | `a0` - `a1`  | Function arguments/return values |
+| `x12` - `x17` | `a2` - `a7`  | Function arguments |
+| `x18` - `x27` | `s0` - `s11` | Temporary registers saved across calls |
+| `x28` - `x31` | `t3` - `t6` | Temporary registers |
+
+> [!TIP]
+>
+> **Calling convention:**
+>
+> Generally, you may use CPU registers as you like, but for the sake of interoperability with other software, how registers are used is well defined - this is called the *calling convention*.
+>
+> For example, in the table above, `x10` - `x11` registers are used for function arguments and return values, and have aliases `a0` - `a1`.
+>
+> See [RISC-V Calling Convention](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf) for more details.
+
+### Memory access
+
+Registers are really fast, but as you can see, there are only a few of them. Software stores most of its data in memory, and reads/writes data from/to memory using the `lw` (load word) and `sw` (store word) instructions.
+
+```asm
+lw a0, (a1)  // Read a word (32-bits) from address in a1
+             // and store it in a0. In C, this would be: a0 = *a1;
+```
+
+```asm
+sw a0, (a1)  // Store a word in a0 to the address in a1.
+             // In C, this would be: *a1 = a0;
+```
+
+You can consider `(...)` as a pointer dereference in C language. In this case, `a1` is a pointer to a 32-bits-wide value.
+
+### Branch instructions
+
+Branch instructions are used to change the flow of the program, that is, primitives for `if`, `for`, and `while` statements.
+
+```asm
+    bnez    a0, <label>   // Go to <label> if a0 is not zero
+    // If a0 is zero, continue here
+
+<label>:
+    // If a0 is not zero, continue here
+```
+
+`bnez` stands for "branch if not equal to zero". Other common branch instructions include `beq` (branch if equal) and `blt` (branch if less than). They are similar to `goto` in C, but with conditions.
+
+### Function calls
+
+`jal` (jump and link) and `ret` (return) instructions are used for calling functions and returning from them:
+
+```asm
+    li  a0, 123      // Load 123 to a0 register (function argument)
+    jal ra, <label>  // Jump to <label> and store the return address
+                     // in the ra register.
+
+    // After the function call, continue here...
+
+// int func(int a) {
+//   a += 1;
+//   return a;
+// }
+<label>:
+    addi a0, a0, 1    // Increment a0 (first argument) by 1
+
+    ret               // Return to the address stored in ra.
+                      // a0 register has the return value.
+```
+
+How to pass arguments to functions and return values from them is defined by the calling convention.
+
+### Stack
+
+Stack is a Last-In-First-Out (LIFO) memory space used for function calls and local variables. It grows downwards, and the stack pointer `sp` points to the top of the stack.
+
+To save a value into the stack, just decrement the stack pointer and store the value (aka. *push* operation):
+
+```asm
+    addi sp, sp, -4  // Move the stack pointer down by 4 bytes
+                     // (i.e. stack allocation).
+
+    sw   a0, (sp)    // Store a0 to the stack
+```
+
+To load a value from the stack, load the value and increment the stack pointer (aka. *pop* operation):
+
+```asm
+    lw   a0, (sp)    // Load a0 from the stack
+    addi sp, sp, 4   // Move the stack pointer up by 4 bytes
+                     // (i.e. stack deallocation).
+```
+
+> [!TIP]
+>
+> In C, stack operations are implemented by the compiler, so you don't have to write them manually.
 
 ## CPU modes
 
