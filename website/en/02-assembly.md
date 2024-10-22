@@ -52,7 +52,9 @@ Typically, each line of assembly code corresponds to a single instruction. The f
 
 ### Registers
 
-Registers are like temporary variables in the CPU. They are way faster than memory, but there are only a few of them. Here are some common registers:
+Registers are like temporary variables in the CPU, and they are way faster than memory. CPU reads data from memory into registers, does arithmetic operations on the data in registers, and writes the results back to memory.
+
+Here are some common registers:
 
 | Register | ABI Name (alias) | Description |
 |---| -------- | ----------- |
@@ -71,11 +73,9 @@ Registers are like temporary variables in the CPU. They are way faster than memo
 >
 > **Calling convention:**
 >
-> Generally, you may use CPU registers as you like, but for the sake of interoperability with other software, how registers are used is well defined - this is called the *calling convention*.
+> Generally, you may use CPU registers as you like, but for the sake of interoperability with other software, how registers are used is well defined - this is called the *calling convention* ([RISC-V Calling Convention](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf)).
 >
-> For example, in the table above, `x10` - `x11` registers are used for function arguments and return values, and have aliases `a0` - `a1`.
->
-> See [RISC-V Calling Convention](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf) for more details.
+> For example, `x10` - `x11` registers are used for function arguments and return values. For human readability, they are given aliases like `a0` - `a1` in the ABI.
 
 ### Memory access
 
