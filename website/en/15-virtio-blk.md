@@ -12,8 +12,6 @@ Virtio is a device interface standard for virtual devices (virtio devices). In o
 
 ### Virtqueue
 
-![virtqueue diagram](../images/virtio.svg)
-
 Virtio devices have a structure called a virtqueue. As the name suggests, it is a queue shared between the driver and the device. In a nutshell:
 
 A virtqueue consists of the following three ring buffers:
@@ -23,6 +21,8 @@ A virtqueue consists of the following three ring buffers:
 | Descriptor Ring | Driver     | Descriptors: the address and size of the request.                      | Memory address, length, index of the next descriptor |
 | Available Ring  | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
 | Used Ring       | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
+
+![virtqueue diagram](../images/virtio.svg)
 
 Each request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
 
