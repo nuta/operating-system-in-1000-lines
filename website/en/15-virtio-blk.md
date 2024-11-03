@@ -12,7 +12,7 @@ Virtio is a device interface standard for virtual devices (virtio devices). In o
 
 ### Virtqueue
 
-> TODO: Improve the explanation
+![virtqueue diagram](../images/virtio.svg)
 
 Virtio devices have a structure called a virtqueue. As the name suggests, it is a queue shared between the driver and the device. In a nutshell:
 
