@@ -14,21 +14,21 @@ Virtio is a device interface standard for virtual devices (virtio devices). In o
 
 Virtio devices have a structure called a virtqueue. As the name suggests, it is a queue shared between the driver and the device. In a nutshell:
 
-A virtqueue consists of the following three ring buffers:
+A virtqueue consists of the following three areas:
 
-| Ring Buffer     | Written by | Content                                                                | Contents                                 |
+| Name            | Written by | Content                                                                | Contents                                 |
 | --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
-| Descriptor Ring | Driver     | Descriptors: the address and size of the request.                      | Memory address, length, index of the next descriptor |
+| Descriptor Area | Driver     | A Table of descriptors: the address and size of the request            | Memory address, length, index of the next descriptor |
 | Available Ring  | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
 | Used Ring       | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
 
 ![virtqueue diagram](../images/virtio.svg)
 
-Each request (e.g., writing to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
+Each request (e.g., a write to disk) consists of multiple descriptors, called a descriptor chain. By splitting into multiple descriptors, you can specify scattered memory data (so-called Scatter-Gather IO) or give different descriptor attributes (whether writable by the device).
 
 For example, when writing to a disk, virtqueue will be used as follows:
 
-1. The driver writes a read/write request in the Descriptor Ring.
+1. The driver writes a read/write request in the Descriptor area.
 2. The driver adds the index of the head descriptor to the Available Ring.
 3. The driver notifies the device that there is a new request.
 4. The device reads a request from the Available Ring and processes it.
@@ -90,7 +90,7 @@ First, let's add some virtio-related definitions to `kernel.h`:
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
-// Virtqueue Descriptor Ring entry.
+// Virtqueue Descriptor area entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
