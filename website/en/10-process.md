@@ -37,7 +37,7 @@ The kernel stack contains saved CPU registers, return addresses (where it was ca
 
 ## Context switch
 
-Switching the process execution context is called *"context switching"*. The following `switch_context` function is the implementation of context switching. In a nutshell, it saves the callee-saved registers onto the stack, saves and restores the stack pointer, and then restores the callee-saved registers from the stack:
+Switching the process execution context is called *"context switching"*. The following `switch_context` function is the implementation of context switching:
 
 ```c:kernel.c
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
@@ -78,8 +78,13 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 }
 ```
 
-> TODO: Explain callee-saved/caller-saved registers
+`switch_context` saves the callee-saved registers onto the stack, switches the stack pointer, and then restores the callee-saved registers from the stack.
 
+Callee-saved registers are registers that the called function must restore before returning. In RISC-V, `s0` to `s11` are callee-saved registers. Other registers like `a0` are caller-saved registers, and already saved on the stack by the caller.
+
+> [!TIP]
+>
+> Callee/Caller saved registers are defined in [Calling Convention](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf). Compilers generate code based on this convention.
 
 The following `create_process` function initializes a process. It takes the entry point as a parameter, and returns a pointer to the created `process` struct:
 
