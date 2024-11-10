@@ -49,7 +49,7 @@ Also, attach a virtio-blk device to QEMU:
 ```bash:run.sh {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
-    -drive id=drive0,file=lorem.txt,format=raw \                    # new
+    -drive id=drive0,file=lorem.txt,format=raw,if=none \            # new
     -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \  # new
     -kernel kernel.elf
 ```
