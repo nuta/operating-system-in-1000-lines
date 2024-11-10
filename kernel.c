@@ -438,7 +438,9 @@ struct process *create_process(const void *image, size_t image_size) {
     // User pages.
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
-        memcpy((void *) page, image + off, PAGE_SIZE);
+        size_t remaining = image_size - off;
+        size_t copy_size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
+        memcpy((void *) page, image + off, copy_size);
         map_page(page_table, USER_BASE + off, page,
                  PAGE_U | PAGE_R | PAGE_W | PAGE_X);
     }
