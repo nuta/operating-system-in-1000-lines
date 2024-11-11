@@ -47,7 +47,16 @@ struct process *create_process(const void *image, size_t image_size) {
     // ユーザーのページをマッピングする
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
-        memcpy((void *) page, image + off, PAGE_SIZE);
+
+        // コピーするデータがページサイズより小さい場合を考慮
+        // https://github.com/nuta/operating-system-in-1000-lines/pull/27
+        size_t remaining = image_size - off;
+        size_t copy_size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
+
+        // 確保したページにデータをコピー
+        memcpy((void *) page, image + off, copy_size);
+
+        // ページテーブルにマッピング
         map_page(page_table, USER_BASE + off, page,
                  PAGE_U | PAGE_R | PAGE_W | PAGE_X);
     }
