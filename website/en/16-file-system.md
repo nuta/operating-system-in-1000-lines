@@ -12,6 +12,10 @@ In this book, we'll take an interesting approach to implement a file system: usi
 
 Tar is an archive format that can contain multiple files. It contains file contents, filenames, creation dates, and other information necessary for a file system. Compared to common file system formats like FAT or ext2, tar has a much simpler data structure. Additionally, you can manipulate the file system image using the  tar command which you are already familiar with. Isn't it an ideal file format for educational purposes?
 
+> [!TIP]
+>
+> Nowadays, tar is used as a ZIP alternative, but originally it was born as sort of file system for magnetic tape. We can use it as a file system as we do in this chapter, however, you'll notice that it is not suitable for random access. [The design of FAT file system](https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system) would be fun to read.
+
 ## Create a disk image (tar file)
 
 Let's start by preparing the contents of our file system. Create a directory called `disk` and add some files to it. Name one of them `hello.txt`:
