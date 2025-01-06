@@ -13,7 +13,7 @@ This book assumes you're using a UNIX or UNIX like OS such as macOS or Ubuntu. I
 Install [Homebrew](https://brew.sh) and run this command to get all tools you need:
 
 ```
-brew install llvm qemu
+brew install llvm lld qemu
 ```
 
 ### Ubuntu
@@ -45,7 +45,8 @@ If you are using other OSes, get the following tools:
 - `bash`: The command-line shell. Usually it's pre-installed.
 - `tar`: Usually it's pre-installed. Prefer GNU version, not BSD.
 - `clang`: C compiler. Make sure it supports 32-bit RISC-V CPU (see below).
-- `llvm-objcopy`: Object file editor. It comes the LLVM package (typically `llvm` package).
+- `lld`: LLVM linker, which bundles complied object files into an executable.
+- `llvm-objcopy`: Object file editor. It comes with the LLVM package (typically `llvm` package).
 - `llvm-objdump`: A disassembler. Same as `llvm-objcopy`.
 - `llvm-readelf`: An ELF file reader. Same as `llvm-objcopy`.
 - `qemu-system-riscv32`: 32-bit RISC-V CPU emulator. It's part of the QEMU package (typically `qemu` package).
