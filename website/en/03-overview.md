@@ -9,9 +9,9 @@ lang: en
 In this book, we will implement the following major features:
 
 - **Multitasking**: Switch between processes to allow multiple applications to share the CPU.
-- **Exception handler**: Handle events requiring OS intervention, such as illegal instruction.
+- **Exception handler**: Handle events requiring OS intervention, such as illegal instructions.
 - **Paging**: Provide an isolated memory address space for each application.
-- **System call**: Allow applications to call kernel features.
+- **System calls**: Allow applications to call kernel features.
 - **Device drivers**: Abstract hardware functionalities, such as disk read/write.
 - **File system**: Manage files on disk.
 - **Command-line shell**: User interface for humans.
@@ -20,9 +20,9 @@ In this book, we will implement the following major features:
 
 The following major features are not implemented in this book:
 
-- **Interrupt handling**: Instead, we will use a polling method (periodically check for new data on devices), aka busy waiting.
-- **Timer processing**: Preemptive multitasking is not implemented. Cooperative multitasking, where each process voluntarily yields CPU, is implemented.
-- **Inter-process communication**: Such as pipe, UNIX domain socket, and shared memory, are not implemented.
+- **Interrupt handling**: Instead, we will use a polling method (periodically check for new data on devices), also known as busy waiting.
+- **Timer processing**: Preemptive multitasking is not implemented. We'll use cooperative multitasking, where each process voluntarily yields the CPU.
+- **Inter-process communication**: Features such as pipe, UNIX domain socket, and shared memory are not implemented.
 - **Multi-processor support**: Only single processor is supported.
 
 ## Source code structure
@@ -45,4 +45,4 @@ We'll build from scratch incrementally, and the final file structure will look l
 
 > [!TIP]
 >
-> In this book, *"user land"* is sometimes abbreviated as *"user"*. Consider it as *"applications"*. Do not confuse it with *"user account"*!
+> In this book, "user land" is sometimes abbreviated as "user". Consider it as "applications", and do not confuse it with "user account"!

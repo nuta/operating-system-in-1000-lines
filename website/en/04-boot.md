@@ -4,17 +4,17 @@ layout: chapter
 lang: en
 ---
 
-When a computer is turned on, the CPU initializes itself and starts executing the OS. The OS then initializes the hardware and starts the applications. This process is called "booting".
+When a computer is turned on, the CPU initializes itself and starts executing the OS. OS initializes the hardware and starts the applications. This process is called "booting".
 
-What happens before the OS starts? In PCs, the BIOS (or UEFI in modern PCs) initializes the hardware, displays the splash screen, and loads the OS from the disk. In QEMU `virt` machine, OpenSBI is the equivalent of BIOS/UEFI.
+What happens before the OS starts? In PCs, BIOS (or UEFI in modern PCs) initializes the hardware, displays the splash screen, and loads the OS from the disk. In QEMU `virt` machine, OpenSBI is the equivalent of BIOS/UEFI.
 
 ## Supervisor Binary Interface (SBI)
 
-The Supervisor Binary Interface (SBI) is SBI is "API for OS kernels". Just like APIs define functions provided to applications such as displaying characters and reading/writing files, SBI defines functions that firmware provides to the OS.
+The Supervisor Binary Interface (SBI) is an API for OS kernels, but defines what the firmware (OpenSBI) provides to an OS.
 
 The SBI specification is [published on GitHub](https://github.com/riscv-non-isa/riscv-sbi-doc/releases). It defines useful features such as displaying characters on the debug console (e.g., serial port), reboot/shutdown, and timer settings.
 
-A famous example of SBI implementation is [OpenSBI](https://github.com/riscv-software-src/opensbi). In QEMU, OpenSBI starts by default, performs hardware-specific initialization, and then boots the kernel.
+A famous SBI implementation is [OpenSBI](https://github.com/riscv-software-src/opensbi). In QEMU, OpenSBI starts by default, performs hardware-specific initialization, and boots the kernel.
 
 ## Let's boot OpenSBI
 
@@ -36,9 +36,9 @@ QEMU=qemu-system-riscv32
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot
 ```
 
-The QEMU options are as follows:
+QEMU takes various options to start the virtual machine. Here are the options used in the script:
 
-- `-machine virt`: Start a `virt` machine. You can check supported environments with the `-machine '?'` option.
+- `-machine virt`: Start a `virt` machine. You can check other supported machines with the `-machine '?'` option.
 - `-bios default`: Use the default firmware (OpenSBI in this case).
 - `-nographic`: Start QEMU without a GUI window.
 - `-serial mon:stdio`: Connect QEMU's standard input/output to the virtual machine's serial port. Specifying `mon:` allows switching to the QEMU monitor by pressing <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd>.
@@ -78,9 +78,9 @@ Platform Timer Device     : aclint-mtimer @ 10000000Hz
 
 OpenSBI displays the OpenSBI version, platform name, features, number of HARTs (CPU cores), and more for debugging purposes.
 
-Pressing any key won't do anything. Since QEMU's standard input/output is connected to the virtual machine's serial port, characters are sent to the OS. However, the OS is not running at this point, so nothing happens.
+When you press any key, nothing will happen. This is because QEMU's standard input/output is connected to the virtual machine's serial port, and the characters you type are being sent to the OpenSBI. However, no one reads the input characters.
 
-Press <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd> to switch to the QEMU debug console (QEMU monitor). You can exit QEMU by executing the `q` command in the monitor:
+Press <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd> to switch to the QEMU debug console (QEMU monitor). You can exit QEMU by `q` command in the monitor:
 
 ```plain
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -137,7 +137,6 @@ SECTIONS {
     __stack_top = .;
 }
 ```
-
 Here are the key points of the linker script:
 
 - The entry point of the kernel is the `boot` function.
@@ -146,26 +145,27 @@ Here are the key points of the linker script:
 - Each section is placed in the order of `.text`, `.rodata`, `.data`, and `.bss`.
 - The kernel stack comes after the `.bss` section, and its size is 128KB.
 
-The `.text`, `.rodata`, `.data`, and `.bss` sections appearing here are data areas with the following roles:
+`.text`, `.rodata`, `.data`, and `.bss` sections mentioned here are data areas with specific roles:
 
-| Section | Description |
-| ------- | ----------- |
-| `.text` | Code area. |
-| `.rodata` | Constant data area. Read-only. |
-| `.data` | Read/write data area. |
-| `.bss` | Read/write data area. Unlike `.data`, it places variables with an initial value of zero. |
+| Section   | Description                                                  |
+| --------- | ------------------------------------------------------------ |
+| `.text`   | This section contains the code of the program.               |
+| `.rodata` | This section contains constant data that is read-only.       |
+| `.data`   | This section contains read/write data.                       |
+| `.bss`    | This section contains read/write data with an initial value of zero. |
 
-Let's look at some of the syntax of the linker script. First, `ENTRY(boot)` declares that the entry point (starting point of the program) is the `boot` function. Then, the placement of each section is defined in `SECTIONS`.
+Let's take a closer look at the syntax of the linker script. First, `ENTRY(boot)` declares that the `boot` function is the entry point of the program. Then, the placement of each section is defined within the `SECTIONS` block.
 
-`*(.text .text.*)` means placing the `.text` section and sections starting with `.text.` from all files (`*`) there.
+The `*(.text .text.*)` directive places the `.text` section and any sections starting with `.text.` from all files (`*`) at that location.
 
-`.` is a variable-like entity that indicates the "current address". The address is automatically incremented whenever data is placed, like `*(.text)`. `. += 128 * 1024` means "advance the current address by 128KB". `ALIGN(4)` adjust the current address to a 4-byte boundary.
+The `.` symbol represents the current address. It automatically increments as data is placed, such as with `*(.text)`. The statement `. += 128 * 1024` means "advance the current address by 128KB". The `ALIGN(4)` directive ensures that the current address is adjusted to a 4-byte boundary.
 
-Lastly, `__bss = .` means assigning the current address to the symbol `__bss`. "Symbol" represents a function or static variable, and in C language, you can refer to a defined symbol with `extern char symbol_name`.
+Finally, `__bss = .` assigns the current address to the symbol `__bss`. In C language, you can refer to a defined symbol using `extern char symbol_name`.
 
 > [!TIP]
 >
-> Linker scripts have many convenient features, especially for kernel development. Try searching GitHub for real-world examples!
+> Linker scripts offer many convenient features, especially for kernel development. You can find real-world examples on GitHub!
+
 
 ## Minimal kernel
 
@@ -207,33 +207,27 @@ Let's explore the key points one by one:
 
 ### The kernel entry point
 
-Since we specified `boot` as the entry point in the kernel linker script, the execution starts from the function. It sets the stack pointer (`sp`) to the end address of the stack area prepared in the linker script and jumps to the `kernel_main` function. Note that the stack grows towards zero (it is decremented as it is used), so make sure to set the end address of the area.
-
-> [!TIP]
->
-> **Why the stack pointer points to the end of the stack area?**
->
-> This is because the stack grows towards zero. It is a pretty common convention among most of CPUs and compilers.
+The execution of the kernel starts from the `boot` function, which is specified as the entry point in the linker script. In this function, the stack pointer (`sp`) is set to the end address of the stack area defined in the linker script. Then, it jumps to the `kernel_main` function. It's important to note that the stack grows towards zero, meaning it is decremented as it is used. Therefore, the end address (not the start address) of the stack area must be set.
 
 ### `boot` function attributes
 
-`__attribute__((naked))` instructs the compiler not to generate unnecessary code before and after the function body ([Wikipedia](https://en.wikipedia.org/wiki/Function_prologue_and_epilogue)), such as return instruction. This ensures that the content of the function is output "as is" when written in inline assembly.
+The `boot` function has two special attributes. The `__attribute__((naked))` attribute instructs the compiler not to generate unnecessary code before and after the function body, such as a return instruction. This ensures that the inline assembly code is the exact function body.
 
-The `boot` function also has a special attribute `__attribute__((section(".text.boot")))`. This is used to control the placement of the function in the linker script. Since OpenSBI does not know the entrypoint and it simply jumps to `0x80200000`, the entry point of the kernel (`boot` function) needs to be placed at `0x80200000`.
+The `boot` function also has the `__attribute__((section(".text.boot")))` attribute, which controls the placement of the function in the linker script. Since OpenSBI simply jumps to `0x80200000` without knowing the entry point, the `boot` function needs to be placed at `0x80200000`.
 
 ### `extern char` to get linker script symbols
 
-At the beginning of the file, each symbol defined in the linker script is declared with `extern char`. Here, we are only interested in the addresses of the symbols, so we use the `char` type.
+At the beginning of the file, each symbol defined in the linker script is declared using `extern char`. Here, we are only interested in obtaining the addresses of the symbols, so using `char` type is not that important.
 
-There is no problem with declaring `extern char __bss;`, but writing `__bss` would mean "the value at the 0th byte of the `.bss` section" rather than "the start address of the `.bss` section". Therefore, it is recommended to add `[]` to ensure that `__bss` returns an address, thus preventing careless mistakes.
+We can also declare it as `extern char __bss;`, but `__bss` alone meands *"the value at the 0th byte of the `.bss` section"* instead of *"the start address of the `.bss` section"*. Therefore, it is recommended to add `[]` to ensure that `__bss` returns an address and prevent any careless mistakes.
 
 ### `.bss` section initialization
 
-In the `kernel_main` function, the `.bss` section is first initialized to zero using the `memset` function. Although some bootloaders may recognize and zero-clear the `.bss` section, it is recommended to initialize it manually since this cannot be guaranteed. Finally, the function enters an infinite loop and terminates.
+In the `kernel_main` function, the `.bss` section is first initialized to zero using the `memset` function. Although some bootloaders may recognize and zero-clear the `.bss` section, but we initialize it manually just in case. Finally, the function enters an infinite loop and the kernel terminates.
 
 ## Let's run!
 
-Add kernel build command and a new QEMU option (`-kernel kernel.elf`) to `run.sh`:
+Add a kernel build command and a new QEMU option (`-kernel kernel.elf`) to `run.sh`:
 
 ```bash:run.sh {6-13,17}
 #!/bin/bash
@@ -273,18 +267,18 @@ The specified clang options (`CFLAGS` variable) are as follows:
 | `-Wall` | Enable major warnings. |
 | `-Wextra` | Enable additional warnings. |
 | `--target=riscv32` | Compile for 32-bit RISC-V. |
-| `-ffreestanding` | Do not use the standard library of the host environment (development environment). |
+| `-ffreestanding` | Do not use the standard library of the host environment (your development environment). |
 | `-nostdlib` | Do not link the standard library. |
 | `-Wl,-Tkernel.ld` | Specify the linker script. |
 | `-Wl,-Map=kernel.map` | Output a map file (linker allocation result). |
 
 `-Wl,` means passing options to the linker instead of the C compiler. `clang` command does C compilation and executes the linker internally.
 
-## First Kernel Debugging
+## Your first kernel debugging
 
-When you run `run.sh`, the kernel enters an infinite loop. There are no indications of the kernel running correctly. No worries it's pretty common in low-level development! This is where QEMU's debugging features come in.
+When you run `run.sh`, the kernel enters an infinite loop. There are no indications that the kernel is running correctly. But don't worry, this is quite common in low-level development! This is where QEMU's debugging features come in.
 
-Open the QEMU monitor and execute the `info registers` command. It dumps CPU registers:
+To get more information about the CPU registers, open the QEMU monitor and execute the `info registers` command:
 
 ```plain
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -308,7 +302,7 @@ CPU#0
 >
 > The exact values may differ depending on the versions of clang and QEMU.
 
-`pc 80200014` indicates the current "Program Counter", the address of the instruction being executed. Let's use the disassembler (`llvm-objdump`) to narrow down the specific line of code:
+`pc 80200014` shows the current program counter, the address of the instruction being executed. Let's use the disassembler (`llvm-objdump`) to narrow down the specific line of code:
 
 ```plain
 $ llvm-objdump -d kernel.elf
@@ -326,14 +320,14 @@ Disassembly of section .text:
 
 80200010 <kernel_main>:  ← kernel_main function
 80200010: 73 00 50 10   wfi
-80200014: f5 bf         j       0x80200010 <kernel_main>  ← Program Counter is here
+80200014: f5 bf         j       0x80200010 <kernel_main>  ← pc is here
 ```
 
-Each line of the disassembly is shown as follows:
+Each line corresponds to an instruction. Each column represents:
 
-- Address: The address of the instruction.
-- Machine code: Hexadecimal dump of the machine code.
-- Disassembled instructions: Disassembled instructions.
+- The address of the instruction.
+- Hexadecimal dump of the machine code.
+- Disassembled instructions.
 
 `pc 80200014` means the currently executed instruction is `j 0x80200010`. This confirms that QEMU has correctly reached the `kernel_main` function.
 
@@ -349,7 +343,7 @@ Let's also check if the stack pointer (sp register) is set to the value of `__st
 80220018 80220018        0     1 __stack_top = .
 ```
 
-Alternatively, you can also check the addresses of each function and variable using `llvm-nm`:
+Alternatively, you can also check the addresses of functions/variables using `llvm-nm`:
 
 ```plain
 $ llvm-nm kernel.elf
