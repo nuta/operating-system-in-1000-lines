@@ -16,7 +16,11 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
-      {
+      rec {
+        packages = {
+          default = devShells.default;
+        };
+
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs.buildPackages; [
             llvmPackages.clangUseLLVM
