@@ -18,7 +18,25 @@
       in
       rec {
         packages = {
-          default = devShells.default;
+          default = pkgs.stdenv.mkDerivation {
+            version = "1.0.0";
+            pname = "dev env";
+            src = ./.;
+
+            propagatedBuildInputs = with pkgs; [
+              llvmPackages.clangUseLLVM
+              llvmPackages.bintools-unwrapped
+            ];
+
+            buildPhase = ''
+
+            '';
+
+            installPhase = ''
+              mkdir -p $out
+              touch $out/.dummy
+            '';
+          };
         };
 
         devShells.default = pkgs.mkShell {
