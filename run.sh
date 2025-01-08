@@ -3,8 +3,11 @@ set -xue
 
 QEMU=qemu-system-riscv32
 
+if [[ -n "$IN_NIX_SHELL" ]]; then
+CC=clang
+OBJCOPY=llvm-objcopy
+else
 TOOLCHAIN="${TOOLCHAIN:-}"
-
 if [[ ! -f $TOOLCHAIN/clang ]]; then
 if [[ -f /run/current-system/sw/bin/clang ]]; then
 TOOLCHAIN=/run/current-system/sw/bin
@@ -15,11 +18,10 @@ echo "Cannot find toolchain"
 exit 1
 fi
 fi
-
 echo "Using toolchain at ${TOOLCHAIN}"
-
 CC=$TOOLCHAIN/clang
 OBJCOPY=$TOOLCHAIN/llvm-objcopy
+fi
 
 CFLAGS="-std=c11 -O2 -gdwarf-4 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
 

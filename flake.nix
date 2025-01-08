@@ -24,7 +24,7 @@
             src = ./.;
 
             nativeBuildInputs = with pkgs.buildPackages; [
-              llvmPackages.clangUseLLVM
+              llvmPackages.clang-unwrapped
               llvmPackages.bintools-unwrapped
             ];
 
@@ -42,7 +42,7 @@
 
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs.buildPackages; [
-            llvmPackages.clangUseLLVM
+            llvmPackages.clang-unwrapped
             llvmPackages.bintools-unwrapped
           ];
 
