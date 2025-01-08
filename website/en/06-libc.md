@@ -65,23 +65,23 @@ Next, we implement the following memory operation functions.
 The `memcpy` function copies `n` bytes from `src` to `dst`:
 
 ```c:common.c
-void *memset(void *buf, char c, size_t n) {
-    uint8_t *p = (uint8_t *) buf;
-    while (n--)
-        *p++ = c;
-    return buf;
-}
-```
-
-The `memset` function fills the first `n` bytes of `buf` with `c`. This function has already been implemented in Chapter 4 for initializing the bss section. Let's move it from `kernel.c` to `common.c`:
-
-```c:common.c
 void *memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = (uint8_t *) dst;
     const uint8_t *s = (const uint8_t *) src;
     while (n--)
         *d++ = *s++;
     return dst;
+}
+```
+
+The `memset` function fills the first `n` bytes of `buf` with `c`. This function has already been implemented in Chapter 4 for initializing the bss section. Let's move it from `kernel.c` to `common.c`:
+
+```c:common.c
+void *memset(void *buf, char c, size_t n) {
+    uint8_t *p = (uint8_t *) buf;
+    while (n--)
+        *p++ = c;
+    return buf;
 }
 ```
 
