@@ -8,7 +8,7 @@ Congratulations! You've completed the book. You've learned how to implement a si
 
 Although it's less than 1000 lines, it must have been quite challenging. This is because you built the core of the core of the core of kernel.
 
-For those who are not satisfied yet and wants to continue with something, here are somew next steps:
+For those who are not satisfied yet and wants to continue with something, here are some next steps:
 
 ## Add new features
 
@@ -29,4 +29,4 @@ Another one is my project [Starina](https://starina.dev), a microkernel-based OS
 
 ## Feedbacks are very welcome!
 
-If you have any questions or feedback, please feel free to ask on [GitHub](https://github.com/nuta/operating-system-in-1000-lines/issues), or [send me an email](https://seiya.me) if you prefer. Happy your endless OS programming! 
+If you have any questions or feedback, please feel free to ask on [GitHub](https://github.com/nuta/operating-system-in-1000-lines/issues), or [send me an email](https://seiya.me) if you prefer. Happy your endless OS programming!

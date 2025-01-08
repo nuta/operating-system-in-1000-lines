@@ -6,7 +6,7 @@ lang: en
 
 Exception is a CPU feature that allows the kernel to handle various events, such as invalid memory access (aka. page faults), illegal instructions, and system calls.
 
-Exception is like a hardware-assited `try-catch` mechanism in C++ or Java. Until CPU encounters the situation where kernel intervention is required, it continues to execute the program. The key difference from `try-catch` is that the kernel can resume the exection from the point where the exception occurred, as if nothing happened. Doesn't it sound like cool CPU feature?
+Exception is like a hardware-assisted `try-catch` mechanism in C++ or Java. Until CPU encounters the situation where kernel intervention is required, it continues to execute the program. The key difference from `try-catch` is that the kernel can resume the execution from the point where the exception occurred, as if nothing happened. Doesn't it sound like cool CPU feature?
 
 Exception can also be triggered in kernel mode and mostly they are fatal kernel bugs. If QEMU resets unexpectedly or the kernel does not work as expected, it's likely that an exception occurred. I recommend to implement an exception handler early to crash gracefully with a kernel panic. It's similar to adding an unhandled rejection handler as the first step in JavaScript development.
 
@@ -31,7 +31,7 @@ The CSRs updated in step 2 are mainly as follows. The kernel's exception determi
 
 ## Exception Handler
 
-Now let's write your first exception handler! Here's the entry point of the exception handler to be regisq  tered in the `stvec` register:
+Now let's write your first exception handler! Here's the entry point of the exception handler to be registered in the `stvec` register:
 
 ```c:kernel.c
 __attribute__((naked))
@@ -122,11 +122,11 @@ Here are some key points:
 
 > [!NOTE]
 >
-> The entry point of exception handlers is one of most critical and error-prone parts of the kernel. Reading the code closely, you'll notice that *orignal* values of general-purpose registers are saved onto the stack, even `sp` by using `sscratch`.
+> The entry point of exception handlers is one of most critical and error-prone parts of the kernel. Reading the code closely, you'll notice that *original* values of general-purpose registers are saved onto the stack, even `sp` by using `sscratch`.
 >
 > If you accidentally overwrite `a0` register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason". Save the program state perfectly not to spend your precious Saturday night debugging!
 
-In the entry point, the following `handle_trap` function is called to handle the exception in our favorite C langauge:
+In the entry point, the following `handle_trap` function is called to handle the exception in our favorite C language:
 
 ```c:kernel.c
 void handle_trap(struct trap_frame *f) {
@@ -217,7 +217,7 @@ In addition to setting the `stvec` register, it executes `unimp` instruction. it
 > csrrw x0, cycle, x0
 > ```
 >
-> This reads and writes the `cycle` register into `x0`. Since `cycle` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception. 
+> This reads and writes the `cycle` register into `x0`. Since `cycle` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception.
 
 ## Let's try it
 

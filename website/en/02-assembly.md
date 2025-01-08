@@ -11,8 +11,8 @@ Just like web browsers hide the differences between Windows, macOS, and Linux, o
 In this book, we write an OS for RISC-V CPU for the following reasons:
 
 - [The specification](https://riscv.org/technical/specifications/) is simple and suitable for beginners.
-- It's a trending CPU ("Instruction Set Architecture") recent years.
-- The explanations of design decitions mentioned throughout the specification are interesting and educational.
+- It's a trending CPU ("Instruction Set Architecture") in recent years.
+- The explanations of design decisions mentioned throughout the specification are interesting and educational.
 
 Note that this book uses **32-bit** RISC-V. While it can be implemented similarly in 64-bit, the wider bit width makes it more complex, and the longer addresses can be tedious to read, so 32-bit is recommended for beginners.
 
@@ -33,11 +33,11 @@ RISC-V can be seen as an API for software developers. It defines the instruction
 > [!TIP]
 >
 > **Try Compiler Explorer!**
-> 
+>
 > A useful tool for learning assembly is [Compiler Explorer](https://godbolt.org/), an online compiler. As you type C code, it shows the corresponding assembly code.
 >
 > By default, Compiler Explorer uses x86-64 CPU assembly. Specify `RISC-V rv32gc clang (trunk)` in the right pane to output 32-bit RISC-V assembly.
-> 
+>
 > Also, it would be interesting to specify optimization options like `-O0` (optimization off) or `-O2` (optimization level 2) in the compiler options and see how the assembly changes.
 
 ### Assembly language basics
