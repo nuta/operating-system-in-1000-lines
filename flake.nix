@@ -16,25 +16,26 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
-      rec {
+      {
         packages = {
           default = pkgs.stdenv.mkDerivation {
             version = "1.0.0";
             pname = "dev env";
             src = ./.;
 
-            propagatedBuildInputs = with pkgs; [
+            nativeBuildInputs = with pkgs.buildPackages; [
               llvmPackages.clangUseLLVM
               llvmPackages.bintools-unwrapped
             ];
 
-            buildPhase = ''
-
-            '';
-
+            # first path will be computed within build env, the second one will be taken from the environment
             installPhase = ''
-              mkdir -p $out
-              touch $out/.dummy
+              mkdir -p $out/bin
+              { echo "export PATH=$PATH:\$PATH";
+                echo "exec \$SHELL";
+              } >> $out/bin/dev-env
+
+              chmod +x $out/bin/dev-env
             '';
           };
         };
