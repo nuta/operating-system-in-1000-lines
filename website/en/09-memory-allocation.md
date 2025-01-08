@@ -6,7 +6,7 @@ lang: en
 
 In this chapter, we'll implement a simple memory allocator.
 
-## Revisting the linker script
+## Revisiting the linker script
 
 Before implementing a memory allocator, let's define the memory regions to be manged by the allocator:
 
@@ -37,7 +37,7 @@ Let's implement a function to allocate memory dynamically. Instead of allocating
 
 > [!TIP]
 >
-> 4KB = 4096 = 0x1000 (hexadecimal). Thus, page-aligned addresses look nicely aliged in hexadecimal.
+> 4KB = 4096 = 0x1000 (hexadecimal). Thus, page-aligned addresses look nicely aligned in hexadecimal.
 
 The following `alloc_pages` function dynamically allocates `n` pages of memory and returns the starting address:
 
@@ -78,7 +78,7 @@ Isn't it simple? However, there is a big problem with this memory allocation alg
 >
 > This algorithm is known as **Bump allocator** or **Linear allocator**, and it's actually used in scenarios where deallocation is not necessary. It's an attractive allocation algorithm that can be implemented in just a few lines and is very fast.
 >
-> When implementing deallocation, it's common to use a bitmap-based algoritm or use an algorithm called the buddy system.
+> When implementing deallocation, it's common to use a bitmap-based algorithm or use an algorithm called the buddy system.
 
 ## Let's try memory allocation
 

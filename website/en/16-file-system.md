@@ -4,7 +4,7 @@ layout: chapter
 lang: en
 ---
 
-You've done a great job so far! You've implemented a process, a shell, memory mangement, and a disk driver. Let's finish up by implementing a file system.
+You've done a great job so far! You've implemented a process, a shell, memory management, and a disk driver. Let's finish up by implementing a file system.
 
 ## `tar(1)` as file system
 
