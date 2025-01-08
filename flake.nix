@@ -1,5 +1,5 @@
 {
-  description = "izumi-reflect build environment";
+  description = "build environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/24.05";
 
