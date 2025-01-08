@@ -2,13 +2,30 @@
 set -xue
 
 QEMU=qemu-system-riscv32
-CC=/opt/homebrew/opt/llvm/bin/clang
-OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
+TOOLCHAIN="${TOOLCHAIN:-}"
+
+if [[ ! -f $TOOLCHAIN/clang ]]; then
+if [[ -f /run/current-system/sw/bin/clang ]]; then
+TOOLCHAIN=/run/current-system/sw/bin
+elif [[ -f /opt/homebrew/opt/llvm/bin/clang ]]; then
+TOOLCHAIN=/opt/homebrew/opt/llvm/bin/
+else
+echo "Cannot find toolchain"
+exit 1
+fi
+fi
+
+echo "Using toolchain at ${TOOLCHAIN}"
+
+CC=$TOOLCHAIN/clang
+OBJCOPY=$TOOLCHAIN/llvm-objcopy
+
+CFLAGS="-std=c11 -O2 -gdwarf-4 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
 
 # シェルをビルド
 $CC $CFLAGS -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf shell.c user.c common.c
+
 $OBJCOPY --set-section-flags .bss=alloc,contents -O binary shell.elf shell.bin
 $OBJCOPY -Ibinary -Oelf32-littleriscv shell.bin shell.bin.o
 
