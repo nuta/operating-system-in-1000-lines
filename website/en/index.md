@@ -10,7 +10,7 @@ You might get intimidated when you hear OS or kernel development, the basic func
 
 We'll implement basic context switching, paging, user mode, a command-line shell, a disk device driver, and file read/write operations in C. Sounds like a lot, however, it's only 1,000 lines of code!
 
-One thing you should remember is, it's not easy as it sounds. The tricky part of creating your own OS is debugging. You can't do `printf` debugging until you implement it. You'll need to learn different debugging techniques and skills you've never needed in application development. Especially when starting "from scratch", you'll encounter challenging parts like boot process and paging. But don't worry! We'll also learn "how to debug an OS" too!
+One thing you should remember is, it's not as easy as it sounds. The tricky part of creating your own OS is debugging. You can't do `printf` debugging until you implement it. You'll need to learn different debugging techniques and skills you've never needed in application development. Especially when starting "from scratch", you'll encounter challenging parts like boot process and paging. But don't worry! We'll also learn "how to debug an OS" too!
 
 The tougher the debugging, the more satisfying it is when it works. Let's dive into exciting world of OS development!
 
