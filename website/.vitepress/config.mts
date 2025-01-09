@@ -48,7 +48,14 @@ export default defineConfig({
               { link: '/en/16-file-system', text: '16. File System' },
               { link: '/en/17-outro', text: '17. Outro' },
             ]
-          }
+          },
+          {
+            text: 'Links',
+            items: [
+              { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
+              { link: '/ja', text: '日本語版' },
+            ]
+          },
         ],
         socialLinks: [
           { icon: 'github', link: 'https://github.com/nuta/operating-system-in-1000-lines' }
@@ -61,7 +68,7 @@ export default defineConfig({
       themeConfig: {
         sidebar: [
           {
-            text: 'Table of Contents',
+            text: '目次',
             items: [
               { link: '/ja/', text: '00. はじめに' },
               { link: '/ja/01-setting-up-development-environment', text: '01. 開発環境' },
@@ -82,7 +89,15 @@ export default defineConfig({
               { link: '/ja/16-file-system', text: '16. ファイルシステム' },
               { link: '/ja/17-outro', text: '17. おわりに' },
             ]
-          }
+          },
+          {
+            text: 'リンク',
+            items: [
+              { link: '/en', text: 'English version' },
+              { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHubリポジトリ' },
+              { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'マイクロカーネル本' },
+            ]
+          },
         ],
         socialLinks: [
           { icon: 'github', link: 'https://github.com/nuta/operating-system-in-1000-lines' }
