@@ -1,8 +1,8 @@
 ---
 title: Page Table
-layout: chapter
-lang: en
 ---
+
+# Page Table
 
 ## Memory management and virtual addressing
 
@@ -43,7 +43,7 @@ When accessing memory, CPU calculates `VPN[1]` and `VPN[0]` to identify the corr
 
 Let's construct a page table in Sv32. First, we'll define some macros. `SATP_SV32` is a single bit in the `satp` register which indicates "enable paging in Sv32 mode", and `PAGE_*` are flags to be set in page table entries.
 
-```c:kernel.h
+```c [kernel.h]
 #define SATP_SV32 (1u << 31)
 #define PAGE_V    (1 << 0)   // "Valid" bit (entry is enabled)
 #define PAGE_R    (1 << 1)   // Readable
@@ -56,7 +56,7 @@ Let's construct a page table in Sv32. First, we'll define some macros. `SATP_SV3
 
 The following `map_page` function takes the first-level page table (`table1`), the virtual address (`vaddr`), the physical address (`paddr`), and page table entry flags (`flags`):
 
-```c:kernel.c
+```c [kernel.c]
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
     if (!is_aligned(vaddr, PAGE_SIZE))
         PANIC("unaligned vaddr %x", vaddr);
@@ -90,7 +90,7 @@ In this book, the kernel memory mapping is configured so that the kernel's virtu
 
 First, let's modify the kernel's linker script to define the starting address used by the kernel (`__kernel_base`):
 
-```plain:kernel.ld {5}
+```ld [kernel.ld] {5}
 ENTRY(boot)
 
 SECTIONS {
@@ -104,25 +104,25 @@ SECTIONS {
 
 Next, add the page table to the process struct. This will be a pointer to the first-level page table.
 
-```c:kernel.h {5}
+```c [kernel.h] {5}
 struct process {
     int pid;
     int state;
     vaddr_t sp;
-    uint32_t *page_table; /* new */
+    uint32_t *page_table;
     uint8_t stack[8192];
 };
 ```
 
 Lastly, map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`), and dynamically allocated areas managed by `alloc_pages`:
 
-```c:kernel.c {1,6-11,16}
+```c [kernel.c] {1,6-11,16}
 extern char __kernel_base[];
 
 struct process *create_process(uint32_t pc) {
     /* omitted */
 
-    // Map kernel pages (new).
+    // Map kernel pages.
     uint32_t *page_table = (uint32_t *) alloc_pages(1);
     for (paddr_t paddr = (paddr_t) __kernel_base;
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
@@ -131,7 +131,7 @@ struct process *create_process(uint32_t pc) {
     proc->pid = i + 1;
     proc->state = PROC_RUNNABLE;
     proc->sp = (uint32_t) sp;
-    proc->page_table = page_table; /* new */
+    proc->page_table = page_table;
     return proc;
 }
 ```
@@ -140,11 +140,10 @@ struct process *create_process(uint32_t pc) {
 
 Let's switch the process's page table when context switching:
 
-```c:kernel.c {5-7,10-11}
+```c [kernel.c] {5-7,10-11}
 void yield(void) {
     /* omitted */
 
-    // Switch page table (new).
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -175,7 +174,7 @@ We can switch page tables by specifying the first-level page table in `satp`. No
 
 let's try it and see how it works!
 
-```plain
+```
 $ ./run.sh
 
 starting process A
@@ -189,7 +188,7 @@ The output is exactly the same as in the previous chapter (context switching). T
 
 Let's look at how the virtual addresses around `0x80000000` are mapped. If set up correctly, they should be mapped so that `(virtual address) == (physical address)`.
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) stop
 (qemu) info registers
@@ -202,7 +201,7 @@ You can see that `satp` is `0x80080253`. According to the specification (RISC-V 
 
 Next, let's inspect the contents of the first-level page table. We want to know the second-level page table corresponding to the virtual address `0x80000000`. QEMU provides commands to display memory contents (memory dump). `xp` command dumps memory at the specified physical address. Dump the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
 
-```plain
+```
 (qemu) xp /x 0x80253000+512*4
 0000000080253800: 0x20095001
 ```
@@ -239,7 +238,7 @@ The initial entries are filled with zeros, but values start appearing from the 5
 
 We've manually read memory dumps up, but QEMU actually provides a command that displays the current page table mappings in human-readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
 
-```plain
+```
 (qemu) info mem
 vaddr    paddr            size     attr
 -------- ---------------- -------- -------
@@ -291,7 +290,7 @@ Setting up page tables can be tricky, and mistakes can be hard to notice. In thi
 
 Let's say we forget to set the mode in the `satp` register:
 
-```c:kernel.c {6}
+```c [kernel.c] {6}
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -315,7 +314,7 @@ No translation or protection
 
 Let's say we mistakenly specify the page table using a physical *address* instead of a physical *page number*:
 
-```c:kernel.c {6}
+```c [kernel.c] {6}
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -327,7 +326,7 @@ Let's say we mistakenly specify the page table using a physical *address* instea
 
 In this case, `info mem` will print no mappings:
 
-```plain
+```
 $ ./run.sh
 
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -339,7 +338,7 @@ vaddr    paddr            size     attr
 
 To debug this, dump registers to see what the CPU is doing:
 
-```plain
+```
 (qemu) info registers
 
 CPU#0
@@ -354,13 +353,13 @@ According to `llvm-addr2line`, `80200188` is the starting address of the excepti
 
 Let's take a closer look at what's specifically happening by examining the QEMU logs:
 
-```bash:run.sh {2}
+```bash [run.sh] {2}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \  # new!
     -kernel kernel.elf
 ```
 
-```plain
+```
 Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected
 riscv_cpu_do_interrupt: hart:0, async:0, cause:0000000c, epc:0x80200580, tval:0x80200580, desc=exec_page_fault
 Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected

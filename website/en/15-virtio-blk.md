@@ -1,8 +1,8 @@
 ---
 title: Disk I/O
-layout: chapter
-lang: en
 ---
+
+# Disk I/O
 
 In this chapter, we will implement a device driver for the virtio-blk, a virtual disk device. While virtio-blk does not exist in real hardware, it shares the very same interface as a real one.
 
@@ -40,13 +40,13 @@ For details, refer to the [virtio specification](https://docs.oasis-open.org/vir
 
 Before writing a device driver, let's prepare a test file. Create a file named `lorem.txt` and fill it with some random text like the following:
 
-```plain
+```
 $ echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In ut magna consequat, cursus velit aliquam, scelerisque odio. Ut lorem eros, feugiat quis bibendum vitae, malesuada ac orci. Praesent eget quam non nunc fringilla cursus imperdiet non tellus. Aenean dictum lobortis turpis, non interdum leo rhoncus sed. Cras in tellus auctor, faucibus tortor ut, maximus metus. Praesent placerat ut magna non tristique. Pellentesque at nunc quis dui tempor vulputate. Vestibulum vitae massa orci. Mauris et tellus quis risus sagittis placerat. Integer lorem leo, feugiat sed molestie non, viverra a tellus." > lorem.txt
 ```
 
 Also, attach a virtio-blk device to QEMU:
 
-```bash:run.sh {3-4}
+```bash [run.sh] {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
     -drive id=drive0,file=lorem.txt,format=raw,if=none \            # new
@@ -63,7 +63,7 @@ The newly added options are as follows:
 
 First, let's add some virtio-related definitions to `kernel.h`:
 
-```c:kernel.h
+```c [kernel.h]
 #define SECTOR_SIZE       512
 #define VIRTQ_ENTRY_NUM   16
 #define VIRTIO_DEVICE_BLK 2
@@ -144,7 +144,7 @@ struct virtio_blk_req {
 
 Next, add utility functions to `kernel.c` for accessing MMIO registers:
 
-```c:kernel.c
+```c [kernel.c]
 uint32_t virtio_reg_read32(unsigned offset) {
     return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
 }
@@ -170,7 +170,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 
 First, map the `virtio-blk` MMIO region to the page table so that the kernel can access the MMIO registers. It's super simple:
 
-```c:kernel.c {8}
+```c [kernel.c] {8}
 struct process *create_process(const void *image, size_t image_size) {
     /* omitted */
 
@@ -199,7 +199,7 @@ The initialization process is detailed in the [virtio specification](https://doc
 
 You might be overwhelmed by lengthy steps, but don't worry. A naive implementation is very simple:
 
-```c:kernel.c
+```c [kernel.c]
 struct virtio_virtq *blk_request_vq;
 struct virtio_blk_req *blk_req;
 paddr_t blk_req_paddr;
@@ -236,7 +236,7 @@ void virtio_blk_init(void) {
 }
 ```
 
-```c:kernel.c {5}
+```c [kernel.c] {5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
@@ -260,7 +260,7 @@ Virtqueues also need to be initialized. Let's read the specification:
 
 Here's a simple implementation:
 
-```c:kernel.c
+```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
     // Allocate a region for the virtqueue.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
@@ -387,7 +387,7 @@ Because we busy-wait until the processing is complete every time, we can simply 
 
 Lastly, let's try disk I/O. Add the following code to `kernel.c`:
 
-```c:kernel.c {3-8}
+```c [kernel.c] {3-8}
     virtio_blk_init();
 
     char buf[SECTOR_SIZE];
@@ -400,7 +400,7 @@ Lastly, let's try disk I/O. Add the following code to `kernel.c`:
 
 Since we specify `lorem.txt` as the (raw) disk image, its contents should be displayed as-is:
 
-```plain
+```
 $ ./run.sh
 
 virtio-blk: capacity is 1024 bytes
@@ -409,7 +409,7 @@ first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 
 Also, the first sector is overwritten with the string "hello from kernel!!!":
 
-```plain
+```
 $ head lorem.txt
 hello from kernel!!!
 amet, consectetur adipiscing elit ...

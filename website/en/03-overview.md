@@ -1,8 +1,10 @@
 ---
 title: Overview
-layout: chapter
-lang: en
 ---
+
+# What we will implement
+
+Before starting to build an OS, let's get an overview of what features we will implement quickly.
 
 ## Features in 1K LoC OS
 

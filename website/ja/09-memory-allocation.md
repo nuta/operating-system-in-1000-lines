@@ -1,14 +1,14 @@
 ---
 title: メモリ割り当て
-layout: chapter
-lang: ja
 ---
+
+# メモリ割り当て
 
 ## リンカスクリプト
 
 動的に割り当てるメモリ領域をリンカスクリプトに定義しましょう。
 
-```plain:kernel.ld {5-8}
+```ld [kernel.ld] {5-8}
     . = ALIGN(4);
     . += 128 * 1024; /* 128KB */
     __stack_top = .;
@@ -36,7 +36,7 @@ lang: ja
 
 次の`alloc_pages`関数は、`n`ページ分のメモリを動的に割り当てて、その先頭アドレスを返します。
 
-```c:kernel.c
+```c [kernel.c]
 extern char __free_ram[], __free_ram_end[];
 
 paddr_t alloc_pages(uint32_t n) {
@@ -54,7 +54,7 @@ paddr_t alloc_pages(uint32_t n) {
 
 新たに登場する `PAGE_SIZE` は、1ページのサイズを表します。`common.h`に定義しておきます。
 
-```c:common.h
+```c [common.h]
 #define PAGE_SIZE 4096
 ```
 
@@ -79,7 +79,7 @@ paddr_t alloc_pages(uint32_t n) {
 
 実装したメモリ割り当て関数をテストしてみましょう。
 
-```c:kernel.c {4-7}
+```c [kernel.c] {4-7}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -94,14 +94,14 @@ void kernel_main(void) {
 
 次のように、最初のアドレス (`paddr0`) が`__free_ram`のアドレスと一致し、次のアドレス (`paddr1`) が最初のアドレスから2 \* 4KB分進んだアドレス (16進数で`0x2000`足した数) と一致することを確認します。
 
-```plain
+```
 $ ./run.sh
 Hello World!
 alloc_pages test: paddr0=80221000
 alloc_pages test: paddr1=80223000
 ```
 
-```plain
+```
 $ llvm-nm kernel.elf | grep __free_ram
 80221000 R __free_ram
 84221000 R __free_ram_end

@@ -1,8 +1,8 @@
 ---
 title: User Mode
-layout: chapter
-lang: en
 ---
+
+# User Mode
 
 In this chapter, we'll run the application we created in the previous chapter.
 
@@ -10,7 +10,7 @@ In this chapter, we'll run the application we created in the previous chapter.
 
 In executable file formats like ELF, the load address are stored in its file header (program header in ELF). However, since our application's execution image is a raw binary, we need to prepare it with a fixed value like this:
 
-```c:kernel.h
+```c [kernel.h]
 // The base virtual address of an application image. This needs to match the
 // starting address defined in `user.ld`.
 #define USER_BASE 0x1000000
@@ -18,20 +18,19 @@ In executable file formats like ELF, the load address are stored in its file hea
 
 Next, define symbols to use the embedded raw binary in `shell.bin.o`:
 
-```c:kernel.c
+```c [kernel.c]
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 ```
 
 Also, update the `create_process` function to start the application:
 
-```c:kernel.c {1-3,5,11,20-26}
+```c [kernel.c] {1-3,5,11,20-33}
 void user_entry(void) {
     PANIC("not yet implemented");
 }
 
 struct process *create_process(const void *image, size_t image_size) {
     /* omitted */
-
     *--sp = 0;                      // s3
     *--sp = 0;                      // s2
     *--sp = 0;                      // s1
@@ -45,11 +44,11 @@ struct process *create_process(const void *image, size_t image_size) {
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
 
-    // Map user pages (new).
+    // Map user pages.
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
 
-        // Consider the case where the data to be copied is smaller than the
+        // Handle the case where the data to be copied is smaller than the
         // page size.
         size_t remaining = image_size - off;
         size_t copy_size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
@@ -69,7 +68,7 @@ We've modified `create_process` to take the pointer to the execution image (`ima
 
 Lastly, modify the caller of the `create_process` function and make it create a user process:
 
-```c:kernel.c {8,12}
+```c [kernel.c] {8,12}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -91,7 +90,7 @@ void kernel_main(void) {
 
 Let's try it and check with the QEMU monitor if the execution image is mapped as expected:
 
-```plain
+```
 (qemu) info mem
 vaddr    paddr            size     attr
 -------- ---------------- -------- -------
@@ -101,7 +100,7 @@ vaddr    paddr            size     attr
 
 We can see that the physical address `0x80265000` is mapped to the virtual address `0x1000000` (`USER_BASE`). Let's take a look at the contents of this physical address. To display the contents of physical memory, use `xp` command:
 
-```plain
+```
 (qemu) xp /32b 0x80265000
 0000000080265000: 0x37 0x05 0x01 0x01 0x13 0x05 0x05 0x26
 0000000080265008: 0x2a 0x81 0x19 0x20 0x29 0x20 0x00 0x00
@@ -111,7 +110,7 @@ We can see that the physical address `0x80265000` is mapped to the virtual addre
 
 It seems some data is present. Check the contents of `shell.bin` to confirm that it indeed matches:
 
-```plain
+```
 $ hexdump -C shell.bin | head
 00000000  37 05 01 01 13 05 05 26  2a 81 19 20 29 20 00 00  |7......&*.. ) ..|
 00000010  01 a0 00 00 82 80 01 a0  09 ca aa 86 7d 16 13 87  |............}...|
@@ -127,7 +126,7 @@ $ hexdump -C shell.bin | head
 
 Hmm, it's hard to understand in hexadecimal. Let's disassemble the machine code to see if it matches the expected instructions:
 
-```plain
+```
 (qemu) xp /8i 0x80265000
 0x80265000:  01010537          lui                     a0,16842752
 0x80265004:  26050513          addi                    a0,a0,608
@@ -141,7 +140,7 @@ Hmm, it's hard to understand in hexadecimal. Let's disassemble the machine code 
 
 It calculates/fills the initial stack pointer value, and then calls two different functions. If we compare this with the disassembly results of `shell.elf`, we can confirm that it indeed matches:
 
-```plain
+```
 $ llvm-objdump -d shell.elf | head -n20
 
 shell.elf:      file format elf32-littleriscv
@@ -165,11 +164,11 @@ Disassembly of section .text:
 
 To run applications, we use a CPU mode called *user mode*, or in RISC-V terms, *U-Mode*. It's surprisingly simple to switch to U-Mode. Here's how:
 
-```c:kernel.h
+```c [kernel.h]
 #define SSTATUS_SPIE (1 << 5)
 ```
 
-```c:kernel.c
+```c [kernel.c]
 // ↓ __attribute__((naked)) is very important!
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
@@ -196,7 +195,7 @@ The switch from S-Mode to U-Mode is done with the `sret` instruction. However, b
 
 Now let's try it! That said, because `shell.c` just loops infinitely, we can't tell if it's working properly on the screen. Instead, let's take a look with the QEMU monitor:
 
-```plain
+```
 (qemu) info registers
 
 CPU#0
@@ -206,7 +205,7 @@ CPU#0
 
 It seems CPU is continuously executing `0x1000010`. It appears to be working properly, but somehow it doesn't feel satisfying. So, let's see if we can observe behavior which is specific to U-Mode. Add one line to `shell.c`:
 
-```c:shell.c {4}
+```c [shell.c] {4}
 #include "user.h"
 
 void main(void) {
@@ -217,7 +216,7 @@ void main(void) {
 
 This `0x80200000` is a memory area used by the kernel that is mapped on the page table. However, since it is a kernel page where the `U` bit in the page table entry is not set, an exception (page fault) should occur, and the kernel should panic. Let's try it:
 
-```plain
+```
 $ ./run.sh
 
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
@@ -225,7 +224,7 @@ PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=010000
 
 The 15th exception (`scause = 0xf = 15`), it corresponds to "Store/AMO page fault". It seems the expected exception happened! Also, the program counter in `sepc` points to the line we added to `shell.c`:
 
-```plain
+```
 $ llvm-addr2line -e shell.elf 0x100001a
 /Users/seiya/dev/os-from-scratch/shell.c:4
 ```

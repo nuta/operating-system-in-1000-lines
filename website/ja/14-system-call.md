@@ -1,8 +1,8 @@
 ---
 title: システムコール
-layout: chapter
-lang: ja
 ---
+
+# システムコール
 
 前章では、ページフォルトをわざと起こすことでユーザーモードへの移行を確認しました。本章では、ユーザーモードで実行されているアプリケーションからカーネルの機能を呼び出す **「システムコール」** を実装します。
 
@@ -10,13 +10,13 @@ lang: ja
 
 まずはシステムコールを呼び出すユーザーランド側の実装から始めましょう。手始めに、文字を出力する `putchar` 関数をシステムコールとして実装してみます。システムコールを識別するための番号 (`SYS_PUTCHAR`) を`common.h`に定義します。
 
-```c:common.h
+```c [common.h]
 #define SYS_PUTCHAR 1
 ```
 
 次にシステムコールを実際に呼び出す関数です。大体は [SBIの呼び出し](/ja/05-hello-world#初めてのsbi) の実装と同じです。
 
-```c:user.c
+```c [user.c]
 int syscall(int sysno, int arg0, int arg1, int arg2) {
     register int a0 __asm__("a0") = arg0;
     register int a1 __asm__("a1") = arg1;
@@ -36,7 +36,7 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
 
 最後に、次のように `putchar` 関数で `putchar`システムコールを呼び出しましょう。このシステムコールでは、第1引数として文字を渡します。第2引数以降は、未使用なので0を渡すことにします。
 
-```c:user.c {2}
+```c [user.c] {2}
 void putchar(char ch) {
     syscall(SYS_PUTCHAR, ch, 0, 0);
 }
@@ -46,11 +46,11 @@ void putchar(char ch) {
 
 次に、`ecall` 命令を実行したときに呼び出される例外ハンドラを更新します。
 
-```c:kernel.h
+```c [kernel.h]
 #define SCAUSE_ECALL 8
 ```
 
-```c:kernel.c {5-7,12}
+```c [kernel.c] {5-7,12}
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
     uint32_t stval = READ_CSR(stval);
@@ -72,7 +72,7 @@ void handle_trap(struct trap_frame *f) {
 
 例外ハンドラから呼ばれるのが次のシステムコールハンドラです。引数には、例外ハンドラで保存した「例外発生時のレジスタ」の構造体を受け取ります。
 
-```c:kernel.c
+```c [kernel.c]
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_PUTCHAR:
@@ -90,7 +90,7 @@ void handle_syscall(struct trap_frame *f) {
 
 システムコールを一通り実装したので試してみましょう。`common.c`にある`printf`関数の実装を覚えているでしょうか。この関数は文字を表示する際に`putchar`関数を呼び出しています。たった今ユーザーランド上のライブラリで`putchar`を実装したのでそのまま使えます。
 
-```c:shell.c {2}
+```c [shell.c] {2}
 void main(void) {
     printf("Hello World from shell!\n");
 }
@@ -98,7 +98,7 @@ void main(void) {
 
 次のようにメッセージが表示されれば成功です。
 
-```plain
+```
 $ ./run.sh
 Hello World from shell!
 ```
@@ -107,7 +107,7 @@ Hello World from shell!
 
 次に、文字入力を行うシステムコールを実装しましょう。SBIには「デバッグコンソールへの入力」を読む機能があります。空の場合は-1を返します。
 
-```c:kernel.c
+```c [kernel.c]
 long getchar(void) {
     struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
     return ret.error;
@@ -116,21 +116,21 @@ long getchar(void) {
 
 あとは次の通り`getchar`システムコールを実装します。
 
-```c:common.h
+```c [common.h]
 #define SYS_GETCHAR 2
 ```
 
-```c:user.c
+```c [user.c]
 int getchar(void) {
     return syscall(SYS_GETCHAR, 0, 0, 0);
 }
 ```
 
-```c:user.h
+```c [user.h]
 int getchar(void);
 ```
 
-```c:kernel.c {3-13}
+```c [kernel.c] {3-13}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_GETCHAR:
@@ -155,7 +155,7 @@ void handle_syscall(struct trap_frame *f) {
 
 文字入力ができるようになったので、シェルを書いてみましょう。手始めに、`Hello world from shell!`と表示する`hello`コマンドを実装します。
 
-```c:shell.c
+```c [shell.c]
 void main(void) {
     while (1) {
 prompt:
@@ -188,7 +188,7 @@ prompt:
 
 実際に動かしてみて、文字が入力されるか、そして`hello`コマンドが動くか確認してみましょう。
 
-```plain
+```
 $ ./run.sh
 
 > hello
@@ -199,22 +199,22 @@ Hello world from shell!
 
 最後に、プロセスを終了する`exit`システムコールを実装します。
 
-```c:common.h
+```c [common.h]
 #define SYS_EXIT    3
 ```
 
-```c:user.c {2-3}
+```c [user.c] {2-3}
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
     for (;;); // 念のため
 }
 ```
 
-```c:kernel.h
+```c [kernel.h]
 #define PROC_EXITED   2
 ```
 
-```c:kernel.c {3-7}
+```c [kernel.c] {3-7}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_EXIT:
@@ -235,7 +235,7 @@ void handle_syscall(struct trap_frame *f) {
 
 最後に、シェルに`exit`コマンドを追加します。
 
-```c:shell.c {3-4}
+```c [shell.c] {3-4}
         if (strcmp(cmdline, "hello") == 0)
             printf("Hello world from shell!\n");
         else if (strcmp(cmdline, "exit") == 0)
@@ -246,7 +246,7 @@ void handle_syscall(struct trap_frame *f) {
 
 実際に動かしてみましょう。
 
-```plain
+```
 $ ./run.sh
 
 > exit

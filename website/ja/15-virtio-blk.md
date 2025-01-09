@@ -1,8 +1,8 @@
 ---
 title: ディスク読み書き
-layout: chapter
-lang: ja
 ---
+
+# ディスク読み書き
 
 ## Virtio入門
 
@@ -24,13 +24,13 @@ Virtioは、仮想マシンとホストOS間でデータをやり取りするた
 
 virtioデバイスドライバを書く前に、適当なテストファイルを作成しておきます。`lorem.txt`というファイルを作成し、その中に適当な文章を書き込んでおきます。
 
-```plain
+```
 $ echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In ut magna consequat, cursus velit aliquam, scelerisque odio. Ut lorem eros, feugiat quis bibendum vitae, malesuada ac orci. Praesent eget quam non nunc fringilla cursus imperdiet non tellus. Aenean dictum lobortis turpis, non interdum leo rhoncus sed. Cras in tellus auctor, faucibus tortor ut, maximus metus. Praesent placerat ut magna non tristique. Pellentesque at nunc quis dui tempor vulputate. Vestibulum vitae massa orci. Mauris et tellus quis risus sagittis placerat. Integer lorem leo, feugiat sed molestie non, viverra a tellus." > lorem.txt
 ```
 
 また、QEMUにvirtio-blkデバイスを追加するために、QEMUのオプションを変更します。
 
-```bash:run.sh {3-4}
+```bash [run.sh] {3-4}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
     -drive id=drive0,file=lorem.txt,format=raw,if=none \
@@ -47,7 +47,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 まずは雑多な定義を`kernel.h`に追加します。
 
-```c:kernel.h
+```c [kernel.h]
 #define SECTOR_SIZE       512
 #define VIRTQ_ENTRY_NUM   16
 #define VIRTIO_DEVICE_BLK 2
@@ -118,7 +118,7 @@ struct virtio_blk_req {
 
 続いてvirtioデバイスのMMIO上のレジスタを操作するための便利な関数を `kernel.c` に追加します。
 
-```c:kernel.c
+```c [kernel.c]
 uint32_t virtio_reg_read32(unsigned offset) {
     return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));
 }
@@ -140,7 +140,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 
 まずは、各プロセスのページテーブルに `virtio-blk` のMMIO領域をマップします。一行付け足すだけです。
 
-```c:kernel.c {8}
+```c [kernel.c] {8}
 struct process *create_process(const void *image, size_t image_size) {
     /* 省略 */
 
@@ -169,7 +169,7 @@ virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oas
 
 以下がvirtioデバイスの初期化処理の実装です。いくつかの処理を省いている行儀の悪い実装ですが一応動きます。
 
-```c:kernel.c
+```c [kernel.c]
 struct virtio_virtq *blk_request_vq;
 struct virtio_blk_req *blk_req;
 paddr_t blk_req_paddr;
@@ -206,7 +206,7 @@ void virtio_blk_init(void) {
 }
 ```
 
-```c:kernel.c {5}
+```c [kernel.c] {5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
@@ -228,7 +228,7 @@ virtqueueも初期化する必要があります。以下が仕様書に載っ�
 > 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
 > 7. Write the physical number of the first page of the queue to the QueuePFN register.
 
-```c:kernel.c
+```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
@@ -252,7 +252,7 @@ struct virtio_virtq *virtq_init(unsigned index) {
 
 初期化ができたので、ディスクへのIOリクエストを送信してみましょう。ディスクへのIOリクエストは、以下のように「virtqueueへの処理要求の追加」で行います。
 
-```c:kernel.c
+```c [kernel.c]
 // デバイスに新しいリクエストがあることを通知する。desc_indexは、新しいリクエストの
 // 先頭ディスクリプタのインデックス。
 void virtq_kick(struct virtio_virtq *vq, int desc_index) {
@@ -329,7 +329,7 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 
 ここでは、3のディスクリプタから構成されるディスクリプタチェーンを構築しています。3つに分けているのは、次のように各ディスクリプタが異なる属性 (`flags`) を持つためです。
 
-```c:kernel.h
+```c [kernel.h]
 struct virtio_blk_req {
     // 1つ目のディスクリプタ: デバイスからは読み込み専用
     uint32_t type;
@@ -350,7 +350,7 @@ struct virtio_blk_req {
 
 最後に、ディスクの読み書きができることを確認しましょう。
 
-```c:kernel.c {3-8}
+```c [kernel.c] {3-8}
     virtio_blk_init();
 
     char buf[SECTOR_SIZE];
@@ -363,7 +363,7 @@ struct virtio_blk_req {
 
 ディスクイメージとして `lorem.txt` を指定しているので、ファイルの中身がそのまま表示されるはずです。
 
-```plain
+```
 $ ./run.sh
 
 virtio-blk: capacity is 1024 bytes
@@ -372,7 +372,7 @@ first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 
 また、先頭セクタに書き込んだ内容が `lorem.txt` の冒頭に反映されていれば完璧です。
 
-```plain
+```
 $ head lorem.txt
 hello from kernel!!!
 amet, consectetur adipiscing elit ...

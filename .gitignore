@@ -5,6 +5,3 @@
 *.bin
 *.log
 *.pcap
-
-# docship
-/output

@@ -1,8 +1,8 @@
 ---
 title: C Standard Library
-layout: chapter
-lang: en
 ---
+
+# C Standard Library
 
 In this chapter, let's implement basic types and memory operations, as well as string manipulation functions. In this books, for the purpose of learning, we'll create these from scratch instead of using C standard library.
 
@@ -12,9 +12,10 @@ In this chapter, let's implement basic types and memory operations, as well as s
 
 ## Basic types
 
-First, let's define some basic types and convenient macros:
+First, let's define some basic types and convenient macros in `common.h`:
 
-```c:common.h {1-15,21-24}
+
+```c [common.h] {1-15,21-24}
 typedef int bool;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -64,7 +65,7 @@ Next, we implement the following memory operation functions.
 
 The `memcpy` function copies `n` bytes from `src` to `dst`:
 
-```c:common.c
+```c [common.c]
 void *memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = (uint8_t *) dst;
     const uint8_t *s = (const uint8_t *) src;
@@ -76,7 +77,7 @@ void *memcpy(void *dst, const void *src, size_t n) {
 
 The `memset` function fills the first `n` bytes of `buf` with `c`. This function has already been implemented in Chapter 4 for initializing the bss section. Let's move it from `kernel.c` to `common.c`:
 
-```c:common.c
+```c [common.c]
 void *memset(void *buf, char c, size_t n) {
     uint8_t *p = (uint8_t *) buf;
     while (n--)
@@ -87,7 +88,7 @@ void *memset(void *buf, char c, size_t n) {
 
 > [!TIP]
 >
-> Sometimes we perform pointer dereferencing and pointer manipulation in a single statement, like `*p++ = c;`. If we break this down for clarity, it's equivalent to:
+> `*p++ = c;` does pointer dereferencing and pointer manipulation in a single statement. For clarity, it's equivalent to:
 >
 > ```c
 > *p = c;    // Dereference the pointer
@@ -100,7 +101,7 @@ void *memset(void *buf, char c, size_t n) {
 
 Let's start with `strcpy`. This function copies the string from `src` to `dst`:
 
-```c:common.c
+```c [common.c]
 char *strcpy(char *dst, const char *src) {
     char *d = dst;
     while (*src)
@@ -124,7 +125,7 @@ Next function is the `strcmp` function. It compares `s1` and `s2` and returns:
 | `s1` > `s2` | Positive value |
 | `s1` < `s2` | Negative value |
 
-```c:common.c
+```c [common.c]
 int strcmp(const char *s1, const char *s2) {
     while (*s1 && *s2) {
         if (*s1 != *s2)

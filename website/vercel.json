@@ -1,15 +1,19 @@
 {
   "framework": null,
-  "buildCommand": "docship",
-  "installCommand": "npm i -g docship",
-  "outputDirectory": "output",
+  "buildCommand": "npm run build",
+  "installCommand": "pnpm i",
+  "outputDirectory": ".vitepress/dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "github": {
     "silent": true
   },
   "redirects": [
-    { "source": "/ja/welcome", "destination": "/ja", "permanent": true },
+    {
+      "source": "/ja/welcome",
+      "destination": "/ja",
+      "permanent": true
+    },
     {
       "source": "/ja/setting-up-development-environment",
       "destination": "/ja/01-setting-up-development-environment",
@@ -25,13 +29,21 @@
       "destination": "/ja/03-overview",
       "permanent": true
     },
-    { "source": "/ja/boot", "destination": "/ja/04-boot", "permanent": true },
+    {
+      "source": "/ja/boot",
+      "destination": "/ja/04-boot",
+      "permanent": true
+    },
     {
       "source": "/ja/hello-world",
       "destination": "/ja/05-hello-world",
       "permanent": true
     },
-    { "source": "/ja/libc", "destination": "/ja/06-libc", "permanent": true },
+    {
+      "source": "/ja/libc",
+      "destination": "/ja/06-libc",
+      "permanent": true
+    },
     {
       "source": "/ja/kernel-panic",
       "destination": "/ja/07-kernel-panic",

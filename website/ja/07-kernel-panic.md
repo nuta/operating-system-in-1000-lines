@@ -1,12 +1,12 @@
 ---
 title: カーネルパニック
-layout: chapter
-lang: ja
 ---
+
+# カーネルパニック
 
 カーネルパニックは、カーネルが続行不能なエラーに遭遇したときに発生するもので、GoやRustでいう`panic`に似た概念です。次の`PANIC`マクロがカーネルパニックの実装です。
 
-```c:kernel.h
+```c [kernel.h]
 #define PANIC(fmt, ...)                                                        \
     do {                                                                       \
         printf("PANIC: %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);  \
@@ -24,7 +24,7 @@ lang: ja
 
 マクロの書き方を理解したところで、`PANIC`を使ってみましょう。使い方は `printf` と同じです。
 
-```c:kernel.c {4-5}
+```c [kernel.c] {4-5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -35,7 +35,7 @@ void kernel_main(void) {
 
 実際に動かしてみて、正しいファイル名と行番号、そして`PANIC`以後の処理が実行されないこと (`"unreachable here!"`が表示されないこと) を確認してください。
 
-```plain
+```
 $ ./run.sh
 PANIC: kernel.c:46: booted!
 ```

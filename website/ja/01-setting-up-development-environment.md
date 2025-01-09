@@ -1,8 +1,8 @@
 ---
 title: 開発環境
-layout: chapter
-lang: ja
 ---
+
+# 開発環境
 
 本書では、macOSとUbuntuといったUNIX系OSを想定しています。Windowsをお使いの場合は、Windows Subsystem for Linux (WSL2) をインストールしたのち、Ubuntuの手順に従ってください。
 
@@ -67,7 +67,7 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 もしGitリポジトリ下で作っていく場合は、次の`.gitignore`をあらかじめ用意しておくと便利です。
 
-```plain:.gitignore
+```gitignore [.gitignore]
 /disk/*
 !/disk/.gitkeep
 *.map

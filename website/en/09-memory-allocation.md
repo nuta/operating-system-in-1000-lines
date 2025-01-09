@@ -1,8 +1,8 @@
 ---
 title: Memory Allocation
-layout: chapter
-lang: en
 ---
+
+# Memory Allocation
 
 In this chapter, we'll implement a simple memory allocator.
 
@@ -10,12 +10,11 @@ In this chapter, we'll implement a simple memory allocator.
 
 Before implementing a memory allocator, let's define the memory regions to be manged by the allocator:
 
-```plain:kernel.ld {5-8}
+```ld [kernel.ld] {5-8}
     . = ALIGN(4);
     . += 128 * 1024; /* 128KB */
     __stack_top = .;
 
-    /* new */
     . = ALIGN(4096);
     __free_ram = .;
     . += 64 * 1024 * 1024; /* 64MB */
@@ -41,7 +40,7 @@ Let's implement a function to allocate memory dynamically. Instead of allocating
 
 The following `alloc_pages` function dynamically allocates `n` pages of memory and returns the starting address:
 
-```c:kernel.c
+```c [kernel.c]
 extern char __free_ram[], __free_ram_end[];
 
 paddr_t alloc_pages(uint32_t n) {
@@ -59,7 +58,7 @@ paddr_t alloc_pages(uint32_t n) {
 
 `PAGE_SIZE` represents the size of one page. Define it in `common.h`:
 
-```c:common.h
+```c [common.h]
 #define PAGE_SIZE 4096
 ```
 
@@ -84,11 +83,10 @@ Isn't it simple? However, there is a big problem with this memory allocation alg
 
 Let's test the memory allocation function we've implemented. Add some code to `kernel_main`:
 
-```c:kernel.c {4-7}
+```c [kernel.c] {4-7}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
-    /* new */
     paddr_t paddr0 = alloc_pages(2);
     paddr_t paddr1 = alloc_pages(1);
     printf("alloc_pages test: paddr0=%x\n", paddr0);
@@ -100,14 +98,14 @@ void kernel_main(void) {
 
 Verify that the first address (`paddr0`) matches the address of `__free_ram`, and that the next address (`paddr1`) matches an address 8KB after `paddr0`:
 
-```plain
+```
 $ ./run.sh
 Hello World!
 alloc_pages test: paddr0=80221000
 alloc_pages test: paddr1=80223000
 ```
 
-```plain
+```
 $ llvm-nm kernel.elf | grep __free_ram
 80221000 R __free_ram
 84221000 R __free_ram_end

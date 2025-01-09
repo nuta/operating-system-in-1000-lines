@@ -1,14 +1,14 @@
 ---
 title: Kernel Panic
-layout: chapter
-lang: en
 ---
+
+# Kernel Panic
 
 A kernel panic occurs when the kernel encounters an unrecoverable error, similar to the concept of `panic` in Go or Rust. Have you ever seen a blue screen on Windows? Let's implement the same concept in our kernel to handle fatal errors.
 
 The following `PANIC` macro is the implementation of kernel panic:
 
-```c:kernel.h
+```c [kernel.h]
 #define PANIC(fmt, ...)                                                        \
     do {                                                                       \
         printf("PANIC: %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);  \
@@ -28,7 +28,7 @@ The second idiom is `##__VA_ARGS__`. This is a useful compiler extension for def
 
 Let's try using `PANIC`. You can use it like `printf`:
 
-```c:kernel.c {4-5}
+```c [kernel.c] {4-5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -39,7 +39,7 @@ void kernel_main(void) {
 
 Try in QEMU and confirm that the correct file name and line number are displayed, and that the processing after `PANIC` is not executed (i.e., `"unreachable here!"` is not displayed):
 
-```plain
+```
 $ ./run.sh
 PANIC: kernel.c:46: booted!
 ```

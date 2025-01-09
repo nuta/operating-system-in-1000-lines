@@ -1,8 +1,8 @@
 ---
 title: プロセス
-layout: chapter
-lang: ja
 ---
+
+# プロセス
 
 プロセスは、アプリケーションのいわばインスタンスで、各プロセスが独立の実行コンテキストと、仮想アドレス空間といった資源を持ちます。OSによっては実行コンテキストを「スレッド」という別の概念で提供していることもありますが、本書では、簡単のため1プロセスにつき1スレッドとして一緒くたに扱います。
 
@@ -10,7 +10,7 @@ lang: ja
 
 プロセスの情報をまとめたのが次の`process`構造体です。この構造体のことを「プロセス管理構造体 (PCB: Process Control Block)」と呼びます。
 
-```c:kernel.h
+```c [kernel.h]
 #define PROCS_MAX 8       // 最大プロセス数
 #define PROC_UNUSED   0   // 未使用のプロセス管理構造体
 #define PROC_RUNNABLE 1   // 実行可能なプロセス
@@ -35,7 +35,7 @@ struct process {
 
 コンテキストスイッチは本書中の解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。
 
-```c:kernel.c
+```c [kernel.c]
 struct process procs[PROCS_MAX];
 
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
@@ -78,7 +78,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 
 プロセスの初期化処理が次の`create_process`関数です。この関数は実行開始アドレス (`pc`) を受け取り、プロセス管理構造体を初期化して返します。
 
-```c:kernel.c
+```c [kernel.c]
 struct process *create_process(uint32_t pc) {
     // 空いているプロセス管理構造体を探す
     struct process *proc = NULL;
@@ -121,7 +121,7 @@ struct process *create_process(uint32_t pc) {
 
 これでプロセスの最も基本的な機能である「複数のプログラムの並行実行」が実装できました。早速、2つのプロセスを作成してみましょう。
 
-```c:kernel.c {1-24,31-33}
+```c [kernel.c] {1-24,31-33}
 struct process *proc_a;
 struct process *proc_b;
 
@@ -166,7 +166,7 @@ void kernel_main(void) {
 
 では、実際に動かしてみましょう。次のように起動時のメッセージが1回ずつ表示され、その後は「ABABAB...」と交互に表示されます。
 
-```plain
+```
 $ ./run.sh
 
 starting process A
@@ -184,7 +184,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 >
 > 「yield」は「譲る」という意味の英単語です。「CPU時間という資源を譲る」という意味合いで、プロセスが自発的に呼び出すAPIの名前としてよく使われます。
 
-```c:kernel.c
+```c [kernel.c]
 struct process *current_proc; // 現在実行中のプロセス
 struct process *idle_proc;    // アイドルプロセス
 
@@ -212,7 +212,7 @@ void yield(void) {
 
 ここで、2つのグローバル変数を導入しています。`current_proc`は現在実行中のプロセスを指します。`idle_proc`はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。`idle_proc`はプロセスIDが`-1`のプロセスとして、次のように起動時に作成しておきます。
 
-```c:kernel.c {8-10,15-16}
+```c [kernel.c] {8-10,15-16}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -238,7 +238,7 @@ void kernel_main(void) {
 
 最後に、`proc_a_entry`と`proc_b_entry`関数を次のように変更して、`switch_context`関数を直接呼び出す代わりに、`yield`関数を呼び出すようにします。
 
-```c:kernel.c {5,16}
+```c [kernel.c] {5,16}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
@@ -270,7 +270,7 @@ void proc_b_entry(void) {
 
 まずはプロセス切り替え時に`sscratch`レジスタへ、実行中プロセスのカーネルスタックの初期値を設定するようにします。
 
-```c:kernel.c {4-8}
+```c [kernel.c] {4-8}
 void yield(void) {
     /* 省略 */
 
@@ -291,7 +291,7 @@ void yield(void) {
 
 例外ハンドラの修正は次のとおりです。
 
-```c:kernel.c {3-5,39-45}
+```c [kernel.c] {3-5,39-45}
 void kernel_entry(void) {
     __asm__ __volatile__(
         // 実行中プロセスのカーネルスタックをsscratchから取り出す

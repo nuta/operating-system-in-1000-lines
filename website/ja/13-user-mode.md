@@ -1,8 +1,8 @@
 ---
 title: ユーザーモード
-layout: chapter
-lang: ja
 ---
+
+# ユーザーモード
 
 本章では、前章で作ったアプリケーションの実行イメージを動かしてみます。
 
@@ -12,19 +12,19 @@ lang: ja
 
 ELF形式のような一般的な実行可能ファイルであれば、そのファイルのヘッダ (ELFの場合プログラムヘッダ) にロード先のアドレスが書かれています。しかし、本書のアプリケーションの実行イメージは生バイナリなので、このように決め打ちで用意しておく必要があります。
 
-```c:kernel.h
+```c [kernel.h]
 #define USER_BASE 0x1000000
 ```
 
 次に、`shell.bin.o`に入っている実行イメージへのポインタとイメージサイズのシンボルを定義しておきます。
 
-```c:kernel.c
+```c [kernel.c]
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 ```
 
 次に、実行イメージをプロセスのアドレス空間にマップする処理を`create_process`関数に追加します。
 
-```c:kernel.c {1-3,5,11,20-26}
+```c [kernel.c] {1-3,5,11,20-35}
 void user_entry(void) {
     PANIC("not yet implemented"); // 後で実装する
 }
@@ -70,7 +70,7 @@ struct process *create_process(const void *image, size_t image_size) {
 
 最後に `create_process` 関数の呼び出し側の修正と、ユーザープロセスを作成するようにします。
 
-```c:kernel.c {8,12}
+```c [kernel.c] {8,12}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -95,7 +95,7 @@ void kernel_main(void) {
 >
 > まだこの時点ではユーザーモードへの移行処理がないので、アプリケーションは動きません。まずは、実行イメージが正しく展開されているかのみを確認します。
 
-```plain
+```
 (qemu) info mem
 vaddr    paddr            size     attr
 -------- ---------------- -------- -------
@@ -105,7 +105,7 @@ vaddr    paddr            size     attr
 
 仮想アドレス `0x1000000` (`USER_BASE`) に、物理アドレス `0x80265000` がマップされていることがわかります。この物理アドレスの中身を見てみましょう。物理メモリの内容を表示するには、`xp`コマンドを使います。
 
-```plain
+```
 (qemu) xp /32b 0x80265000
 0000000080265000: 0x37 0x05 0x01 0x01 0x13 0x05 0x05 0x26
 0000000080265008: 0x2a 0x81 0x19 0x20 0x29 0x20 0x00 0x00
@@ -115,7 +115,7 @@ vaddr    paddr            size     attr
 
 何かしらデータが入っているようです。`shell.bin`の中身を確認してみると、確かに合致しています。
 
-```plain
+```
 $ hexdump -C shell.bin | head
 00000000  37 05 01 01 13 05 05 26  2a 81 19 20 29 20 00 00  |7......&*.. ) ..|
 00000010  01 a0 00 00 82 80 01 a0  09 ca aa 86 7d 16 13 87  |............}...|
@@ -131,7 +131,7 @@ $ hexdump -C shell.bin | head
 
 16進数だと分かりづらいので、`xp`コマンドを使ってメモリ上の機械語を逆アセンブルしてみましょう。
 
-```plain
+```
 (qemu) xp /8i 0x80265000
 0x80265000:  01010537          lui                     a0,16842752
 0x80265004:  26050513          addi                    a0,a0,608
@@ -145,7 +145,7 @@ $ hexdump -C shell.bin | head
 
 何か計算した結果をスタックポインタに設定し、2回関数を呼び出しています。`shell.elf`の逆アセンブル結果と比較してみると、確かに合致しています。上手く展開できているようです。
 
-```plain
+```
 $ llvm-objdump -d shell.elf | head -n20
 
 shell.elf:      file format elf32-littleriscv
@@ -169,11 +169,11 @@ Disassembly of section .text:
 
 実行イメージを展開できたので、最後の処理を実装しましょう。それは「CPUの動作モードの切り替え」です。カーネルはS-Modeと呼ばれる特権モードで動作していますが、ユーザープログラムはU-Modeと呼ばれる非特権モードで動作します。以下がその実装です。
 
-```c:kernel.h
+```c [kernel.h]
 #define SSTATUS_SPIE (1 << 5)
 ```
 
-```c:kernel.c
+```c [kernel.c]
 // ↓ __attribute__((naked)) が追加されていることに注意
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
@@ -200,7 +200,7 @@ S-ModeからU-Modeへの切り替えは、`sret`命令で行います。ただ�
 
 では実際に動かしてみてみましょう。といっても、`shell.c`は無限ループするだけなので画面上では上手く動いているのか分かりません。代わりにQEMUモニタで覗いてみましょう。
 
-```plain
+```
 (qemu) info registers
 
 CPU#0
@@ -210,7 +210,7 @@ CPU#0
 
 レジスタダンプを見てみると、`0x1000010`をずっと実行しているようです。上手く動いている気がしますが、なんだか納得がいきません。そこで、U-Mode特有の挙動が現れるかを見てみましょう。`shell.c`に一行追加してみます。
 
-```c:shell.c {4}
+```c [shell.c] {4}
 #include "user.h"
 
 void main(void) {
@@ -223,7 +223,7 @@ void main(void) {
 
 実行してみると、期待通り例外が発生しました。
 
-```plain
+```
 $ ./run.sh
 
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
@@ -231,7 +231,7 @@ PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=010000
 
 `0xf = 15`番目の例外を仕様書で確認してみると「Store/AMO page fault」に対応します。期待通りの例外が発生しているようです。また、`sepc`レジスタの例外発生時のプログラムカウンタを見てみると、確かに`shell.c`に追加している行を指しています。
 
-```plain
+```
 $ llvm-addr2line -e shell.elf 0x100001a
 /Users/seiya/dev/os-from-scratch/shell.c:4
 ```

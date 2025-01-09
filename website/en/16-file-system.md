@@ -1,8 +1,8 @@
 ---
 title: File System
-layout: chapter
-lang: en
 ---
+
+# File System
 
 You've done a great job so far! You've implemented a process, a shell, memory management, and a disk driver. Let's finish up by implementing a file system.
 
@@ -20,7 +20,7 @@ Tar is an archive format that can contain multiple files. It contains file conte
 
 Let's start by preparing the contents of our file system. Create a directory called `disk` and add some files to it. Name one of them `hello.txt`:
 
-```plain
+```
 $ mkdir disk
 $ vim disk/hello.txt
 $ vim disk/meow.txt
@@ -28,7 +28,7 @@ $ vim disk/meow.txt
 
 Add a command to the build script to create a tar file and pass it as a disk image to QEMU:
 
-```bash:run.sh {1,5}
+```bash [run.sh] {1,5}
 (cd disk && tar cf ../disk.tar --format=ustar ./*.txt)                          # new
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -51,7 +51,7 @@ The `tar` command options used here are:
 
 A tar file has the following structure:
 
-```plain
+```
 +----------------+
 |   tar header   |
 +----------------+
@@ -72,7 +72,7 @@ We use this file structure as the data structure for our file system. Comparing 
 
 First, define the data structures related to tar file system in `kernel.h`:
 
-```c:kernel.h
+```c [kernel.h]
 #define FILES_MAX      2
 #define DISK_MAX_SIZE  align_up(sizeof(struct file) * FILES_MAX, SECTOR_SIZE)
 
@@ -110,7 +110,7 @@ In our file system implementation, all files are read from the disk into memory 
 
 Next, let's read the whole disk into memory in `kernel.c`:
 
-```c:kernel.c
+```c [kernel.c]
 struct file files[FILES_MAX];
 uint8_t disk[DISK_MAX_SIZE];
 
@@ -157,7 +157,7 @@ After loading the disk contents, we sequentially copy them into the `files` vari
 
 Lastly, make sure to call the `fs_init` function after initializing the virtio-blk device (`virtio_blk_init`) in `kernel_main`:
 
-```c:kernel.c {5}
+```c [kernel.c] {5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
@@ -172,7 +172,7 @@ void kernel_main(void) {
 
 Let's try! It should print the file names and their sizes in `disk` directory:
 
-```plain
+```
 $ ./run.sh
 
 virtio-blk: capacity is 2560 bytes
@@ -184,7 +184,7 @@ file: hello.txt, size=22
 
 Writing files can be implemented by writing the contents of the `files` variable back to the disk in tar file format:
 
-```c:kernel.c
+```c [kernel.c]
 void fs_flush(void) {
     // Copy all file contents into `disk` buffer.
     memset(disk, 0, sizeof(disk));
@@ -238,12 +238,12 @@ In this function, a tar file is built in the `disk` variable, then written to th
 
 Now that we have implemented file system read and write operations, let's make it possible for applications to read and write files. We'll provide two system calls: `readfile` for reading files and `writefile` for writing files. Both take as arguments the filename, a memory buffer for reading or writing, and the size of the buffer.
 
-```c:common.h
+```c [common.h]
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
 ```
 
-```c:user.c
+```c [user.c]
 int readfile(const char *filename, char *buf, int len) {
     return syscall(SYS_READFILE, (int) filename, (int) buf, len);
 }
@@ -253,7 +253,7 @@ int writefile(const char *filename, const char *buf, int len) {
 }
 ```
 
-```c:user.h
+```c [user.h]
 int readfile(const char *filename, char *buf, int len);
 int writefile(const char *filename, const char *buf, int len);
 ```
@@ -266,7 +266,7 @@ int writefile(const char *filename, const char *buf, int len);
 
 Let's implement the system calls we defined in the previous section.
 
-```c:kernel.c {1-9,14-39}
+```c [kernel.c] {1-9,14-39}
 struct file *fs_lookup(const char *filename) {
     for (int i = 0; i < FILES_MAX; i++) {
         struct file *file = &files[i];
@@ -322,7 +322,7 @@ File read and write operations are mostly the same, so they are grouped together
 
 Let's read and write files from the shell. Since the shell doesn't implement command-line argument parsing, we'll implement `readfile` and `writefile` commands that read and write a hardcoded `hello.txt` file for now:
 
-```c:shell.c
+```c [shell.c]
         else if (strcmp(cmdline, "readfile") == 0) {
             char buf[128];
             int len = readfile("hello.txt", buf, sizeof(buf));
@@ -335,7 +335,7 @@ Let's read and write files from the shell. Since the shell doesn't implement com
 
 It's easy peasy! However, it causes a page fault:
 
-```plain
+```
 $ ./run.sh
 
 > readfile
@@ -344,7 +344,7 @@ PANIC: kernel.c:561: unexpected trap scause=0000000d, stval=01000423, sepc=80201
 
 Let's dig into the cause. According the `llvm-objdump`, it happens in `strcmp` function:
 
-```plain
+```
 $ llvm-objdump -d kernel.elf
 ...
 
@@ -363,7 +363,7 @@ $ llvm-objdump -d kernel.elf
 
 Upon checking the page table contents in QEMU monitor, the page at `0x1000423` (with `vaddr = 01000000`) is indeed mapped as a user page (`u`) with read, write, and execute (`rwx`) permissions:
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) info mem
 vaddr    paddr            size     attr
@@ -373,7 +373,7 @@ vaddr    paddr            size     attr
 
 Let's dump the memory at the virtual address (`x` command):
 
-```plain
+```
 (qemu) x /10c 0x1000423
 01000423: 'h' 'e' 'l' 'l' 'o' '.' 't' 'x' 't' '\x00' 'r' 'e' 'a' 'd' 'f' 'i'
 01000433: 'l' 'e' '\x00' 'h' 'e' 'l' 'l' 'o' '\x00' '%' 's' '\n' '\x00' 'e' 'x' 'i'
@@ -395,13 +395,13 @@ In RISC-V, the behavior of S-Mode (kernel) can be configured through  `sstatus` 
 
 Define the position of the `SUM` bit as follows:
 
-```c:kernel.h
+```c [kernel.h]
 #define SSTATUS_SUM  (1 << 18)
 ```
 
 All we need to do is to set the `SUM` bit when entering user space:
 
-```c:kernel.c {8}
+```c [kernel.c] {8}
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
         "csrw sepc, %[sepc]\n"

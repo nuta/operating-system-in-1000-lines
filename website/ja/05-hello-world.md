@@ -1,14 +1,14 @@
 ---
 title: Hello World!
-layout: chapter
-lang: ja
 ---
+
+# Hello World!
 
 前章では初めてのカーネルの起動に成功しました。レジスタダンプを読むことで確認できたとはいえ、なんだか物足りません。そこで今回は、カーネルから文字列を出力してみましょう。
 
 ## 初めてのSBI
 
-```c:kernel.c {1, 5-26, 29-32}
+```c [kernel.c] {1, 5-26, 29-32}
 #include "kernel.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
@@ -50,7 +50,7 @@ void kernel_main(void) {
 
 加えて、新しく`kernel.h`を作成し、SBIの処理結果を返すための構造体を定義しましょう。
 
-```c:kernel.h
+```c [kernel.h]
 #pragma once
 
 struct sbiret {
@@ -110,7 +110,7 @@ struct sbiret {
 
 実装ができたら、`run.sh`で実行してみましょう。次のように、`Hello World!`と表示されたら成功です。
 
-```plain
+```
 $ ./run.sh
 ...
 
@@ -138,7 +138,7 @@ C標準ライブラリに入っているような`printf`関数は非常に豊�
 
 `printf`関数は将来アプリケーション側でも使いたいので、`kernel.c`ではなくカーネル・ユーザーランド共通のコード用のファイル`common.c`を新しく作ることにします。以下が`printf`関数の全体像です。
 
-```c:common.c
+```c [common.c]
 #include "common.h"
 
 void putchar(char ch);
@@ -212,7 +212,7 @@ end:
 
 `va_list`などは、C標準ライブラリの`<stdarg.h>`に定義されているマクロですが、本書では標準ライブラリに頼らずに自前で用意します。具体的には`common.h`に次のように定義しておきます。
 
-```c:common.h
+```c [common.h]
 #pragma once
 
 #define va_list  __builtin_va_list
@@ -227,7 +227,7 @@ void printf(const char *fmt, ...);
 
 これで`printf`関数が使えるようになりました。`kernel.c`にいくつか`printf`関数を使ったコードを書いてみましょう。
 
-```c:kernel.c {2,5-6}
+```c [kernel.c] {2,5-6}
 #include "kernel.h"
 #include "common.h"
 
@@ -243,14 +243,14 @@ void kernel_main(void) {
 
 最後に`common.c`をコンパイル対象に追加します。
 
-```bash:run.sh {2}
+```bash [run.sh] {2}
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c common.c
 ```
 
 では`run.sh`を実行してみましょう。次のように、`Hello World!`と`1 + 2 = 3, 1234abcd`が表示されたら成功です。
 
-```plain
+```
 $ ./run.sh
 
 Hello World!

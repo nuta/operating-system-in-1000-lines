@@ -1,8 +1,8 @@
 ---
 title: 例外処理
-layout: chapter
-lang: ja
 ---
+
+# 例外処理
 
 例外は、不正なメモリアクセス (例: ヌルポインタ参照) のような「プログラムの実行が続行不能な状態」になったときに、あらかじめOSによって設定されるプログラム (例外ハンドラ) に処理を切り替える仕組みです。
 
@@ -33,7 +33,7 @@ lang: ja
 
 準備が整ったところで、例外を受け取ってみましょう。まずは最初に実行される箇所です。`stvec`レジスタに、この`kernel_entry`関数の先頭アドレスを後ほどセットします。
 
-```c:kernel.c
+```c [kernel.c]
 __attribute__((naked))
 __attribute__((aligned(4)))
 void kernel_entry(void) {
@@ -122,7 +122,7 @@ void kernel_entry(void) {
 
 この関数で呼ばれているのが、次の`handle_trap`関数です。
 
-```c:kernel.c
+```c [kernel.c]
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
     uint32_t stval = READ_CSR(stval);
@@ -134,7 +134,7 @@ void handle_trap(struct trap_frame *f) {
 
 例外の発生事由 (`scause`) と例外発生時のプログラムカウンタ (`sepc`) を取得し、デバッグ用にカーネルパニックを発生させています。ここで使われている各種マクロは、`kernel.h`で次のように定義しましょう。
 
-```c:kernel.h
+```c [kernel.h]
 #include "common.h"
 
 struct trap_frame {
@@ -189,7 +189,7 @@ struct trap_frame {
 
 最後に必要なのは例外ハンドラがどこにあるのかをCPUに教えてあげることです。次のように`main`関数で`stvec`レジスタに例外ハンドラのアドレスを書き込みましょう。
 
-```c:kernel.c {4-5}
+```c [kernel.c] {4-5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -201,7 +201,7 @@ void kernel_main(void) {
 
 実行してみて、例外ハンドラが呼ばれることを確認しましょう。
 
-```plain
+```
 $ ./run.sh
 Hello World!
 PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=8020015e
@@ -211,7 +211,7 @@ PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=802001
 
 また、`sepc`の値がどこを指しているかも確認してみましょう。`unimp`命令を呼び出している行であれば上手くいっています。
 
-```plain
+```
 $ llvm-addr2line -e kernel.elf 8020015e
 /Users/seiya/os-from-scratch/kernel.c:129
 ```
