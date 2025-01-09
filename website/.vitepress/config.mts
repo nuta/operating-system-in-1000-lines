@@ -9,6 +9,7 @@ import {
 export default defineConfig({
   title: "OS in 1,000 Lines",
   description: "Write your first operating system from scratch, in 1K LoC.",
+  cleanUrls: true,
   markdown: {
     config(md) {
       md.use(groupIconMdPlugin)
