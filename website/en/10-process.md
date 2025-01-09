@@ -189,7 +189,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 
 ## Scheduler
 
-In the previous experiment, we directly called the `switch_context` function to specify the "next process to execute". However, this method becomes complicated when determining which process to switch to next as the number of processes increases. To solve the issue, let's implement a *"scheduler"*, a kernel prgoram which decides the next process.
+In the previous experiment, we directly called the `switch_context` function to specify the "next process to execute". However, this method becomes complicated when determining which process to switch to next as the number of processes increases. To solve the issue, let's implement a *"scheduler"*, a kernel program which decides the next process.
 
 The following `yield` function is the implementation of the scheduler:
 
