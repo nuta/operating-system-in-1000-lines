@@ -37,7 +37,7 @@ Here are some examples:
 >
 > This structure utilizes [the principle of locality](https://en.wikipedia.org/wiki/Locality_of_reference), allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
 
-When accessing memory, CPU calculates `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, reads the mapped base phiysical address, and adds `offset` to get the final physical address.
+When accessing memory, CPU calculates `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, reads the mapped base physical address, and adds `offset` to get the final physical address.
 
 ## Constructing the page table
 
