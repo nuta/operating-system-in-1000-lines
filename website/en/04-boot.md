@@ -219,7 +219,7 @@ The `boot` function also has the `__attribute__((section(".text.boot")))` attrib
 
 At the beginning of the file, each symbol defined in the linker script is declared using `extern char`. Here, we are only interested in obtaining the addresses of the symbols, so using `char` type is not that important.
 
-We can also declare it as `extern char __bss;`, but `__bss` alone meands *"the value at the 0th byte of the `.bss` section"* instead of *"the start address of the `.bss` section"*. Therefore, it is recommended to add `[]` to ensure that `__bss` returns an address and prevent any careless mistakes.
+We can also declare it as `extern char __bss;`, but `__bss` alone means *"the value at the 0th byte of the `.bss` section"* instead of *"the start address of the `.bss` section"*. Therefore, it is recommended to add `[]` to ensure that `__bss` returns an address and prevent any careless mistakes.
 
 ### `.bss` section initialization
 
