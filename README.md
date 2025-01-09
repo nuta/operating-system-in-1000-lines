@@ -18,3 +18,7 @@ The text is written in Markdown can be used under the [CC BY 4.0 license](https:
 ## ライセンス
 
 Markdownで書かれている本文は [CC BY 4.0ライセンス](https://creativecommons.jp/faq) の下で利用できます。それ以外 (実装例や本文中のソースコード) は [MITライセンス](https://opensource.org/licenses/MIT) です。
+
+## Note to self
+
+- Files are renamed.  To follow "4. boot", rename "run-boot.sh" and "kernel-boot.c" to simply "run.sh" and "kernel.c".
