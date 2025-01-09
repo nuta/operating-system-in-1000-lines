@@ -217,7 +217,7 @@ In addition to setting the `stvec` register, it executes `unimp` instruction. it
 > csrrw x0, cycle, x0
 > ```
 >
-> This reads and writes the `cycle` register into `x0`. Since `cycle` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception.
+> This reads and writes the `cycle` register into `x0`. Since `x0` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception.
 
 ## Let's try it
 
