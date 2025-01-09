@@ -1,8 +1,8 @@
 ---
 title: アプリケーション
-layout: chapter
-lang: ja
 ---
+
+# アプリケーション
 
 本章では、カーネルから一旦離れて、最初のユーザーランドのプログラムとそのビルド方法を見ていきます。
 
@@ -12,7 +12,7 @@ lang: ja
 
 アプリケーションの実行ファイルをどこに配置するかを定義する、新しいリンカスクリプト (`user.ld`) を作成しましょう。
 
-```plain:user.ld
+```ld [user.ld]
 ENTRY(start)
 
 SECTIONS {
@@ -51,7 +51,7 @@ SECTIONS {
 
 次にユーザーランド用ライブラリを作成しましょう。まずはアプリケーションの起動に必要な処理だけを書きます。
 
-```c:user.c
+```c [user.c]
 #include "user.h"
 
 extern char __stack_top[];
@@ -88,7 +88,7 @@ void start(void) {
 
 加えて、ユーザランド用ライブラリのヘッダファイル (`user.h`) も用意しておきましょう。
 
-```c:user.h
+```c [user.h]
 #pragma once
 #include "common.h"
 
@@ -100,7 +100,7 @@ void putchar(char ch);
 
 最初のアプリケーション (`shell.c`) は次のものを用意します。カーネルの時と同じく、文字を表示するのにも一手間必要なので、無限ループを行うだけにとどめておきます。
 
-```c:shell.c
+```c [shell.c]
 #include "user.h"
 
 void main(void) {
@@ -112,7 +112,7 @@ void main(void) {
 
 最後にアプリケーションのビルド処理です。
 
-```bash:run.sh {1,3-6,10}
+```bash [run.sh] {1,3-6,10}
 OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
 # シェルをビルド
@@ -131,7 +131,7 @@ $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
 
 2つ目の`$OBJCOPY`は、生バイナリ形式の実行イメージを、C言語に埋め込める形式に変換する処理です。`llvm-nm`コマンドで何が入っているかを見てみましょう。
 
-```plain
+```
 $ llvm-nm shell.bin.o
 00010260 D _binary_shell_bin_end
 00010260 A _binary_shell_bin_size
@@ -159,7 +159,7 @@ char _binary_shell_bin_start[] = "shell.binのファイル内容";
 
 また、`_binary_shell_bin_size`変数には、ファイルサイズが入っています。ただし少し変わった使い方をします。もう一度`llvm-nm`で確認してみましょう。
 
-```plain
+```
 $ llvm-nm shell.bin.o | grep _binary_shell_bin_size
 00010454 A _binary_shell_bin_size
 
@@ -181,7 +181,7 @@ $ python3 -c 'print(0x10454)'
 
 逆アセンブリしてみると、リンカスクリプトに定義されている通り、`.text.start`セクションは実行ファイルの先頭に配置され、`0x1000000`に`start`関数が配置されていることがわかります。
 
-```plain
+```
 $ llvm-objdump -d shell.elf
 
 shell.elf:	file format elf32-littleriscv

@@ -1,8 +1,8 @@
 ---
 title: Exception
-layout: chapter
-lang: en
 ---
+
+# Exception
 
 Exception is a CPU feature that allows the kernel to handle various events, such as invalid memory access (aka. page faults), illegal instructions, and system calls.
 
@@ -33,7 +33,7 @@ The CSRs updated in step 2 are mainly as follows. The kernel's exception determi
 
 Now let's write your first exception handler! Here's the entry point of the exception handler to be registered in the `stvec` register:
 
-```c:kernel.c
+```c [kernel.c]
 __attribute__((naked))
 __attribute__((aligned(4)))
 void kernel_entry(void) {
@@ -128,7 +128,7 @@ Here are some key points:
 
 In the entry point, the following `handle_trap` function is called to handle the exception in our favorite C language:
 
-```c:kernel.c
+```c [kernel.c]
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
     uint32_t stval = READ_CSR(stval);
@@ -142,7 +142,7 @@ It reads why the exception has occurred, and triggers a kernel panic for debuggi
 
 Let's define the various macros used here in `kernel.h:
 
-```c:kernel.h
+```c [kernel.h]
 #include "common.h"
 
 struct trap_frame {
@@ -197,7 +197,7 @@ The `trap_frame` struct represents the program state saved in `kernel_entry`. `R
 
 The last thing we need to do is to tell the CPU where the exception handler is located. It's done by setting the `stvec` register in the `kernel_main` function:
 
-```c:kernel.c {4-5}
+```c [kernel.c] {4-5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -223,7 +223,7 @@ In addition to setting the `stvec` register, it executes `unimp` instruction. it
 
 Let's try running it and confirm that the exception handler is called:
 
-```plain
+```
 $ ./run.sh
 Hello World!
 PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=8020015e
@@ -233,7 +233,7 @@ According to the specification, when the value of `scause` is 2, it indicates an
 
 Let's also check where the value of `sepc` is pointing. If it's pointing to the line where the `unimp` instruction is called,  everything is working correctly:
 
-```plain
+```
 $ llvm-addr2line -e kernel.elf 8020015e
 /Users/seiya/os-from-scratch/kernel.c:129
 ```

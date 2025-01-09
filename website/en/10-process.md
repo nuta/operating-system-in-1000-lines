@@ -1,8 +1,8 @@
 ---
 title: Process
-layout: chapter
-lang: en
 ---
+
+# Process
 
 A process is an instance of an application. Each process has its own independent execution context and resources such as a virtual address space.
 
@@ -39,7 +39,7 @@ The kernel stack contains saved CPU registers, return addresses (where it was ca
 
 Switching the process execution context is called *"context switching"*. The following `switch_context` function is the implementation of context switching:
 
-```c:kernel.c
+```c [kernel.c]
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                                            uint32_t *next_sp) {
     __asm__ __volatile__(
@@ -134,7 +134,7 @@ struct process *create_process(uint32_t pc) {
 
 We have implemented the most basic function of processes - concurrent execution of multiple programs. Let's create two processes:
 
-```c:kernel.c {1-24,31-33}
+```c [kernel.c] {1-24,31-33}
 struct process *proc_a;
 struct process *proc_b;
 
@@ -165,7 +165,6 @@ void kernel_main(void) {
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
-    /* new */
     proc_a = create_process((uint32_t) proc_a_entry);
     proc_b = create_process((uint32_t) proc_b_entry);
     proc_a_entry();
@@ -180,7 +179,7 @@ The `proc_a_entry` function and `proc_b_entry` function are the entry points for
 
 Now, let's try! The startup messages will be displayed once each, and then "ABABAB..." lasts forever:
 
-```plain
+```
 $ ./run.sh
 
 starting process A
@@ -198,7 +197,7 @@ The following `yield` function is the implementation of the scheduler:
 >
 > The word "yield" is often used as the name for an API which allows giving up the CPU to another process voluntarily.
 
-```c:kernel.c
+```c [kernel.c]
 struct process *current_proc; // Currently running process
 struct process *idle_proc;    // Idle process
 
@@ -226,7 +225,7 @@ void yield(void) {
 
 Here, we introduce two global variables. `current_proc` points to the currently running process. `idle_proc` refers to the idle process, which is "the process to run when there are no runnable processes". The `idle_proc` is created at startup as a process with process ID `-1`, as shown below:
 
-```c:kernel.c {8-10,15-16}
+```c [kernel.c] {8-10,15-16}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
 
@@ -234,16 +233,13 @@ void kernel_main(void) {
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
-    /* new */
     idle_proc = create_process((uint32_t) NULL);
     idle_proc->pid = -1; // idle
     current_proc = idle_proc;
 
-    /* new */
     proc_a = create_process((uint32_t) proc_a_entry);
     proc_b = create_process((uint32_t) proc_b_entry);
 
-    /* new */
     yield();
     PANIC("switched to idle process");
 }
@@ -253,12 +249,12 @@ The key point of this initialization process is `current_proc = idle_proc`. This
 
 Lastly, modify `proc_a_entry` and `proc_b_entry` as follows to call the `yield` function instead of directly calling the `switch_context` function:
 
-```c:kernel.c {5,16}
+```c [kernel.c] {5,16}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
         putchar('A');
-        yield(); /* new */
+        yield();
 
         for (int i = 0; i < 30000000; i++)
             __asm__ __volatile__("nop");
@@ -269,7 +265,7 @@ void proc_b_entry(void) {
     printf("starting process B\n");
     while (1) {
         putchar('B');
-        yield(); /* new */
+        yield();
 
         for (int i = 0; i < 30000000; i++)
             __asm__ __volatile__("nop");
@@ -285,11 +281,10 @@ In the exception handler, it saves the execution state onto the stack. However, 
 
 First, set the initial value of the kernel stack for the currently executing process in the `sscratch` register during process switching.
 
-```c:kernel.c {4-8}
+```c [kernel.c] {4-8}
 void yield(void) {
     /* omitted */
 
-    /* new */
     __asm__ __volatile__(
         "csrw sscratch, %[sscratch]\n"
         :
@@ -307,10 +302,10 @@ Since the stack pointer extends towards lower addresses, we set the address at t
 
 The modifications to the exception handler are as follows:
 
-```c:kernel.c {3-5,39-45}
+```c [kernel.c] {3-4,38-44}
 void kernel_entry(void) {
     __asm__ __volatile__(
-        // Retrieve the kernel stack of the running process from sscratch (new)
+        // Retrieve the kernel stack of the running process from sscratch.
         "csrrw sp, sscratch, sp\n"
 
         "addi sp, sp, -4 * 31\n"
@@ -345,11 +340,11 @@ void kernel_entry(void) {
         "sw s10, 4 * 28(sp)\n"
         "sw s11, 4 * 29(sp)\n"
 
-        // Retrieve and save the sp at the time of exception (new)
+        // Retrieve and save the sp at the time of exception.
         "csrr a0, sscratch\n"
         "sw a0,  4 * 30(sp)\n"
 
-        // Reset the kernel stack (new)
+        // Reset the kernel stack.
         "addi a0, sp, 4 * 31\n"
         "csrw sscratch, a0\n"
 

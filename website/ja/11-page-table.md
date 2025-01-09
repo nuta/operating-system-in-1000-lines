@@ -1,8 +1,8 @@
 ---
 title: ページテーブル
-layout: chapter
-lang: ja
 ---
+
+# ページテーブル
 
 プログラムがメモリにアクセスする際、CPUではある変換が行われます。仮想アドレスから物理アドレスへの変換です。仮想アドレスと物理アドレスの対応表のことを **「ページテーブル」** と呼びます。ページテーブルを切り替えることで同じ仮想アドレスでも異なる物理アドレスにアクセスさせることができます。プロセスごとのメモリ空間 (仮想アドレス空間) を隔離し、またカーネルとアプリケーションがそれぞれ利用する領域を分けることで、システムの安全性を高めることができます。
 
@@ -41,7 +41,7 @@ CPUはメモリアクセスする際に、`VPN[1]`と`VPN[0]`で対応するペ�
 
 ではSv32方式のページテーブルを構築してみましょう。まずは、いくつかのマクロを定義します。`SATP_SV32`は「Sv32モードでページングを有効化する」ことを示す`satp`レジスタのビット、`PAGE_*`はページテーブルエントリに設定するビットです。
 
-```c:kernel.h
+```c [kernel.h]
 #define SATP_SV32 (1u << 31)
 #define PAGE_V    (1 << 0)   // 有効化ビット
 #define PAGE_R    (1 << 1)   // 読み込み可能
@@ -52,7 +52,7 @@ CPUはメモリアクセスする際に、`VPN[1]`と`VPN[0]`で対応するペ�
 
 次の`map_page`関数は、1段目のページテーブル (`table1`)、マップしたい仮想アドレス (`vaddr`)、マップ先の物理アドレス (`paddr`)、ページテーブルエントリに設定するフラグ (`flags`) を受け取り、ページテーブルを構築します。
 
-```c:kernel.c
+```c [kernel.c]
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
     if (!is_aligned(vaddr, PAGE_SIZE))
         PANIC("unaligned vaddr %x", vaddr);
@@ -86,7 +86,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
 まずはカーネルのリンカスクリプトの修正です。カーネルが利用するアドレスの先頭 (`__kernel_base`) を定義します。
 
-```plain:kernel.ld {5}
+```ld [kernel.ld] {5}
 ENTRY(boot)
 
 SECTIONS {
@@ -100,7 +100,7 @@ SECTIONS {
 
 次にプロセス管理構造体にページテーブルを追加します。1段目のページテーブルを指すポインタです。
 
-```c:kernel.h {5}
+```c [kernel.h] {5}
 struct process {
     int pid;
     int state;
@@ -112,7 +112,7 @@ struct process {
 
 最後に、`create_process`関数でカーネルのページをマッピングします。カーネルのページは、`__kernel_base`から`__free_ram_end`までの範囲です。こうすることで、静的に配置される領域 (`.text`など) と、`alloc_pages`関数で動的に割り当てられる領域の両方を、カーネルはいつでもアクセスできるようにしておきます。
 
-```c:kernel.c {1,6-11,16}
+```c [kernel.c] {1,6-11,16}
 extern char __kernel_base[];
 
 struct process *create_process(uint32_t pc) {
@@ -137,7 +137,7 @@ struct process *create_process(uint32_t pc) {
 
 最後に、プロセスの切り替え時にページテーブルを切り替えるようにします。
 
-```c:kernel.c {5-7,10-11}
+```c [kernel.c] {5-7,10-11}
 void yield(void) {
     /* 省略 */
 
@@ -168,7 +168,7 @@ void yield(void) {
 
 ページングを一通り実装したところで、実際に動かしてみましょう。
 
-```plain
+```
 $ ./run.sh
 
 starting process A
@@ -182,7 +182,7 @@ BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABA
 
 仮想アドレス`0x80000000`周辺が、どうマップされているかを見てみましょう。正しく設定されていれば、`(仮想アドレス) == (物理アドレス)`になるようにマップされているはずです。
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) stop
 (qemu) info registers
@@ -201,7 +201,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 
 ここでは仮想アドレス`0x80000000`に紐づく2段目のページテーブルが知りたいので、`0x80000000 >> 22 = 512`番目のエントリを見てみます。1エントリ4バイトなので、4をかけています。
 
-```plain
+```
 (qemu) xp /x 0x80253000+512*4
 0000000080253800: 0x20095001
 ```
@@ -232,7 +232,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 
 ここまでメモリダンプを自力で読んでみましたが、QEMUには使用中のページテーブルの設定情報を読みやすい形で表示するコマンドがあります。正しくマップされているかを最終確認したい場合は`info mem`コマンドを使うとよいでしょう。
 
-```plain
+```
 (qemu) info mem
 vaddr    paddr            size     attr
 -------- ---------------- -------- -------
@@ -282,7 +282,7 @@ vaddr    paddr            size     attr
 
 まずは`satp`レジスタにモードを設定し忘れた場合です。次のように抜いてみましょう。
 
-```c:kernel.c {6}
+```c [kernel.c] {6}
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -303,7 +303,7 @@ No translation or protection
 
 次に物理ページ番号ではなく物理アドレスでページテーブルを指定してしまった時です。
 
-```c:kernel.c {6}
+```c [kernel.c] {6}
     __asm__ __volatile__(
         "sfence.vma\n"
         "csrw satp, %[satp]\n"
@@ -315,7 +315,7 @@ No translation or protection
 
 OSを起動して`info mem`コマンドで確認すると、次のように空っぽになっているはずです。
 
-```plain
+```
 $ ./run.sh
 
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -327,7 +327,7 @@ vaddr    paddr            size     attr
 
 レジスタダンプを見て、CPUが何をしているのかを確認しましょう。
 
-```plain
+```
 (qemu) info registers
 
 CPU#0
@@ -342,13 +342,13 @@ CPU#0
 
 より具体的に何が起きているのかをQEMUのログから見てみましょう。
 
-```bash:run.sh {2}
+```bash [run.sh] {2}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
     -kernel kernel.elf
 ```
 
-```plain
+```
 Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected
 riscv_cpu_do_interrupt: hart:0, async:0, cause:0000000c, epc:0x80200580, tval:0x80200580, desc=exec_page_fault
 Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected

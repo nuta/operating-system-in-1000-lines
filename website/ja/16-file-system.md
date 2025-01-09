@@ -1,8 +1,8 @@
 ---
 title: ファイルシステム
-layout: chapter
-lang: ja
 ---
+
+# ファイルシステム
 
 ディスクの読み書きができるようになったので、ファイルの読み書きを実装しましょう。
 
@@ -20,7 +20,7 @@ tarファイルは、複数のファイルをまとめるアーカイブファ�
 
 まずはファイルシステムの内容を用意しましょう。`disk`ディレクトリを作成し、その中に適当なファイルを作成します。一つは`hello.txt`という名前にしておきます。
 
-```plain
+```
 $ mkdir disk
 $ vim disk/hello.txt
 $ vim disk/meow.txt
@@ -28,7 +28,7 @@ $ vim disk/meow.txt
 
 ビルドスクリプトにtarファイルの作成コマンドを追加し、それをディスクイメージとしてQEMUに渡すようにします。
 
-```bash:run.sh {1,5}
+```bash [run.sh] {1,5}
 (cd disk && tar cf ../disk.tar --format=ustar ./*.txt)
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -49,7 +49,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 tarファイルは、次のような構造をしています。
 
-```plain
+```
 +----------------+
 |   tar ヘッダ    |
 +----------------+
@@ -70,7 +70,7 @@ tarファイルは、次のような構造をしています。
 
 まずはファイルシステム関連のデータ構造を定義します。`kernel.h`に次のように定義します。
 
-```c:kernel.h
+```c [kernel.h]
 #define FILES_MAX      2
 #define DISK_MAX_SIZE  align_up(sizeof(struct file) * FILES_MAX, SECTOR_SIZE)
 
@@ -107,7 +107,7 @@ struct file {
 
 実際にファイルを読み込む処理が、次の`fs_init`関数です。
 
-```c:kernel.c
+```c [kernel.c]
 struct file files[FILES_MAX];
 uint8_t disk[DISK_MAX_SIZE];
 
@@ -154,7 +154,7 @@ void fs_init(void) {
 
 最後に、`fs_init`関数を`kernel_main`関数から呼び出すようにして完了です。
 
-```c:kernel.c {5}
+```c [kernel.c] {5}
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
@@ -169,7 +169,7 @@ void kernel_main(void) {
 
 実際に動かしてみましょう。`disk`ディレクトリに用意したファイル名とその大きさが表示されれば成功です。
 
-```plain
+```
 $ ./run.sh
 
 virtio-blk: capacity is 2560 bytes
@@ -181,7 +181,7 @@ file: hello.txt, size=22
 
 ファイルシステムを読み込めるようになったので、次はファイルの書き込みを実装しましょう。ファイルの書き込みは、`files`変数の内容を、tarファイルの形式でディスクに書き込むことで実現します。
 
-```c:kernel.c
+```c [kernel.c]
 void fs_flush(void) {
     // files変数の各ファイルの内容をdisk変数に書き込む
     memset(disk, 0, sizeof(disk));
@@ -235,12 +235,12 @@ void fs_flush(void) {
 
 ファイルシステムの読み書きを実装したところで、アプリケーションからファイルの読み書きを行えるようにしましょう。本書ではファイルの読み込みを行う`readfile`、ファイルの書き込みを行う`writefile`というシステムコールを用意します。どちらもファイル名、読み書きに使うメモリバッファ、そしてバッファのサイズを引数に取ります。
 
-```c:common.h
+```c [common.h]
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
 ```
 
-```c:user.c
+```c [user.c]
 int readfile(const char *filename, char *buf, int len) {
     return syscall(SYS_READFILE, (int) filename, (int) buf, len);
 }
@@ -250,7 +250,7 @@ int writefile(const char *filename, const char *buf, int len) {
 }
 ```
 
-```c:user.h
+```c [user.h]
 int readfile(const char *filename, char *buf, int len);
 int writefile(const char *filename, const char *buf, int len);
 ```
@@ -263,7 +263,7 @@ int writefile(const char *filename, const char *buf, int len);
 
 前節で定義したシステムコールを実装しましょう。
 
-```c:kernel.c {1-9,14-39}
+```c [kernel.c] {1-9,14-39}
 struct file *fs_lookup(const char *filename) {
     for (int i = 0; i < FILES_MAX; i++) {
         struct file *file = &files[i];
@@ -319,7 +319,7 @@ void handle_syscall(struct trap_frame *f) {
 
 システムコールを実装したところで、シェルからファイルの読み書きを試してみましょう。シェルはコマンドライン引数のパースを実装していないので、とりあえず`hello.txt`を決めうちで読み書きする`readfile`と`writefile`コマンドを実装します。
 
-```c:shell.c
+```c [shell.c]
         else if (strcmp(cmdline, "readfile") == 0) {
             char buf[128];
             int len = readfile("hello.txt", buf, sizeof(buf));
@@ -332,7 +332,7 @@ void handle_syscall(struct trap_frame *f) {
 
 実行してみると、次のようにページフォルトが発生してしまいます。
 
-```plain
+```
 $ ./run.sh
 
 > readfile
@@ -341,7 +341,7 @@ PANIC: kernel.c:561: unexpected trap scause=0000000d, stval=01000423, sepc=80201
 
 `sepc`の値を`llvm-addr2line`で見てみると、`strcmp`関数でページフォルトが発生していることがわかります。
 
-```plain
+```
 $ llvm-objdump -d kernel.elf
 ...
 
@@ -360,7 +360,7 @@ $ llvm-objdump -d kernel.elf
 
 ページテーブルの内容を確認してみると、`0x1000423`のページ (`vaddr = 01000000`) は確かに読み・書き・実行可能 (`rwx`) なユーザーページ (`u`) としてマップされています。
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) info mem
 vaddr    paddr            size     attr
@@ -370,7 +370,7 @@ vaddr    paddr            size     attr
 
 試しに仮想アドレスでメモリダンプ (`x`コマンド) をしてみましょう。
 
-```plain
+```
 (qemu) x /10c 0x1000423
 01000423: 'h' 'e' 'l' 'l' 'o' '.' 't' 'x' 't' '\x00' 'r' 'e' 'a' 'd' 'f' 'i'
 01000433: 'l' 'e' '\x00' 'h' 'e' 'l' 'l' 'o' '\x00' '%' 's' '\n' '\x00' 'e' 'x' 'i'
@@ -392,13 +392,13 @@ RISC-Vでは、`sstatus`レジスタによってS-Mode (カーネル) の振る�
 
 `SUM`ビットの位置を次のように定義します。
 
-```c:kernel.h
+```c [kernel.h]
 #define SSTATUS_SUM  (1 << 18)
 ```
 
 あとはユーザー空間に入る時に`sstatus`レジスタにセットすれば修正完了です。
 
-```c:kernel.c {8}
+```c [kernel.c] {8}
 __attribute__((naked)) void user_entry(void) {
     __asm__ __volatile__(
         "csrw sepc, %[sepc]\n"

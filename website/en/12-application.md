@@ -1,8 +1,8 @@
 ---
 title: Application
-layout: chapter
-lang: en
 ---
+
+# Application
 
 In this chapter, we'll prepare the first application executable to run on our kernel.
 
@@ -12,7 +12,7 @@ In the previous chapter, we implemented isolated virtual address spaces using th
 
 Create a new linker script (`user.ld`) that defines where to place the application in memory:
 
-```plain:user.ld
+```ld [user.ld]
 ENTRY(start)
 
 SECTIONS {
@@ -55,7 +55,7 @@ It looks pretty much the same as the kernel's linker script, isn't it?  The key 
 
 Next, let's create a library for userland programs. For simplicity, we'll start with a minimal feature set to start the application:
 
-```c:user.c
+```c [user.c]
 #include "user.h"
 
 extern char __stack_top[];
@@ -94,7 +94,7 @@ Unlike the kernel's initialization process, we don't clear the `.bss` section wi
 
 Lastly, prepare a header file (`user.h`) for the userland library:
 
-```c:user.h
+```c [user.h]
 #pragma once
 #include "common.h"
 
@@ -106,7 +106,7 @@ void putchar(char ch);
 
 It's time to create the first application! Unfortunately, we still don't have a way to display characters, we can't start with a "Hello, World!" program. Instead, we'll create a simple infinite loop:
 
-```c:shell.c
+```c [shell.c]
 #include "user.h"
 
 void main(void) {
@@ -118,7 +118,7 @@ void main(void) {
 
 Applications will be built separately from the kernel. Let's create a new script (`run.sh`) to build the application:
 
-```bash:run.sh {1,3-6,10}
+```bash [run.sh] {1,3-6,10}
 OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
 # Build the shell (application)
@@ -137,7 +137,7 @@ The first `$OBJCOPY` command converts the executable file (in ELF format) to raw
 
 The second `$OBJCOPY` command converts the raw binary execution image into a format that can be embedded in C language. Let's take a look at what's inside using the `llvm-nm` command:
 
-```plain
+```
 $ llvm-nm shell.bin.o
 00000000 D _binary_shell_bin_start
 00010260 D _binary_shell_bin_end
@@ -165,7 +165,7 @@ char _binary_shell_bin_start[] = "<shell.bin contents here>";
 
 `_binary_shell_bin_size` variable contains the file size. However, it's used in a slightly unusual way. Let's check with `llvm-nm` again:
 
-```plain
+```
 $ llvm-nm shell.bin.o | grep _binary_shell_bin_size
 00010454 A _binary_shell_bin_size
 
@@ -188,7 +188,7 @@ Lastly, we've added `shell.bin.o` to the `clang` arguments in the kernel compili
 
 In disassembly, we can see that the `.text.start` section is placed at the beginning of the executable file. The `start` function should be placed at `0x1000000` as follows:
 
-```plain
+```
 $ llvm-objdump -d shell.elf
 
 shell.elf:	file format elf32-littleriscv

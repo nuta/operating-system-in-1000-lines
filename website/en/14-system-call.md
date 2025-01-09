@@ -1,8 +1,8 @@
 ---
 title: System Call
-layout: chapter
-lang: en
 ---
+
+# System Call
 
 In this chapter, we will implement *"system calls"* that allow applications to invoke kernel functions. Time to Hello World from the userland!
 
@@ -10,7 +10,7 @@ In this chapter, we will implement *"system calls"* that allow applications to i
 
 Invoking system call is quite similar to [the SBI call implementation](/en/05-hello-world#say-hello-to-sbi) we've seen before:
 
-```c:user.c
+```c [user.c]
 int syscall(int sysno, int arg0, int arg1, int arg2) {
     register int a0 __asm__("a0") = arg0;
     register int a1 __asm__("a1") = arg1;
@@ -30,11 +30,11 @@ The `syscall` function sets the system call number in the `a3` register and the 
 
 The first system call we will implement is `putchar`, which outputs a character, via system call. It takes a character as the first argument. For the second and subsequent unused arguments are set to 0:
 
-```c:common.h
+```c [common.h]
 #define SYS_PUTCHAR 1
 ```
 
-```c:user.c {2}
+```c [user.c] {2}
 void putchar(char ch) {
     syscall(SYS_PUTCHAR, ch, 0, 0);
 }
@@ -44,11 +44,11 @@ void putchar(char ch) {
 
 Next, update the trap handler to handle `ecall` instruction:
 
-```c:kernel.h
+```c [kernel.h]
 #define SCAUSE_ECALL 8
 ```
 
-```c:kernel.c {5-7,12}
+```c [kernel.c] {5-7,12}
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);
     uint32_t stval = READ_CSR(stval);
@@ -70,7 +70,7 @@ Whether the `ecall` instruction was called can be determined by checking the val
 
 The following system call handler is called from the trap handler. It receives a structure of "registers at the time of exception" that was saved in the trap handler:
 
-```c:kernel.c
+```c [kernel.c]
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_PUTCHAR:
@@ -90,7 +90,7 @@ You've implemented the system call. Let's try it out!
 
 Do you remember the implementation of the `printf` function in `common.c`? It calls the `putchar` function to display characters. Since we have just implemented `putchar` in the userland library, we can use it as is:
 
-```c:shell.c {2}
+```c [shell.c] {2}
 void main(void) {
     printf("Hello World from shell!\n");
 }
@@ -98,7 +98,7 @@ void main(void) {
 
 You'll see the charming message on the screen:
 
-```plain
+```
 $ ./run.sh
 Hello World from shell!
 ```
@@ -111,7 +111,7 @@ Our next goal is to implement shell. To do that, we need to be able to receive c
 
 SBI provides an interface to read "input to the debug console". If there is no input, it returns `-1`:
 
-```c:kernel.c
+```c [kernel.c]
 long getchar(void) {
     struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
     return ret.error;
@@ -120,21 +120,21 @@ long getchar(void) {
 
 The `getchar` system call is implemented as follows:
 
-```c:common.h
+```c [common.h]
 #define SYS_GETCHAR 2
 ```
 
-```c:user.c
+```c [user.c]
 int getchar(void) {
     return syscall(SYS_GETCHAR, 0, 0, 0);
 }
 ```
 
-```c:user.h
+```c [user.h]
 int getchar(void);
 ```
 
-```c:kernel.c {3-13}
+```c [kernel.c] {3-13}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_GETCHAR:
@@ -163,7 +163,7 @@ The implementation of the `getchar` system call repeatedly calls the SBI until a
 
 Let's write a shell with a simple command `hello`, which displays `Hello world from shell!`:
 
-```c:shell.c
+```c [shell.c]
 void main(void) {
     while (1) {
 prompt:
@@ -200,7 +200,7 @@ It reads characters until a newline comes, and check if the entered string match
 
 Let's try typing `hello` command:
 
-```plain
+```
 $ ./run.sh
 
 > hello
@@ -213,22 +213,22 @@ Your OS is starting to look like a real OS! How fast you've come this far!
 
 Lastly, let's implement `exit` system call, which terminates the process:
 
-```c:common.h
+```c [common.h]
 #define SYS_EXIT    3
 ```
 
-```c:user.c {2-3}
+```c [user.c] {2-3}
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
     for (;;); // Just in case!
 }
 ```
 
-```c:kernel.h
+```c [kernel.h]
 #define PROC_EXITED   2
 ```
 
-```c:kernel.c {3-7}
+```c [kernel.c] {3-7}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_EXIT:
@@ -249,7 +249,7 @@ The system call changes the process state to `PROC_EXITED`, and call `yield` to 
 
 Add the `exit` command to the shell:
 
-```c:shell.c {3-4}
+```c [shell.c] {3-4}
         if (strcmp(cmdline, "hello") == 0)
             printf("Hello world from shell!\n");
         else if (strcmp(cmdline, "exit") == 0)
@@ -260,7 +260,7 @@ Add the `exit` command to the shell:
 
 You're done! Let's try running it:
 
-```plain
+```
 $ ./run.sh
 
 > exit

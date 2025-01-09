@@ -1,8 +1,8 @@
 ---
 title: ブート
-layout: chapter
-lang: ja
 ---
+
+# ブート
 
 まず最初に必要なもの、それは起動 (ブート) 処理です。アプリケーションであればOSがいい感じに`main`関数を呼び出してくれますが、カーネルはハードウェアの仕様に応じた初期化処理を自分で書く必要があります。
 
@@ -18,12 +18,12 @@ SBIの実装例として有名なのが[OpenSBI](https://github.com/riscv-softwa
 
 まずは、OpenSBIが起動する様子を見てみましょう。次のように`run.sh`という名前のシェルスクリプトを作成しましょう。
 
-```plain
+```
 $ touch run.sh
 $ chmod +x run.sh
 ```
 
-```bash:run.sh
+```bash [run.sh]
 #!/bin/bash
 set -xue
 
@@ -46,14 +46,14 @@ QEMUの起動オプションは次の通りです。
 >
 > macOSのHomebrew版 QEMUのファイルパスは、次のコマンドで確認できます。
 >
-> ```plain
+> ```
 > $ ls $(brew --prefix)/bin/qemu-system-riscv32
 > /opt/homebrew/bin/qemu-system-riscv32
 > ```
 
 起動すると、次のようなログが表示されます。
 
-```plain
+```
 $ ./run.sh
 
 OpenSBI v1.2
@@ -80,7 +80,7 @@ Platform Timer Device     : aclint-mtimer @ 10000000Hz
 
 <kbd>Ctrl</kbd>+<kbd>A</kbd>を押下した直後に、<kbd>C</kbd>を入力すると、QEMUのデバッグコンソール (QEMUモニター) に移行します。モニター上で`q`コマンドを実行すると、QEMUを終了できます。
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) q
 ```
@@ -89,7 +89,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 >
 > <kbd>Ctrl</kbd>+<kbd>A</kbd>には、QEMUモニターへの移行 (<kbd>C</kbd>キー) の他にもいくつかの機能があります。例えば、<kbd>X</kbd>キーを押下すると、QEMUを即座に終了します。
 >
-> ```plain
+> ```
 > C-a h    print this help
 > C-a x    exit emulator
 > C-a s    save disk data back to file (if -snapshot)
@@ -105,7 +105,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 
 新たに、次のように`kernel.ld`というファイルを作成しましょう。リンカはプログラムをリンクする際に、このファイルに従って各関数・変数の最終的なメモリアドレスを決定します。
 
-```plain:kernel.ld
+```ld [kernel.ld]
 ENTRY(boot)
 
 SECTIONS {
@@ -167,7 +167,7 @@ SECTIONS {
 
 まずは、最小限のカーネルを作成してみましょう。次のように`kernel.c`という名前のC言語のソースコードを作成しましょう。
 
-```c:kernel.c
+```c [kernel.c]
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef uint32_t size_t;
@@ -215,7 +215,7 @@ void boot(void) {
 
 最後に`run.sh`へカーネルのコンパイルと、QEMUの起動オプション (`-kernel kernel.elf`) を次のように追加しましょう。
 
-```bash:run.sh {6-13,17}
+```bash [run.sh] {6-13,17}
 #!/bin/bash
 set -xue
 
@@ -265,7 +265,7 @@ clangに指定しているオプション (`CFLAGS`変数) は次のとおりで
 
 QEMUモニタを開いて、`info registers`コマンドを実行してみましょう。すると、次のように現在のレジスタの値が表示されます。
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) info registers
 
@@ -289,7 +289,7 @@ CPU#0
 
 `pc 80200014` が現在のプログラムカウンタ、実行される命令のアドレスを示しています。逆アセンブラ (`llvm-objdump`) を使って、CPUから見た`kernel.c`の内容を確認してみましょう。
 
-```plain
+```
 $ llvm-objdump -d kernel.elf
 
 kernel.elf:     file format elf32-littleriscv
@@ -312,7 +312,7 @@ Disassembly of section .text:
 
 もう1点、スタックポインタ (spレジスタ) に、リンカスクリプトで定義された `__stack_top` の値が設定されているかを確認してみましょう。レジスタダンプには `x2/sp 80220018` と表示されています。リンカが `__stack_top` をどこに配置したかは、`kernel.map`を見ると分かります。
 
-```plain
+```
      VMA      LMA     Size Align Out     In      Symbol
        0        0 80200000     1 . = 0x80200000
 80200000 80200000       16     4 .text
@@ -324,7 +324,7 @@ Disassembly of section .text:
 
 各関数や変数のアドレスは、`llvm-nm`で確認することもできます。
 
-```plain
+```
 $ llvm-nm kernel.elf
 80200010 t .LBB0_1
 00000000 N .Lline_table_start0
@@ -337,7 +337,7 @@ $ llvm-nm kernel.elf
 
 実行が進むごとに `info registers` の結果は変化します。いったん処理を停止させたい場合は `stop` コマンドで停止できます。
 
-```plain
+```
 (qemu) stop             ← 処理が停止する
 (qemu) info registers   ← 停止時の状態を観測できる
 (qemu) cont             ← 処理が再開する

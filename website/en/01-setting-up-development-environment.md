@@ -1,8 +1,8 @@
 ---
 title: Getting Started
-layout: chapter
-lang: en
 ---
+
+# Getting Started
 
 This book assumes you're using a UNIX or UNIX like OS such as macOS or Ubuntu. If you're on Windows, install Windows Subsystem for Linux (WSL2) and follow the Ubuntu instructions.
 
@@ -66,7 +66,7 @@ If you are using other OSes, get the following tools:
 
 If you're using a Git repository, use the following `.gitignore` file:
 
-```plain:.gitignore
+```gitignore [.gitignore]
 /disk/*
 !/disk/.gitkeep
 *.map

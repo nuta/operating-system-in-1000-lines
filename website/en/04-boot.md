@@ -1,8 +1,8 @@
 ---
 title: Boot
-layout: chapter
-lang: en
 ---
+
+# Booting the Kernel
 
 When a computer is turned on, the CPU initializes itself and starts executing the OS. OS initializes the hardware and starts the applications. This process is called "booting".
 
@@ -20,12 +20,12 @@ A famous SBI implementation is [OpenSBI](https://github.com/riscv-software-src/o
 
 First, let's see how OpenSBI starts. Create a shell script named `run.sh` as follows:
 
-```plain
+```
 $ touch run.sh
 $ chmod +x run.sh
 ```
 
-```bash:run.sh
+```bash [run.sh]
 #!/bin/bash
 set -xue
 
@@ -48,14 +48,14 @@ QEMU takes various options to start the virtual machine. Here are the options us
 >
 > In macOS, you can check the path to Homebrew's QEMU with the following command:
 >
-> ```plain
+> ```
 > $ ls $(brew --prefix)/bin/qemu-system-riscv32
 > /opt/homebrew/bin/qemu-system-riscv32
 > ```
 
 Run the script and you will see the following banner:
 
-```plain
+```
 $ ./run.sh
 
 OpenSBI v1.2
@@ -82,7 +82,7 @@ When you press any key, nothing will happen. This is because QEMU's standard inp
 
 Press <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd> to switch to the QEMU debug console (QEMU monitor). You can exit QEMU by `q` command in the monitor:
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) q
 ```
@@ -91,7 +91,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 >
 > <kbd>Ctrl</kbd>+<kbd>A</kbd> has several features besides switching to the QEMU monitor (<kbd>C</kbd> key). For example, pressing the <kbd>X</kbd> key will immediately exit QEMU.
 >
-> ```plain
+> ```
 > C-a h    print this help
 > C-a x    exit emulator
 > C-a s    save disk data back to file (if -snapshot)
@@ -107,7 +107,7 @@ A linker script is a file which defines the memory layout of executable files. B
 
 Let's create a new file named `kernel.ld`:
 
-```plain:kernel.ld
+```ld [kernel.ld]
 ENTRY(boot)
 
 SECTIONS {
@@ -171,7 +171,7 @@ Finally, `__bss = .` assigns the current address to the symbol `__bss`. In C lan
 
 We're now ready to start writing the kernel. Let's start by creating a minimal one! Create a C language source code file named `kernel.c`:
 
-```c:kernel.c
+```c [kernel.c]
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef uint32_t size_t;
@@ -229,7 +229,7 @@ In the `kernel_main` function, the `.bss` section is first initialized to zero u
 
 Add a kernel build command and a new QEMU option (`-kernel kernel.elf`) to `run.sh`:
 
-```bash:run.sh {6-13,17}
+```bash [run.sh] {6-13,17}
 #!/bin/bash
 set -xue
 
@@ -280,7 +280,7 @@ When you run `run.sh`, the kernel enters an infinite loop. There are no indicati
 
 To get more information about the CPU registers, open the QEMU monitor and execute the `info registers` command:
 
-```plain
+```
 QEMU 8.0.2 monitor - type 'help' for more information
 (qemu) info registers
 
@@ -304,7 +304,7 @@ CPU#0
 
 `pc 80200014` shows the current program counter, the address of the instruction being executed. Let's use the disassembler (`llvm-objdump`) to narrow down the specific line of code:
 
-```plain
+```
 $ llvm-objdump -d kernel.elf
 
 kernel.elf:     file format elf32-littleriscv
@@ -333,7 +333,7 @@ Each line corresponds to an instruction. Each column represents:
 
 Let's also check if the stack pointer (sp register) is set to the value of `__stack_top` defined in the linker script. The register dump shows `x2/sp 80220018`. To see where the linker placed `__stack_top`, check `kernel.map` file:
 
-```plain
+```
      VMA      LMA     Size Align Out     In      Symbol
        0        0 80200000     1 . = 0x80200000
 80200000 80200000       16     4 .text
@@ -345,7 +345,7 @@ Let's also check if the stack pointer (sp register) is set to the value of `__st
 
 Alternatively, you can also check the addresses of functions/variables using `llvm-nm`:
 
-```plain
+```
 $ llvm-nm kernel.elf
 80200010 t .LBB0_1
 00000000 N .Lline_table_start0
@@ -358,7 +358,7 @@ The first column is the address where they are placed (VMA). You can see that `_
 
 As execution progresses, the results of `info registers` will change. If you want to temporarily stop the emulation, you can use the `stop` command in the QEMU monitor:
 
-```plain
+```
 (qemu) stop             ← The process stops
 (qemu) info registers   ← You can observe the state at the stop
 (qemu) cont             ← The process resumes

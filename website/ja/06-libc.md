@@ -1,8 +1,8 @@
 ---
 title: C標準ライブラリ
-layout: chapter
-lang: ja
 ---
+
+# C標準ライブラリ
 
 Hello Worldを済ませたところで、基本的な型やメモリ操作、文字列操作関数を実装しましょう。一般的にはC言語の標準ライブラリ (例: `stdint.h` や `string.h`) を利用しますが、今回は勉強のためにゼロから作ります。
 
@@ -14,7 +14,7 @@ Hello Worldを済ませたところで、基本的な型やメモリ操作、文
 
 まずは基本的な型といくつかのマクロを定義します。
 
-```c:common.h {1-15,21-24}
+```c [common.h] {1-15,21-24}
 typedef int bool;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -64,7 +64,7 @@ void printf(const char *fmt, ...);
 
 `memcpy`関数は`src`から`n`バイト分を`dst`にコピーします。
 
-```c:common.c
+```c [common.c]
 void *memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = (uint8_t *) dst;
     const uint8_t *s = (const uint8_t *) src;
@@ -76,7 +76,7 @@ void *memcpy(void *dst, const void *src, size_t n) {
 
 `memset`関数は`buf`の先頭から`n`バイト分を`c`で埋めます。この関数は、bssセクションの初期化のために4章で実装済みです。`kernel.c`から`common.c`に移動させましょう。
 
-```c:common.c
+```c [common.c]
 void *memset(void *buf, char c, size_t n) {
     uint8_t *p = (uint8_t *) buf;
     while (n--)
@@ -96,7 +96,7 @@ p = p + 1; // 代入を済ませた後にポインタを進める
 
 まずは、`strcpy`関数です。この関数は`src`の文字列を`dst`にコピーします。
 
-```c:common.c
+```c [common.c]
 char *strcpy(char *dst, const char *src) {
     char *d = dst;
     while (*src)
@@ -114,7 +114,7 @@ char *strcpy(char *dst, const char *src) {
 
 次に`strcmp`関数です。`s1`と`s2`を比較します。`s1`と`s2`が等しい場合は0を、`s1`の方が大きい場合は正の値を、`s2`の方が大きい場合は負の値を返します。
 
-```c:common.c
+```c [common.c]
 int strcmp(const char *s1, const char *s2) {
     while (*s1 && *s2) {
         if (*s1 != *s2)

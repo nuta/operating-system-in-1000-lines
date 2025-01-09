@@ -1,8 +1,8 @@
 ---
 title: Hello World!
-layout: chapter
-lang: en
 ---
+
+# Hello World! 
 
 In the previous chapter, we successfully booted our first kernel. Although we could confirm it works by reading the register dump, it still feels somewhat unsatisfactory.
 
@@ -12,7 +12,7 @@ In this chapter, let's make it more obvious by outputting a string from the kern
 
 In the previous chapter, we learned that SBI is an "API for OS". To call the SBI to use its function, we use the `ecall` instruction:
 
-```c:kernel.c {1, 5-26, 29-32}
+```c [kernel.c] {1, 5-26, 29-32}
 #include "kernel.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
@@ -54,7 +54,7 @@ void kernel_main(void) {
 
 Also, create a new `kernel.h` file and define the return value structure:
 
-```c:kernel.h
+```c [kernel.h]
 #pragma once
 
 struct sbiret {
@@ -116,7 +116,7 @@ To display characters, we can use `Console Putchar` function:
 
 Let's try your implementation. You should see `Hello World!` if it works:
 
-```plain
+```
 $ ./run.sh
 ...
 
@@ -150,7 +150,7 @@ Since we'll use `printf` in applications too, let's create a new file `common.c`
 
 Here's the implementation of the `printf` function:
 
-```c:common.c
+```c [common.c]
 #include "common.h"
 
 void putchar(char ch);
@@ -224,7 +224,7 @@ For hexadecimal numbers, we output from the most significant *nibble* (a hexadec
 
 `va_list` and related macros are defined in the C standard library's `<stdarg.h>`. In this book, we use compiler builtins directly without relying on the standard library. Specifically, we'll define them in `common.h` as follows:
 
-```c:common.h
+```c [common.h]
 #pragma once
 
 #define va_list  __builtin_va_list
@@ -239,7 +239,7 @@ We're simply defining these as aliases for the versions with `__builtin_` prefix
 
 Now we've implemented `printf`. Let's add a "Hello World" from the kernel:
 
-```c:kernel.c {2,5-6}
+```c [kernel.c] {2,5-6}
 #include "kernel.h"
 #include "common.h"
 
@@ -255,14 +255,14 @@ void kernel_main(void) {
 
 Also, Add `common.c` to the compilation targets:
 
-```bash:run.sh {2}
+```bash [run.sh] {2}
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c common.c
 ```
 
 Now, let's try! You will see `Hello World!` and `1 + 2 = 3, 1234abcd` as shown below:
 
-```plain
+```
 $ ./run.sh
 
 Hello World!
