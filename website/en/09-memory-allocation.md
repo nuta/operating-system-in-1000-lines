@@ -8,7 +8,7 @@ In this chapter, we'll implement a simple memory allocator.
 
 ## Revisiting the linker script
 
-Before implementing a memory allocator, let's define the memory regions to be manged by the allocator:
+Before implementing a memory allocator, let's define the memory regions to be managed by the allocator:
 
 ```ld [kernel.ld] {5-8}
     . = ALIGN(4);
@@ -22,7 +22,7 @@ Before implementing a memory allocator, let's define the memory regions to be ma
 }
 ```
 
-This adds two new symbols: `__free_ram` and `__free_ram_end`. This defines a memory area after the stack space . The size of the space (64MB) is an arbitrary value and `. = ALIGN(4096)` ensures that it's aligned to a 4KB boundary.
+This adds two new symbols: `__free_ram` and `__free_ram_end`. This defines a memory area after the stack space. The size of the space (64MB) is an arbitrary value and `. = ALIGN(4096)` ensures that it's aligned to a 4KB boundary.
 
 By defining this in the linker script instead of hardcoding addresses, the linker can determine the position to avoid overlapping with the kernel's static data.
 

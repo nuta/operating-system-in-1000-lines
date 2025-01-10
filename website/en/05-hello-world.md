@@ -4,7 +4,7 @@ title: Hello World!
 
 # Hello World! 
 
-In the previous chapter, we successfully booted our first kernel. Although we could confirm it works by reading the register dump, it still feels somewhat unsatisfactory.
+In the previous chapter, we successfully booted our first kernel. Although we could confirm it works by reading the register dump, it still felt somewhat unsatisfactory.
 
 In this chapter, let's make it more obvious by outputting a string from the kernel.
 

@@ -26,7 +26,7 @@ In this book, we support the QEMU `virt` machine ([documentation](https://www.qe
 
 ## RISC-V assembly 101
 
-RISC-V, or RISC-V ISA (Instruction Set Architecture), defines the instructions that the CPU can execute. It's smilar to APIs or programming language specifications for programmers. When you write a C program, the compiler translates it into RISC-V assembly. Unfortunately, you need to write some assembly code to write an OS. But don't worry! Assembly is not as difficult as you might think.
+RISC-V, or RISC-V ISA (Instruction Set Architecture), defines the instructions that the CPU can execute. It's similar to APIs or programming language specifications for programmers. When you write a C program, the compiler translates it into RISC-V assembly. Unfortunately, you need to write some assembly code to write an OS. But don't worry! Assembly is not as difficult as you might think.
 
 > [!TIP]
 >

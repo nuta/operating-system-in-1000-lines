@@ -4,7 +4,7 @@ title: Overview
 
 # What we will implement
 
-Before starting to build an OS, let's get an overview of what features we will implement quickly.
+Before starting to build an OS, let's quickly get an overview of the features we will implement.
 
 ## Features in 1K LoC OS
 
