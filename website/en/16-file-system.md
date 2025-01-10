@@ -153,7 +153,7 @@ void fs_init(void) {
 
 In this function, we first use the `read_write_disk` function to load the disk image into a temporary buffer (`disk` variable). The `disk` variable is declared as a static variable instead of a local (stack) variable. This is because the stack has limited size, and it's preferable to avoid using it for large data areas.
 
-After loading the disk contents, we sequentially copy them into the `files` variable entries. Note that **the numbers in the tar header are in octal format**. It's very confusing because it looks like decimials. The `oct2int` function is used to convert these octal string values to integers.
+After loading the disk contents, we sequentially copy them into the `files` variable entries. Note that **the numbers in the tar header are in octal format**. It's very confusing because it looks like decimals. The `oct2int` function is used to convert these octal string values to integers.
 
 Lastly, make sure to call the `fs_init` function after initializing the virtio-blk device (`virtio_blk_init`) in `kernel_main`:
 
