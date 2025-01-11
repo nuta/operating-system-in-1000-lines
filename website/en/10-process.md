@@ -43,6 +43,7 @@ Switching the process execution context is called *"context switching"*. The fol
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                                            uint32_t *next_sp) {
     __asm__ __volatile__(
+        // Save callee-saved registers onto the current process's stack.
         "addi sp, sp, -13 * 4\n" // Allocate stack space for 13 4-byte registers
         "sw ra,  0  * 4(sp)\n"   // Save callee-saved registers only
         "sw s0,  1  * 4(sp)\n"
@@ -57,8 +58,12 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
         "sw s9,  10 * 4(sp)\n"
         "sw s10, 11 * 4(sp)\n"
         "sw s11, 12 * 4(sp)\n"
+
+        // Switch the stack pointer.
         "sw sp, (a0)\n"         // *prev_sp = sp;
         "lw sp, (a1)\n"         // Switch stack pointer (sp) here
+
+        // Restore callee-saved registers from the next process's stack.
         "lw ra,  0  * 4(sp)\n"  // Restore callee-saved registers only
         "lw s0,  1  * 4(sp)\n"
         "lw s1,  2  * 4(sp)\n"
@@ -78,15 +83,17 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 }
 ```
 
-`switch_context` saves the callee-saved registers onto the stack, switches the stack pointer, and then restores the callee-saved registers from the stack.
+`switch_context` saves the callee-saved registers onto the stack, switches the stack pointer, and then restores the callee-saved registers from the stack. In other words, the execution context is stored as temporary local variables on the stack. Alternatively, you could save the context in `struct process`, but this stack-based approach is beautifully simple, isn't it?
 
-Callee-saved registers are registers that the called function must restore before returning. In RISC-V, `s0` to `s11` are callee-saved registers. Other registers like `a0` are caller-saved registers, and already saved on the stack by the caller.
+Callee-saved registers are registers that a called function must restore before returning. In RISC-V, `s0` to `s11` are callee-saved registers. Other registers like `a0` are caller-saved registers, and already saved on the stack by the caller. This is why `switch_context` handles only part of registers.
+
+The `naked` attribute tells the compiler not to generate any other code than the inline assembly. It should work without this attribute, but it's a good practice to use it to avoid unintended behavior especially when you modify the stack pointer manually.
 
 > [!TIP]
 >
 > Callee/Caller saved registers are defined in [Calling Convention](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf). Compilers generate code based on this convention.
 
-The following `create_process` function initializes a process. It takes the entry point as a parameter, and returns a pointer to the created `process` struct:
+Next, let's implement the process initialization function, `create_process`. It takes the entry point as a parameter, and returns a pointer to the created `process` struct:
 
 ```c
 struct process procs[PROCS_MAX]; // All process control structures.

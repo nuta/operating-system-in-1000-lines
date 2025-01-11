@@ -33,7 +33,7 @@ struct process {
 
 ## コンテキストスイッチ
 
-コンテキストスイッチは本書中の解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。
+コンテキストスイッチは [エナガ本](https://www.hanmoto.com/bd/isbn/9784798068718) での解説と同じ実装です。スタックに呼び出し先保存レジスタを保存し、スタックポインタの保存・復元、そして呼び出し先保存レジスタを復元します。
 
 ```c [kernel.c]
 struct process procs[PROCS_MAX];
@@ -41,6 +41,7 @@ struct process procs[PROCS_MAX];
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                                            uint32_t *next_sp) {
     __asm__ __volatile__(
+        // 実行中プロセスのスタックへレジスタを保存
         "addi sp, sp, -13 * 4\n"
         "sw ra,  0  * 4(sp)\n"
         "sw s0,  1  * 4(sp)\n"
@@ -55,8 +56,12 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
         "sw s9,  10 * 4(sp)\n"
         "sw s10, 11 * 4(sp)\n"
         "sw s11, 12 * 4(sp)\n"
+
+        // スタックポインタの切り替え
         "sw sp, (a0)\n"
         "lw sp, (a1)\n"
+
+        // 次のプロセスのスタックからレジスタを復元
         "lw ra,  0  * 4(sp)\n"
         "lw s0,  1  * 4(sp)\n"
         "lw s1,  2  * 4(sp)\n"
