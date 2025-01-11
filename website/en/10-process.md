@@ -142,7 +142,12 @@ struct process *create_process(uint32_t pc) {
 
 We have implemented the most basic function of processes - concurrent execution of multiple programs. Let's create two processes:
 
-```c [kernel.c] {1-24,31-33}
+```c [kernel.c] {1-25,32-34}
+void delay(void) {
+    for (int i = 0; i < 30000000; i++)
+        __asm__ __volatile__("nop"); // do nothing
+}
+
 struct process *proc_a;
 struct process *proc_b;
 
@@ -151,9 +156,7 @@ void proc_a_entry(void) {
     while (1) {
         putchar('A');
         switch_context(&proc_a->sp, &proc_b->sp);
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 
@@ -162,9 +165,7 @@ void proc_b_entry(void) {
     while (1) {
         putchar('B');
         switch_context(&proc_b->sp, &proc_a->sp);
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 
@@ -183,7 +184,7 @@ void kernel_main(void) {
 
 The `proc_a_entry` function and `proc_b_entry` function are the entry points for Process A and Process B respectively. After displaying a single character using the `putchar` function, they switch context to the other process using the `switch_context` function.
 
-`nop` instruction called by `__asm__ __volatile__("nop")` is a "do nothing" instruction. By including a loop that repeats this instruction for a while, we prevent the character output from becoming too fast, which would make the terminal unresponsive.
+`delay` function implements a busy wait to prevent the character output from becoming too fast, which would make your terminal unresponsive. `nop` instruction is a "do nothing" instruction. It is added to prevent compiler optimization from removing the loop.
 
 Now, let's try! The startup messages will be displayed once each, and then "ABABAB..." lasts forever:
 
@@ -257,15 +258,12 @@ The key point of this initialization process is `current_proc = idle_proc`. This
 
 Lastly, modify `proc_a_entry` and `proc_b_entry` as follows to call the `yield` function instead of directly calling the `switch_context` function:
 
-```c [kernel.c] {5,16}
+```c [kernel.c] {5,14}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
         putchar('A');
         yield();
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
     }
 }
 
@@ -274,9 +272,6 @@ void proc_b_entry(void) {
     while (1) {
         putchar('B');
         yield();
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
     }
 }
 ```

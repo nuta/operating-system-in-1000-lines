@@ -127,7 +127,12 @@ struct process *create_process(uint32_t pc) {
 
 これでプロセスの最も基本的な機能である「複数のプログラムの並行実行」が実装できました。早速、2つのプロセスを作成してみましょう。
 
-```c [kernel.c] {1-24,31-33}
+```c [kernel.c] {1-25,32-34}
+void delay(void) {
+    for (int i = 0; i < 30000000; i++)
+        __asm__ __volatile__("nop"); // 何もしない命令
+}
+
 struct process *proc_a;
 struct process *proc_b;
 
@@ -136,9 +141,7 @@ void proc_a_entry(void) {
     while (1) {
         putchar('A');
         switch_context(&proc_a->sp, &proc_b->sp);
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 
@@ -147,9 +150,7 @@ void proc_b_entry(void) {
     while (1) {
         putchar('B');
         switch_context(&proc_b->sp, &proc_a->sp);
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 
@@ -168,7 +169,7 @@ void kernel_main(void) {
 
 `proc_a_entry`関数と`proc_b_entry`関数がそれぞれプロセスA、プロセスBのエントリポイントです。`putchar`関数で1文字表示したら、`switch_context`関数で他方のプロセスにコンテキストスイッチします。
 
-`__asm__ __volatile__("nop")` で呼び出されているnop命令は「何もしない」命令です。これをしばらく繰り返すループを入れることで、文字での出力が速すぎてターミナルを操作できなくなるのを防いでいます。
+`delay`関数で呼び出されているnop命令は「何もしない」命令です。これをしばらく繰り返すループを入れることで、文字の出力が速すぎてターミナルを操作できなくなるのを防ぎます。
 
 では、実際に動かしてみましょう。次のように起動時のメッセージが1回ずつ表示され、その後は「ABABAB...」と交互に表示されます。
 
@@ -244,15 +245,13 @@ void kernel_main(void) {
 
 最後に、`proc_a_entry`と`proc_b_entry`関数を次のように変更して、`switch_context`関数を直接呼び出す代わりに、`yield`関数を呼び出すようにします。
 
-```c [kernel.c] {5,16}
+```c [kernel.c] {5,14}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
         putchar('A');
         yield();
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 
@@ -261,9 +260,7 @@ void proc_b_entry(void) {
     while (1) {
         putchar('B');
         yield();
-
-        for (int i = 0; i < 30000000; i++)
-            __asm__ __volatile__("nop");
+        delay();
     }
 }
 ```
