@@ -14,7 +14,7 @@ In this chapter, we'll implement the hardware-based memory isolation mechanism.
 
 In this book, we use one of RISC-V's paging mechanisms called Sv32, which uses a two-level page table. The 32-bit virtual address is divided into a first-level page table index (`VPN[1]`), a second-level index (`VPN[0]`), and a page offset.
 
-Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32.v0.build/)** to see how virtual addresses are broken down into page table indices and offsets.
+Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32-virtual-address.vercel.app/)** to see how virtual addresses are broken down into page table indices and offsets.
 
 Here are some examples:
 
