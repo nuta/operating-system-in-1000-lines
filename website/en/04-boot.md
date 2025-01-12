@@ -240,7 +240,7 @@ CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu users: use CC=clang
 CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
 
 # new: Build the kernel
-$CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
+$CC $CFLAGS -Wl,-kernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c
 
 # Start QEMU
