@@ -1,0 +1,2 @@
+% Writing an Operating System in 1,000 Lines, v0.1-alpha
+% Seiya Nuta
