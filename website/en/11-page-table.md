@@ -372,7 +372,7 @@ Here are what you can infer from the logs:
 
 - `epc`, which indicates the location of the page fault exception, is `0x80200580`. `llvm-objdump` shows that it points to the instruction immediately after setting the `satp` register. This means that a page fault occurs right after enabling paging.
 
-- All subsequent page faults show the same value. The exceptions occured at `0x80200188`, points to the starting address of the exception handler. Because this log continues indefinitely, the exceptions (page fault) occurs when trying to execute the exception handler.
+- All subsequent page faults show the same value. The exceptions occurred at `0x80200188`, points to the starting address of the exception handler. Because this log continues indefinitely, the exceptions (page fault) occurs when trying to execute the exception handler.
 
 - Looking at the `info registers` in QEMU monitor, `satp` is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
 
