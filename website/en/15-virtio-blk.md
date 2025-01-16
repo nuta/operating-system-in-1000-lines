@@ -289,7 +289,7 @@ This function allocates a memory region for a virtqueue, and tells the its physi
 
 We now have an initialized virtio-blk device. Let's send an I/O request to the disk. I/O requests to the disk is implemented by _"adding processing requests to the virtqueue"_ as follows:
 
-```c
+```c [kernel.c]
 // Notifies the device that there is a new request. `desc_index` is the index
 // of the head descriptor of the new request.
 void virtq_kick(struct virtio_virtq *vq, int desc_index) {
