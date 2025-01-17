@@ -116,7 +116,7 @@ struct process {
 
 Lastly, map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`), and dynamically allocated areas managed by `alloc_pages`:
 
-```c [kernel.c] {1,6-11,16}
+```c [kernel.c] {1,6-11,15}
 extern char __kernel_base[];
 
 struct process *create_process(uint32_t pc) {
