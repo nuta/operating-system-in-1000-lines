@@ -176,7 +176,7 @@ $ python3 -c 'print(0x10454)'
 66644
 ```
 
-The first column in the `llvm-nm` output is the *address* of the symbol. This `10260` value matches the file size, but this is not a coincidence. Generally, the values of each address in a `.o` file are determined by the linker. However, `_binary_shell_bin_size` is special.
+The first column in the `llvm-nm` output is the *address* of the symbol. This `10454` hexadecimal number matches the file size, but this is not a coincidence. Generally, the values of each address in a `.o` file are determined by the linker. However, `_binary_shell_bin_size` is special.
 
 The `A` in the second column indicates that the address of `_binary_shell_bin_size` is a type of symbol (absolute) that should not be changed by the linker. That is, it embeds the file size as an address.
 
