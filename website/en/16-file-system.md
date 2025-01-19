@@ -391,7 +391,7 @@ In RISC-V, the behavior of S-Mode (kernel) can be configured through  `sstatus` 
 > [!TIP]
 >
 > This is a safety measure to prevent unintended references to user memory areas.
-> Incidentally, Intel CPUs also have the same feature named "SMAP (Supervisor Mode Access Prevention).
+> Incidentally, Intel CPUs also have the same feature named "SMAP (Supervisor Mode Access Prevention)".
 
 Define the position of the `SUM` bit as follows:
 

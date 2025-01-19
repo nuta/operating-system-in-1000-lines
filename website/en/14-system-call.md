@@ -107,7 +107,7 @@ Congratulations! You've successfully implemented the system call! But we're not 
 
 ## Receive characters from keyboard (`getchar` system call)
 
-Our next goal is to implement shell. To do that, we need to be able to receive characters from the keyboard.
+Our next goal is to implement a shell. To do that, we need to be able to receive characters from the keyboard.
 
 SBI provides an interface to read "input to the debug console". If there is no input, it returns `-1`:
 
@@ -192,7 +192,7 @@ prompt:
 }
 ```
 
-It reads characters until a newline comes, and check if the entered string matches the command name.
+It reads characters until a newline comes, and checks if the entered string matches the command name.
 
 > [!WARNING]
 >
@@ -241,7 +241,7 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-The system call changes the process state to `PROC_EXITED`, and call `yield` to give up the CPU to other processes. The scheduler will only execute processes in `PROC_RUNNABLE` state, so it will never return to this process. However, `PANIC` macro is added to cause a panic in case it does return.
+The system call changes the process state to `PROC_EXITED`, and calls `yield` to give up the CPU to other processes. The scheduler will only execute processes in `PROC_RUNNABLE` state, so it will never return to this process. However, `PANIC` macro is added to cause a panic in case it does return.
 
 > [!TIP]
 >

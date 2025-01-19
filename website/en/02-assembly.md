@@ -9,14 +9,14 @@ Just like web browsers hide the differences between Windows/macOS/Linux, operati
 In this book, I chose RISC-V as the target CPU because:
 
 - [The specification](https://riscv.org/technical/specifications/) is simple and suitable for beginners.
-- It's a trending ISA (Instruction Set Architecture) in recent years, along with x86 and Arm.
+- It's a trending ISA (Instruction Set Architecture) in recent years, along with x86 and ARM.
 - The design decisions are well-documented throughout the spec and they are fun to read.
 
 We will write an OS for **32-bit** RISC-V. Of course you can write for 64-bit RISC-V with only a few changes. However, the wider bit width makes it slightly more complex, and the longer addresses can be tedious to read.
 
 ## QEMU virt machine
 
-Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhone and Raspberry Pi use Arm CPUs, it's natural to consider them as different computers.
+Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhones and Raspberry Pis use ARM CPUs, it's natural to consider them as different computers.
 
 In this book, we support the QEMU `virt` machine ([documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)) because:
 
@@ -192,7 +192,7 @@ uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
 
-This is *"inline assembly"*, a syntax for embedding assembly into C code. While you can write assembly in a separate file (`.S` extension), using inline assembly are generally preferred because:
+This is *"inline assembly"*, a syntax for embedding assembly into C code. While you can write assembly in a separate file (`.S` extension), using inline assembly is generally preferred because:
 
 - You can use C variables within the assembly. Also, you can assign the results of assembly to C variables.
 - You can leave register allocation to the C compiler. That is, you don't have to manually write the preservation and restoration of registers to be modified in the assembly.
@@ -208,7 +208,7 @@ __asm__ __volatile__("assembly" : output operands : input operands : clobbered r
 | Part               | Description                                                                 |
 | ------------------ | --------------------------------------------------------------------------- |
 | `__asm__`          | Indicates it's an inline assembly.                                           |
-| `__volatile__`     | Tell the compiler not optimize the `"assembly"` code.                          |
+| `__volatile__`     | Tell the compiler not to optimize the `"assembly"` code.                          |
 | `"assembly"`       | Assembly code written as a string literal.                                   |
 | output operands  | C variables to store the results of the assembly.                           |
 | input operands   | C expressions (e.g. `123`, `x`) to be used in the assembly.             |

@@ -16,7 +16,7 @@ The tougher the debugging, the more satisfying it is when it works. Let's dive i
 
 - You can download the implementation examples from [GitHub](https://github.com/nuta/operating-system-in-1000-lines).
 - This book is available under the [CC BY 4.0 license](https://creativecommons.jp/faq). The implementation examples and source code in the text are under the [MIT license](https://opensource.org/licenses/MIT).
-- The prerequisites are familiarity with C language and with UNIX-like environment. If you've `gcc hello.c && ./a.out`, you're good to go!
+- The prerequisites are familiarity with the C language and with a UNIX-like environment. If you've run `gcc hello.c && ./a.out`, you're good to go!
 - This book was originally written as an appendix of my book *[Design and Implementation of Microkernels](https://www.shuwasystem.co.jp/book/9784798068718.html)* (written in Japanese).
 
 Happy OS hacking!
