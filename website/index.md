@@ -10,5 +10,7 @@ features:
     link: /en
   - title: 日本語版
     link: /ja
+  - title: 한국어
+    link: /ko
 ---
 
