@@ -1,7 +1,3 @@
----
-title: Boot
----
-
 # Booting the Kernel
 
 When a computer is turned on, the CPU initializes itself and starts executing the OS. OS initializes the hardware and starts the applications. This process is called "booting".

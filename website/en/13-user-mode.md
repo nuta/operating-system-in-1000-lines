@@ -1,7 +1,3 @@
----
-title: User Mode
----
-
 # User Mode
 
 In this chapter, we'll run the application we created in the previous chapter.

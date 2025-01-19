@@ -1,7 +1,3 @@
----
-title: Application
----
-
 # Application
 
 In this chapter, we'll prepare the first application executable to run on our kernel.

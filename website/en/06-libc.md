@@ -1,7 +1,3 @@
----
-title: C Standard Library
----
-
 # C Standard Library
 
 In this chapter, let's implement basic types and memory operations, as well as string manipulation functions. In this book, for the purpose of learning, we'll create these from scratch instead of using C standard library.
