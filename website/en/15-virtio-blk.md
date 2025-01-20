@@ -418,4 +418,4 @@ amet, consectetur adipiscing elit ...
 Congratulations! You've successfully implemented a disk I/O driver!
 
 > [!TIP]
-> As you would notice, device drivers are just a "glue" between the OS and the device's. Device will do the rest of all the heavy lifting, like moving disk read/write heads. Drivers communicate with another software running on the device (e.g., firmware), not controlling the hardware directly.
+> As you might notice, device drivers are just "glue" between the OS and devices. Drivers don't control the hardware directly; drivers communicate with other software running on the device (e.g., firmware). Devices and their software, not the OS driver, will do the rest of the heavy lifting, like moving disk read/write heads.

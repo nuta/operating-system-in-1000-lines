@@ -424,7 +424,7 @@ __attribute__((naked)) void user_entry(void) {
 > - Read QEMU's source code. The aforementioned page fault cause is [implemented here](https://github.com/qemu/qemu/blob/d1181d29370a4318a9f11ea92065bea6bb159f83/target/riscv/cpu_helper.c#L1008). However, this can be as challenging or more so than reading the specification thoroughly.
 > - Ask LLMs. Not joking. It's becoming your best pair programmer.
 >
-> This is one of the major reasons why building an OS from scratch is a time sink and prone to giving up. However, more you overcome these challenges, the more you'll learn and ... be super happy!
+> Troubleshooting is one of the major reasons why building an OS from scratch is a time sink and OS implementers are prone to giving up. However, more you overcome these challenges, the more you'll learn and ... be super happy!
 
 ## Testing file reads/writes
 
