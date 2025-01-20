@@ -2,6 +2,7 @@
 
 - **[English version](https://operating-system-in-1000-lines.vercel.app/en)**
 - **[日本語版](https://operating-system-in-1000-lines.vercel.app/ja/)**
+- **[简体中文版](https://operating-system-in-1000-lines.vercel.app/zh/)**
 
 This repository contains the source code and implementation examples for [Writing an OS in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/).
 
