@@ -1,7 +1,3 @@
----
-title: Intro
----
-
 # Operating System in 1,000 Lines
 
 Hey there! In this book, we're going to build a small operating system from scratch, step by step.

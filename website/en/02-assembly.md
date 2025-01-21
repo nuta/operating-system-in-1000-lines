@@ -1,8 +1,4 @@
----
-title: RISC-V 101
----
-
-# RISC-V
+# RISC-V 101
 
 Just like web browsers hide the differences between Windows/macOS/Linux, operating systems hide the differences between CPUs. In other words, operating system is a program which controls the CPU to provide an abstraction layer for applications.
 

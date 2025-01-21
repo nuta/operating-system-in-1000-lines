@@ -1,7 +1,3 @@
----
-title: Page Table
----
-
 # Page Table
 
 ## Memory management and virtual addressing

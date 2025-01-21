@@ -1,7 +1,3 @@
----
-title: Exception
----
-
 # Exception
 
 Exception is a CPU feature that allows the kernel to handle various events, such as invalid memory access (aka. page faults), illegal instructions, and system calls.

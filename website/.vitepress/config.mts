@@ -21,6 +21,49 @@ export default defineConfig({
     ],
   },
   locales: {
+    ko: {
+      label: '한국어',
+      lang: 'ko',
+      themeConfig: {
+        sidebar: [
+          {
+            text: '목차',
+            items: [
+              { link: '/ko/', text: '00. 들어가며' },
+              { link: '/ko/01-setting-up-development-environment', text: '01. 환경설정' },
+              { link: '/ko/02-assembly', text: '02. RISC-V 101' },
+              { link: '/ko/03-overview', text: '03. Overview' },
+              { link: '/ko/04-boot', text: '04. Boot' },
+              { link: '/ko/05-hello-world', text: '05. Hello World!' },
+              { link: '/ko/06-libc', text: '06. C Standard Library' },
+              { link: '/ko/07-kernel-panic', text: '07. Kernel Panic' },
+              { link: '/ko/08-exception', text: '08. Exception' },
+              { link: '/ko/09-memory-allocation', text: '09. Memory Allocation' },
+              { link: '/ko/10-process', text: '10. Process' },
+              { link: '/ko/11-page-table', text: '11. Page Table' },
+              { link: '/ko/12-application', text: '12. Application' },
+              { link: '/ko/13-user-mode', text: '13. User Mode' },
+              { link: '/ko/14-system-call', text: '14. System Call' },
+              { link: '/ko/15-virtio-blk', text: '15. Disk I/O' },
+              { link: '/ko/16-file-system', text: '16. File System' },
+              { link: '/ko/17-outro', text: '17. Outro' },
+            ]
+          },
+          {
+            text: 'Links',
+            items: [
+              { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
+              { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'Design and Implementation of Microkernels' },
+              { link: '/ja', text: '日本語版' },
+              { link: '/en', text: 'English version' },
+            ]
+          },
+        ],
+        socialLinks: [
+          { icon: 'github', link: 'https://github.com/nuta/operating-system-in-1000-lines' }
+        ]
+      }
+    },
     en: {
       label: 'English',
       lang: 'en',
@@ -53,8 +96,10 @@ export default defineConfig({
             text: 'Links',
             items: [
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
+              { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'Design and Implementation of Microkernels' },
               { link: '/ja', text: '日本語版' },
               { link: '/zh', text: '简体中文版' },
+              { link: '/ko', text: '한국어판' },
             ]
           },
         ],
@@ -98,6 +143,7 @@ export default defineConfig({
               { link: '/zh', text: '简体中文版' },
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHubリポジトリ' },
               { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'マイクロカーネル本' },
+              { link: '/ko', text: '한국어판' },
             ]
           },
         ],

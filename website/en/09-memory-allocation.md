@@ -1,7 +1,3 @@
----
-title: Memory Allocation
----
-
 # Memory Allocation
 
 In this chapter, we'll implement a simple memory allocator.
