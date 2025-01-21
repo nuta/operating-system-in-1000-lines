@@ -1,7 +1,3 @@
----
-title: Overview
----
-
 # What we will implement
 
 Before starting to build an OS, let's quickly get an overview of the features we will implement.

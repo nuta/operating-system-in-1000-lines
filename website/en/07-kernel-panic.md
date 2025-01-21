@@ -1,7 +1,3 @@
----
-title: Kernel Panic
----
-
 # Kernel Panic
 
 A kernel panic occurs when the kernel encounters an unrecoverable error, similar to the concept of `panic` in Go or Rust. Have you ever seen a blue screen on Windows? Let's implement the same concept in our kernel to handle fatal errors.

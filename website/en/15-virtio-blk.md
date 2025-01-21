@@ -1,7 +1,3 @@
----
-title: Disk I/O
----
-
 # Disk I/O
 
 In this chapter, we will implement a device driver for the virtio-blk, a virtual disk device. While virtio-blk does not exist in real hardware, it shares the very same interface as a real one.

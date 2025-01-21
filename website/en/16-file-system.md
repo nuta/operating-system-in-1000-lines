@@ -1,7 +1,3 @@
----
-title: File System
----
-
 # File System
 
 You've done a great job so far! You've implemented a process, a shell, memory management, and a disk driver. Let's finish up by implementing a file system.

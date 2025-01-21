@@ -1,7 +1,3 @@
----
-title: Process
----
-
 # Process
 
 A process is an instance of an application. Each process has its own independent execution context and resources, such as a virtual address space.

@@ -1,7 +1,3 @@
----
-title: System Call
----
-
 # System Call
 
 In this chapter, we will implement *"system calls"* that allow applications to invoke kernel functions. Time to Hello World from the userland!

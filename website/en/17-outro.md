@@ -1,7 +1,3 @@
----
-title: Outro
----
-
 # Outro
 
 Congratulations! You've completed the book. You've learned how to implement a simple OS kernel from scratch. You've learned about the basic concepts of operating systems, such as booting CPU, context switching, page table, user mode, system call, disk I/O, and file system.
