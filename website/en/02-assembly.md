@@ -9,14 +9,14 @@ Just like web browsers hide the differences between Windows/macOS/Linux, operati
 In this book, I chose RISC-V as the target CPU because:
 
 - [The specification](https://riscv.org/technical/specifications/) is simple and suitable for beginners.
-- It's a trending ISA (Instruction Set Architecture) in recent years, along with x86 and ARM.
+- It's a trending ISA (Instruction Set Architecture) in recent years, along with x86 and Arm.
 - The design decisions are well-documented throughout the spec and they are fun to read.
 
 We will write an OS for **32-bit** RISC-V. Of course you can write for 64-bit RISC-V with only a few changes. However, the wider bit width makes it slightly more complex, and the longer addresses can be tedious to read.
 
 ## QEMU virt machine
 
-Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhones and Raspberry Pis use ARM CPUs, it's natural to consider them as different computers.
+Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhones and Raspberry Pis use Arm CPUs, it's natural to consider them as different computers.
 
 In this book, we support the QEMU `virt` machine ([documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)) because:
 
