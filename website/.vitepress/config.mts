@@ -31,7 +31,7 @@ export default defineConfig({
             items: [
               { link: '/ko/', text: '00. 들어가며' },
               { link: '/ko/01-setting-up-development-environment', text: '01. 환경설정' },
-              { link: '/ko/02-assembly', text: '02. RISC-V 101' },
+              { link: '/ko/02-assembly', text: '02. RISC-V 입문' },
               { link: '/ko/03-overview', text: '03. Overview' },
               { link: '/ko/04-boot', text: '04. Boot' },
               { link: '/ko/05-hello-world', text: '05. Hello World!' },
