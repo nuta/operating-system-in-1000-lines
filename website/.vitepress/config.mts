@@ -98,6 +98,7 @@ export default defineConfig({
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
               { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'Design and Implementation of Microkernels' },
               { link: '/ja', text: '日本語版' },
+              { link: '/zh', text: '简体中文版' },
               { link: '/ko', text: '한국어판' },
             ]
           },
@@ -138,10 +139,53 @@ export default defineConfig({
           {
             text: 'リンク',
             items: [
+              { link: '/en', text: 'English version' },
+              { link: '/zh', text: '简体中文版' },
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHubリポジトリ' },
               { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'マイクロカーネル本' },
-              { link: '/en', text: 'English version' },
               { link: '/ko', text: '한국어판' },
+            ]
+          },
+        ],
+        socialLinks: [
+          { icon: 'github', link: 'https://github.com/nuta/operating-system-in-1000-lines' }
+        ]
+      }
+    },
+    zh: {
+      label: '简体中文',
+      lang: 'zh',
+      themeConfig: {
+        sidebar: [
+          {
+            text: '目录',
+            items: [
+              { link: '/zh/', text: '00. 简介' },
+              { link: '/zh/01-setting-up-development-environment', text: '01. 入门' },
+              { link: '/zh/02-assembly', text: '02. RISC-V 101' },
+              { link: '/zh/03-overview', text: '03. 总览' },
+              { link: '/zh/04-boot', text: '04. 引导' },
+              { link: '/zh/05-hello-world', text: '05. Hello World!' },
+              { link: '/zh/06-libc', text: '06. C 标准库' },
+              { link: '/zh/07-kernel-panic', text: '07. 内核恐慌（Kernel Panic）' },
+              { link: '/zh/08-exception', text: '08. 异常' },
+              { link: '/zh/09-memory-allocation', text: '09. 内存分配' },
+              { link: '/zh/10-process', text: '10. 进程' },
+              { link: '/zh/11-page-table', text: '11. 页表' },
+              { link: '/zh/12-application', text: '12. 应用程序' },
+              { link: '/zh/13-user-mode', text: '13. 用户模式' },
+              { link: '/zh/14-system-call', text: '14. 系统调用' },
+              { link: '/zh/15-virtio-blk', text: '15. 磁盘 I/O' },
+              { link: '/zh/16-file-system', text: '16. 文件系统' },
+              { link: '/zh/17-outro', text: '17. 结语' },
+            ]
+          },
+          {
+            text: 'Links',
+            items: [
+              { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
+              { link: '/en', text: 'English version' },
+              { link: '/ja', text: '日本語版' },
             ]
           },
         ],
