@@ -1,247 +1,259 @@
 ---
-title: RISC-V 101
+title: RISC-V 입문
 ---
 
 # RISC-V
 
-Just like web browsers hide the differences between Windows/macOS/Linux, operating systems hide the differences between CPUs. In other words, operating system is a program which controls the CPU to provide an abstraction layer for applications.
+애플리케이션을 개발할 때, 웹 브라우저가 어떤 OS에서 동작하는 지 그 차이를 숨겨주는 것 처럼 OS역시 OS의 그 아래 계층인 하드웨어(특히 CPU)의 차이를 숨겨주는 역할을 합니다. 즉, OS는 CPU를 제어하여 애플리케이션에게 추상화된 레이어 제공하는 프로그램이라 할 수 있습니다. 이 책에서는 학습용으로 RISC-V를 선택했고 다음과 같은 이유로 선택했습니다.
 
-In this book, I chose RISC-V as the target CPU because:
+- [명세](https://riscv.org/technical/specifications/)가 단순합니다.
+- x86, Arm 과 함께 최근 트렌디한 명령어 세트 아키텍쳐 (ISA, Instruction Set Architecture) 입니다.
+- 문서화가 잘 되어 있고 읽기 편합니다.
 
-- [The specification](https://riscv.org/technical/specifications/) is simple and suitable for beginners.
-- It's a trending ISA (Instruction Set Architecture) in recent years, along with x86 and Arm.
-- The design decisions are well-documented throughout the spec and they are fun to read.
-
-We will write an OS for **32-bit** RISC-V. Of course you can write for 64-bit RISC-V with only a few changes. However, the wider bit width makes it slightly more complex, and the longer addresses can be tedious to read.
+이 책에서는 32비트 RISC-V를 사용합니다. 사실 64비트 RISC-V로도 거의 비슷하게 구현할 수 있지만, 비트가 커질수록 조금 더 복잡해지고 주소 길이도 늘어나서 초심자 입장에서는 부담이 될 수 있습니다. 따라서 처음 시작할 때는 32비트를 추천합니다.
 
 ## QEMU virt machine
 
-Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhone and Raspberry Pi use Arm CPUs, it's natural to consider them as different computers.
+CPU하나만 있다고 컴퓨터라고 부를수는 없습니다. 메모리를 비롯해 네트워크, 스토리지 등 여러 장치를 포함해야 비로소 하나의 컴퓨터가 되죠. 예를 들어 iPhone과 Raspberry Pi는 둘 다 Arm CPU를 쓰지만, 실제론 완전히 다른 컴퓨터로 보는 것이 자연스럽습니다.
 
-In this book, we support the QEMU `virt` machine ([documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)) because:
+이 책에서는 RISC-V 기반 중에서도 QEMU의 `virt` 머신 ([documentation](https://www.qemu.org/docs/master/system/riscv/virt.html))을 다루기로 했습니다. 그 이유는 다음과 같습니다.
 
-- Even though it does not exist in the real world, it's simple and very similar to real devices.
-- You can emulate it on QEMU for free. You don't need to buy a physical hardware.
-- When you encounter debugging issues, you can read QEMU's source code, or attach a debugger to the QEMU process to investigate what's wrong.
+- 이름에서처럼 실제 존재하지 않는 가상의 컴퓨터이긴 하지만, 실제 기기를 다루는 것과 매우 흡사한 체험이 가능합니다.
+- QEMU 위에서 동작하기 때문에, 실제 기기를 구매하지 않아도 무료로 바로 시도해볼 수 있습니다. 또한 판매 종료 등으로 인해 기기를 구하기 어려워지는 일도 없습니다.
+- 디버깅에 막혔을 때, QEMU의 소스 코드를 직접 읽거나 QEMU 자체에 디버거를 연결하여 어디가 문제인지 조사할 수 있습니다.
 
-## RISC-V assembly 101
 
-RISC-V, or RISC-V ISA (Instruction Set Architecture), defines the instructions that the CPU can execute. It's similar to APIs or programming language specifications for programmers. When you write a C program, the compiler translates it into RISC-V assembly. Unfortunately, you need to write some assembly code to write an OS. But don't worry! Assembly is not as difficult as you might think.
+## RISC-V 어셈블리 입문 가이드
+
+RISC-V 어셈블리를 빠르게 익히는 한 가지 방법은 “C 언어 코드가 어떤 어셈블리로 변환되는지 관찰하기”입니다. 그 다음, 컴파일러가 출력한 어셈블리에 등장하는 명령어들을 하나씩 분석하다 보면 자연스레 익히게 됩니다. 다음 항목들은 어셈블리 입문에 꼭 알아둬야 할 개념이니, 본서를 읽거나 ChatGPT 등에 물어가며 공부해보세요.
+- 레지스터란 무엇인가 
+- 사칙연산 (add, sub, mul, div 등)
+- 메모리 접근 (lw, sw 등)
+- 분기 명령 (beq, bne, blt, bgez 등)
+- 함수 호출
+- 스택의 구조
 
 > [!TIP]
 >
-> **Try Compiler Explorer!**
+> 어셈블리를 배울 때 유용한 ([Compiler Explorer](https://godbolt.org/))라는 온라인 컴파일러가 있습니다. 여기서는 C 언어 코드를 입력하면, 컴파일 결과인 역어셈블리를 볼 수 있습니다. 어떤 기계어가 C 언어 코드의 어느 부분에 대응하는지 색상으로 명확히 확인할 수 있습니다.
 >
-> A useful tool for learning assembly is [Compiler Explorer](https://godbolt.org/), an online compiler. As you type C code, it shows the corresponding assembly code.
+> 또한 컴파일러 옵션으로 `-O0`(최적화 끔), `-O2`(최적화 레벨 2) 등을 지정해, 컴파일러가 어떤 어셈블리를 출력하는지 비교해보는 것도 공부에 도움이 됩니다.
 >
-> By default, Compiler Explorer uses x86-64 CPU assembly. Specify `RISC-V rv32gc clang (trunk)` in the right pane to output 32-bit RISC-V assembly.
->
-> Also, it would be interesting to specify optimization options like `-O0` (optimization off) or `-O2` (optimization level 2) in the compiler options and see how the assembly changes.
 
-### Assembly language basics
+> [!WARNING]
+> 
+> 기본 설정에서는 x86-64용 어셈블리를 출력합니다. 오른쪽 패널에서 RISC-V rv32gc clang (trunk) 등을 선택하면 32비트 RISC-V 어셈블리가 출력됩니다.
 
-Assembly language is a (mostly) direct representation of machine code. Let's take a look at a simple example:
+
+### 어셈블리 언어 기초
+
+어셈블리 언어는 기계어와 거의 1:1에 대응되는 표현입니다. 간단한 예시를 봅시다.
 
 ```asm
 addi a0, a1, 123
 ```
 
-Typically, each line of assembly code corresponds to a single instruction. The first column (`addi`) is the instruction name, also known as the *opcode*. The following columns (`a0, a1, 123`) are the *operands*, the arguments for the instruction. In this case, the `addi` instruction adds the value `123` to the value in register `a1`, and stores the result in register `a0`.
+- addi는 “즉시값(immediate)을 더한다”는 명령이며,
+- a0, a1, 123은 각각 오퍼랜드입니다.
 
-### Registers
+즉, 레지스터 a1 값에 123을 더해 결과를 레지스터 a0에 저장한다는 뜻입니다.
 
-Registers are like temporary variables in the CPU, and they are way faster than memory. CPU reads data from memory into registers, does arithmetic operations on registers, and writes the results back to memory/registers.
+### Registers (레지스터)
 
-Here are some common registers in RISC-V:
+레지스터는 CPU 내부의 임시 변수와 같습니다. 메모리보다 훨씬 빠르며, CPU는 메모리에서 데이터를 레지스터로 읽어와 레지스터에서 산술 연산을 수행한 후 결과를 다시 메모리/레지스터에 씁니다.
 
-| Register | ABI Name (alias) | Description |
-|---| -------- | ----------- |
-| `pc` | `pc`       | Program counter (where the next instruction is) |
-| `x0` |`zero`     | Hardwired zero (always reads as zero) |
-| `x1` |`ra`         | Return address |
-| `x2` |`sp`         | Stack pointer |
-| `x5` - `x7` | `t0` - `t2` | Temporary registers |
-| `x8` | `fp`      | Stack frame pointer |
-| `x10` - `x11` | `a0` - `a1`  | Function arguments/return values |
-| `x12` - `x17` | `a2` - `a7`  | Function arguments |
-| `x18` - `x27` | `s0` - `s11` | Temporary registers saved across calls |
-| `x28` - `x31` | `t3` - `t6` | Temporary registers |
+RISC-V에서 주로 쓰이는 레지스터는 다음과 같습니다.
 
-> [!TIP]
->
-> **Calling convention:**
->
-> Generally, you may use CPU registers as you like, but for the sake of interoperability with other software, how registers are used is well defined - this is called the *calling convention*.
->
-> For example, `x10` - `x11` registers are used for function arguments and return values. For human readability, they are given aliases like `a0` - `a1` in the ABI. Check [the spec](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf) for more details.
-
-### Memory access
-
-Registers are really fast, but they are limited in number. Most of data are stored in memory, and programs reads/writes data from/to memory using the `lw` (load word) and `sw` (store word) instructions:
-
-```asm
-lw a0, (a1)  // Read a word (32-bits) from address in a1
-             // and store it in a0. In C, this would be: a0 = *a1;
-```
-
-```asm
-sw a0, (a1)  // Store a word in a0 to the address in a1.
-             // In C, this would be: *a1 = a0;
-```
-
-You can consider `(...)` as a pointer dereference in C language. In this case, `a1` is a pointer to a 32-bits-wide value.
-
-### Branch instructions
-
-Branch instructions change the control flow of the program. They are used to implement `if`, `for`, and `while` statements, 
-
-
-```asm
-    bnez    a0, <label>   // Go to <label> if a0 is not zero
-    // If a0 is zero, continue here
-
-<label>:
-    // If a0 is not zero, continue here
-```
-
-`bnez` stands for "branch if not equal to zero". Other common branch instructions include `beq` (branch if equal) and `blt` (branch if less than). They are similar to `goto` in C, but with conditions.
-
-### Function calls
-
-`jal` (jump and link) and `ret` (return) instructions are used for calling functions and returning from them:
-
-```asm
-    li  a0, 123      // Load 123 to a0 register (function argument)
-    jal ra, <label>  // Jump to <label> and store the return address
-                     // in the ra register.
-
-    // After the function call, continue here...
-
-// int func(int a) {
-//   a += 1;
-//   return a;
-// }
-<label>:
-    addi a0, a0, 1    // Increment a0 (first argument) by 1
-
-    ret               // Return to the address stored in ra.
-                      // a0 register has the return value.
-```
-
-Function arguments are passed in `a0` - `a7` registers, and the return value is stored in `a0` register, as per the calling convention.
-
-### Stack
-
-Stack is a Last-In-First-Out (LIFO) memory space used for function calls and local variables. It grows downwards, and the stack pointer `sp` points to the top of the stack.
-
-To save a value into the stack, decrement the stack pointer and store the value (aka. *push* operation):
-
-```asm
-    addi sp, sp, -4  // Move the stack pointer down by 4 bytes
-                     // (i.e. stack allocation).
-
-    sw   a0, (sp)    // Store a0 to the stack
-```
-
-To load a value from the stack, load the value and increment the stack pointer (aka. *pop* operation):
-
-```asm
-    lw   a0, (sp)    // Load a0 from the stack
-    addi sp, sp, 4   // Move the stack pointer up by 4 bytes
-                     // (i.e. stack deallocation).
-```
+| Register | ABI Name (alias) | Description              |
+|---| -------- |--------------------------|
+| `pc` | `pc`       | 프로그램 카운터 (다음 실행할 명령어 주소) |
+| `x0` |`zero`     | 항상 0인 레지스터               |
+| `x1` |`ra`         | 함수 호출에서 복귀 주소 저장         |
+| `x2` |`sp`         | 스택 포인터                   |
+| `x5` - `x7` | `t0` - `t2` | 임시용 레지스터 (임의 용도로 사용 가능)  |
+| `x8` | `fp`      | 스택 프레임 포인터               |
+| `x10` - `x11` | `a0` - `a1`  | 함수 인자 및 반환값              |
+| `x12` - `x17` | `a2` - `a7`  | 함수 인자                    |
+| `x18` - `x27` | `s0` - `s11` | 함수 호출 사이에도 값이 보존되는 레지스터  |
+| `x28` - `x31` | `t3` - `t6` | 임시용 레지스터                 |
 
 > [!TIP]
 >
-> In C, stack operations are generated by the compiler, so you don't have to write them manually.
+> **호출 규약(Calling Convention):**
+>
+> RISC-V에서는 함수 인자 및 반환값을 a0~a7 레지스터에 할당하고, 임시 레지스터와 저장(reg-save) 레지스터를 구분하는 등 사용 방식이 미리 정해져 있습니다. 더 자세한 내용은 RISC-V [호출 규약 문서](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf)에서 확인할 수 있습니다.
 
-## CPU modes
+### Memory access (메모리 접근)
 
-CPU has multiple modes, each with different privileges. In RISC-V, there are three modes:
+레지스터는 CPU 내부에 있는 아주 빠른 저장소지만, 개수가 제한되어 있습니다. 반면에 메모리는 훨씬 크지만, 속도가 느립니다.
+
+따라서:
+- 자주 사용하는 값은 레지스터에 저장합니다.
+- 많은 양의 데이터는 메모리에 저장합니다.
+`lw`와 `sw`는 레지스터와 메모리 간 데이터를 주고받는 명령어입니다.
+
+
+#### `lw`: 메모리에서 값 읽기
+```asm
+lw a0, (a1)
+```
+- 의미: 메모리에서 `a1`이 가리키는 주소의 32비트 값을 가져와 `a0` 레지스터에 저장.
+- C언어 표현: `a0 = *a1;` (`a1`이 가리키는 메모리 주소의 값을 읽어 `a0`에 넣는다.)
+
+#### `sw`: 메모리에 값 저장
+
+```asm
+lw a0, (a1)
+```
+- 의미: `a0` 레지스터에 있는 값을 `a1`이 가리키는 메모리 주소에 저장.
+- C언어 표현: `*a1 = a0;` (`a1`이 가리키는 메모리 주소에 `a0` 값을 저장한다.)
+
+### Branch instructions (분기 명령)
+
+`bnez`(0이 아니면 분기), `beq`(두 레지스터의 값이 같으면 분기), `blt`(작으면 분기) 등으로 프로그램 흐름을 제어합니다. C의 if나 while, for 구문을 구현할 때 사용됩니다.
+
+
+```asm
+bnez a0, label   // a0가 0이 아니면 label로 점프
+// a0가 0이면 계속 아래 코드 실행
+
+<label>:
+    // a0가 0이 아닐 때 실행
+```
+
+### Function calls (함수 호출)
+
+`jal`(jump and link) 명령을 통해 함수를 호출하고, `ret` 명령으로 복귀합니다.
+
+
+```asm
+li  a0, 123 // 인자 준비: 123을 a0 레지스터에 저장 (함수 인자), 
+jal ra, func   //  func(a0=123) 호출 -> ra에 복귀 주소 저장
+// 여기서 함수 func가 끝나서 돌아오면, 결과값은 a0에 저장되어 있음
+
+func:
+    addi a0, a0, 1  // a0에 1을 더함
+    ret             // ra 레지스터로 복귀
+
+// 위 함수의 c언어 예시    
+int func(int a) {
+    a += 1;
+    return a;
+}
+```
+
+함수 인자는 `a0` - `a7` 레지스터에 전달되고, 반환 값은 호출 규약에 따라 `a0` 레지스터에 저장됩니다.
+
+
+### Stack (스택)
+
+스택은 함수 호출과 로컬 변수를 위해 사용되는 LIFO(Last-In-First-Out) 구조입니다. `sp`(스택 포인터)가 스택의 현재 최상단을 가리키며, 스택은 위에서 아래로 확장됩니다.
+
+```asm
+addi sp, sp, -4  // 스택을 4바이트만큼 확장
+sw   a0, (sp)    // sp가 가리키는 위치에 a0 저장
+
+lw   a0, (sp)    // 다시 읽고
+addi sp, sp, 4   // 스택을 원래대로 복원
+```
+
+
+
+> [!TIP]
+>
+> C 언어로 코드를 작성하면, 컴파일러가 자동으로 스택을 할당/해제하므로 보통 이런 로우레벨 코드를 직접 작성할 일은 많지 않습니다.
+
+## CPU 모드
+
+CPU에는 M-mode, S-mode, U-mode 세 가지 특권 수준이 있습니다. 구체적으로는:
 
 | Mode   | Overview                            |
-| ------ | ----------------------------------- |
-| M-mode | Mode in which OpenSBI (i.e. BIOS) operates.     |
-| S-mode | Mode in which the kernel operates, aka. "kernel mode". |
-| U-mode | Mode in which applications operate, aka. "user mode".  |
+| ------ |-------------------------------------|
+| M-mode | OpenSBI(일종의 펌웨어)나 부트로더 등     |
+| S-mode | 운영체제 커널이 동작하는 모드 "kernal mode" 라고 부름 |
+| U-mode | 일반 애플리케이션이 동작하는 모드 "user mode" 라고 부름 |
 
-## Privileged instructions
+## Privileged instructions (특권 명령)
+ 
+애플리케이션(유저 모드)에서는 실행할 수 없는 명령이 있고, 이런 명령을 특권 명령이라 부릅니다. 아래는 예시 목록입니다.
 
-Among CPU instructions, there are types called privileged instructions that applications (user mode) cannot execute. In this book, we use the following privileged instructions:
 
 | Opcode and operands | Overview                                                                   | Pseudocode                       |
 | ------------------------ | -------------------------------------------------------------------------- | -------------------------------- |
-| `csrr rd, csr`           | Read from CSR                                                              | `rd = csr;`                      |
-| `csrw csr, rs`           | Write to CSR                                                               | `csr = rs;`                      |
-| `csrrw rd, csr, rs`      | Read from and write to CSR at once                                         | `tmp = csr; csr = rs; rd = tmp;` |
-| `sret`                   | Return from trap handler (restoring program counter, operation mode, etc.) |                                  |
-| `sfence.vma`             | Clear Translation Lookaside Buffer (TLB)                                   |                                  |
+| `csrr rd, csr`           | CSR 값을 rd에 읽어옴	                                                              | `rd = csr;`                      |
+| `csrw csr, rs`           | rs의 값을 CSR에 씀	                                                               | `csr = rs;`                      |
+| `csrrw rd, csr, rs`      | CSR 값을 읽고 쓰는 과정을 한 번에 수행	                                         | `tmp = csr; csr = rs; rd = tmp;` |
+| `sret`                   | 트랩 핸들러 복귀(PC, 모드 등 복원)	 |                                  |
+| `sfence.vma`             | TLB(Translation Lookaside Buffer) 초기화                             |                                  |
 
-**CSR (Control and Status Register)** is a register that stores CPU settings. The list of CSRs can be found in [RISC-V Privileged Specification](https://riscv.org/specifications/privileged-isa/).
+**CSR (Control and Status Register)** 은 CPU 내부 상태와 제어를 담당하는 레지스터이며, 전체 목록은 [RISC-V Privileged Specification](https://riscv.org/specifications/privileged-isa/) 에서 확인할 수 있습니다.
+
+
 
 > [!TIP]
 >
-> Some instructions like `sret` do some somewhat complex operations. To understand what actually happens, reading RISC-V emulator source code might be helpful. Particularly, [rvemu](https://github.com/d0iasm/rvemu) is written in a intuitive and easy-to-understand way (e.g. [sret implementation](https://github.com/d0iasm/rvemu/blob/f55eb5b376f22a73c0cf2630848c03f8d5c93922/src/cpu.rs#L3357-L3400)).
+> `sret`같은 명령은 내부적으로 PC 수정, 모드 변경 등 복잡한 과정을 수행합니다. 실제 동작을 이해하려면 [rvemu](https://github.com/d0iasm/rvemu) 같은 간단한 RISC-V 에뮬레이터의 소스 코드를 참고해보는 것도 좋습니다. (e.g. [sret implementation](https://github.com/d0iasm/rvemu/blob/f55eb5b376f22a73c0cf2630848c03f8d5c93922/src/cpu.rs#L3357-L3400)).
 
-## Inline assembly
+## Inline assembly (인라인 어셈블리)
 
-In following chapters, you'll encounter special C language syntax like this:
+이 책 후반부에서, C 코드 중간에 RISC-V 어셈블리를 직접 삽입하는 예시를 자주 보게 될 것입니다. 이 기법은 ‘인라인 어셈블리’라 하며, 별도의 .S 파일을 만드는 대신, 다음과 같은 형태로 작성합니다.
+
+```c
+__asm__ __volatile__("assembly code" 
+                     : output operands 
+                     : input operands 
+                     : clobbered registers);
+```
+
+C 변수와 어셈블리 명령을 긴밀히 연결할 수 있고, 레지스터 할당·저장/복원을 컴파일러가 맡아주므로 편리합니다. 자세한 설명은 [GCC](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html) 문서에서 확인할 수 있으며,  [xv6-riscv](https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h), [HinaOS](https://github.com/nuta/microkernel-book/blob/52d66bd58cd95424f009e2df8bc1184f6ffd9395/kernel/riscv32/asm.h) 등의 오픈소스 예시도 참고해볼 만합니다.
+
+
+| Part               | Description                                                            |
+| ------------------ | ---------------------------------------------------------------------- |
+| `__asm__`          | “이 코드는 인라인 어셈블리다”라고 컴파일러에 알립니다.|
+| `__volatile__`     | 컴파일러에게 해당 "assembly" 코드를 최적화로 제거하거나 변경하지 말라고 지시합니다.|
+| `"assembly"`       | 실제 어셈블리 코드를 문자열 리터럴 형태로 작성합니다.|
+| output operands  | 어셈블리가 실행된 뒤 결과를 저장할 C 변수(혹은 메모리 위치)를 지정합니다.|
+| input operands   | 어셈블리 코드에서 참조할 C 언어 표현식(예: 상수 123, 변수 x 등)을 지정합니다.|
+| clobbered registers | 어셈블리 내부에서 덮어써서 “내용이 파괴될 수 있는” 레지스터를 지정합니다. 누락하면 컴파일러가 해당 레지스터를 보존하지 않아, 예기치 않은 버그가 발생할 수 있습니다.|
+
+출력 오퍼랜드와 입력 오퍼랜드는 **쉼표(,)** 로 구분해 나열하며, 각 오퍼랜드는 제약(constraint) (C 표현식) 형태로 작성합니다. 제약은 보통:
+
+- 출력 오퍼랜드에는 `=r` (register)을 사용하며, “이 변수는 레지스터를 통해 값을 돌려받는다”는 의미입니다.
+- 입력 오퍼랜드에는 `r`를 사용하며, “이 표현식을 레지스터에 담아 어셈블리에서 쓸 수 있다”는 의미입니다.
+
+어셈블리 코드에서 출력/입력 오퍼랜드는  `%0`, `%1`, `%2` 등의 형태로 참조하며, 출력 오퍼랜드부터 순서대로 번호를 매깁니다.
+
+
+### 예시
 
 ```c
 uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
 
-This is *"inline assembly"*, a syntax for embedding assembly into C code. While you can write assembly in a separate file (`.S` extension), using inline assembly are generally preferred because:
+위 예시는 `csrr` 명령어로 `sepc` CSR 레지스터의 값을 읽어와 `value` 변수에 저장합니다. 여기서 `%0`은 `value` 변수와 연동됩니다.
 
-- You can use C variables within the assembly. Also, you can assign the results of assembly to C variables.
-- You can leave register allocation to the C compiler. That is, you don't have to manually write the preservation and restoration of registers to be modified in the assembly.
-
-### How to write inline assembly
-
-Inline assembly is written in the following format:
-
-```c
-__asm__ __volatile__("assembly" : output operands : input operands : clobbered registers);
-```
-
-| Part               | Description                                                                 |
-| ------------------ | --------------------------------------------------------------------------- |
-| `__asm__`          | Indicates it's an inline assembly.                                           |
-| `__volatile__`     | Tell the compiler not optimize the `"assembly"` code.                          |
-| `"assembly"`       | Assembly code written as a string literal.                                   |
-| output operands  | C variables to store the results of the assembly.                           |
-| input operands   | C expressions (e.g. `123`, `x`) to be used in the assembly.             |
-| clobbered registers | Registers whose contents are destroyed in the assembly. If forgotten, the C compiler won't preserve the contents of these registers and would cause a bug. |
-
-Output and input operands are comma-separated, and each operand is written in the format `constraint (C expression)`. Constraints are used to specify the type of operand, and usually `=r` (register) for output operands, and `r` for input operands.
-
-Output and input operands can be accessed in the assembly using `%0`, `%1`, `%2`, etc., in order starting from the output operands.
-
-### Examples
-
-```c
-uint32_t value;
-__asm__ __volatile__("csrr %0, sepc" : "=r"(value));
-```
-
-This reads the value of the `sepc` CSR using the `csrr` instruction, and assigns it to the `value` variable. `%0` corresponds to the `value` variable.
 
 ```c
 __asm__ __volatile__("csrw sscratch, %0" : : "r"(123));
 ```
 
-This writes `123` to the `sscratch` CSR, using the `csrw` instruction. `%0` corresponds to the register containing `123` (`r` constraint), and it would actually look like:
+위 예시는 `csrw` 명령어로 `sscratch` CSR에 123을 쓰는 코드입니다. `%0`은 123을 담은 레지스터(`“r”` 제약)에 해당하고, 실제로 컴파일러가 다음과 같은 코드를 생성합니다.
+
 
 ```
-li    a0, 123        // Set 123 to a0 register
-csrw  sscratch, a0   // Write the value of a0 register to sscratch register
+li    a0, 123        // a0 레지스터에 123을 로드
+csrw  sscratch, a0   // sscratch 레지스터에 a0 값을 기록
 ```
 
-Although only the `csrw` instruction is written in the inline assembly, the `li` instruction is automatically inserted by the compiler to satisfy the `"r"` constraint (value in a register). It's super convenient!
+인라인 어셈블리에는 `csrw` 명령어만 적었지만, “r” 제약을 만족시키기 위해 컴파일러가 `li` 명령어를 자동으로 삽입해줍니다. 매우 편리한 방식입니다.
+
+
 
 > [!TIP]
 >
-> Inline assembly is a compiler-specific extension not included in the C language specification. You can check detailed usage in the [GCC documentation](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html). However, it takes time to understand because constraint syntax differs depending on CPU architecture, and it has many complex functionalities.
->
-> For beginners, I recommend to search for real-world examples. For instance, [HinaOS](https://github.com/nuta/microkernel-book/blob/52d66bd58cd95424f009e2df8bc1184f6ffd9395/kernel/riscv32/asm.h) and [xv6-riscv](https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h) are good references.
+> 인라인 어셈블리는 표준 C 문법이 아니라, GCC/Clang 계열 컴파일러의 확장 기능입니다. CPU 아키텍처마다 제약(constraint) 문법이 조금씩 다르고, 지원 기능이 많아서 처음에는 이해하는 데 시간이 걸릴 수 있습니다.
+> 
+> 초보자라면 실제 프로젝트 예시를 참고해보는 것을 추천합니다. 예를 들어, xv6-riscv나 HinaOS 같은 프로젝트의 인라인 어셈블리 코드를 보면 큰 도움이 됩니다.
+> 
