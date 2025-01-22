@@ -12,7 +12,7 @@ We will write an OS for **32-bit** RISC-V. Of course you can write for 64-bit RI
 
 ## QEMU virt machine
 
-Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhone and Raspberry Pi use Arm CPUs, it's natural to consider them as different computers.
+Computers are composed of various devices: CPU, memory, network cards, hard disks, and so on. For example, although iPhones and Raspberry Pis use Arm CPUs, it's natural to consider them as different computers.
 
 In this book, we support the QEMU `virt` machine ([documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)) because:
 
@@ -188,7 +188,7 @@ uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
 
-This is *"inline assembly"*, a syntax for embedding assembly into C code. While you can write assembly in a separate file (`.S` extension), using inline assembly are generally preferred because:
+This is *"inline assembly"*, a syntax for embedding assembly into C code. While you can write assembly in a separate file (`.S` extension), using inline assembly is generally preferred because:
 
 - You can use C variables within the assembly. Also, you can assign the results of assembly to C variables.
 - You can leave register allocation to the C compiler. That is, you don't have to manually write the preservation and restoration of registers to be modified in the assembly.
@@ -204,7 +204,7 @@ __asm__ __volatile__("assembly" : output operands : input operands : clobbered r
 | Part               | Description                                                                 |
 | ------------------ | --------------------------------------------------------------------------- |
 | `__asm__`          | Indicates it's an inline assembly.                                           |
-| `__volatile__`     | Tell the compiler not optimize the `"assembly"` code.                          |
+| `__volatile__`     | Tell the compiler not to optimize the `"assembly"` code.                          |
 | `"assembly"`       | Assembly code written as a string literal.                                   |
 | output operands  | C variables to store the results of the assembly.                           |
 | input operands   | C expressions (e.g. `123`, `x`) to be used in the assembly.             |

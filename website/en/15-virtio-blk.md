@@ -4,7 +4,7 @@ In this chapter, we will implement a device driver for the virtio-blk, a virtual
 
 ## Virtio
 
-Virtio is a device interface standard for virtual devices (virtio devices). In other words, it is one of APIs for device drivers to control devices. Like you use HTTP to access web servers, you use virtio to access virtio devices. Virtio is widely used in virtualization environments such as QEMU and Firecracker.
+Virtio is a device interface standard for virtual devices (virtio devices). In other words, it is one of the APIs for device drivers to control devices. Like you use HTTP to access web servers, you use virtio to access virtio devices. Virtio is widely used in virtualization environments such as QEMU and Firecracker.
 
 ### Virtqueue
 
@@ -14,7 +14,7 @@ A virtqueue consists of the following three areas:
 
 | Name            | Written by | Content                                                                | Contents                                 |
 | --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
-| Descriptor Area | Driver     | A Table of descriptors: the address and size of the request            | Memory address, length, index of the next descriptor |
+| Descriptor Area | Driver     | A table of descriptors: the address and size of the request            | Memory address, length, index of the next descriptor |
 | Available Ring  | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
 | Used Ring       | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
 

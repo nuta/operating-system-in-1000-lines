@@ -136,7 +136,7 @@ void handle_trap(struct trap_frame *f) {
 
 It reads why the exception has occurred, and triggers a kernel panic for debugging purposes.
 
-Let's define the various macros used here in `kernel.h:
+Let's define the various macros used here in `kernel.h`:
 
 ```c [kernel.h]
 #include "common.h"

@@ -4,7 +4,7 @@ In this chapter, we'll run the application we created in the previous chapter.
 
 ## Extracting the executable file
 
-In executable file formats like ELF, the load address are stored in its file header (program header in ELF). However, since our application's execution image is a raw binary, we need to prepare it with a fixed value like this:
+In executable file formats like ELF, the load address is stored in its file header (program header in ELF). However, since our application's execution image is a raw binary, we need to prepare it with a fixed value like this:
 
 ```c [kernel.h]
 // The base virtual address of an application image. This needs to match the
@@ -60,7 +60,7 @@ We've modified `create_process` to take the pointer to the execution image (`ima
 
 > [!WARNING]
 >
-> If you map the execution image directly without copying it, processes of the same application would end up sharing the same physical pages. IT ruins the memory isolation!
+> If you map the execution image directly without copying it, processes of the same application would end up sharing the same physical pages. It ruins the memory isolation!
 
 Lastly, modify the caller of the `create_process` function and make it create a user process:
 
