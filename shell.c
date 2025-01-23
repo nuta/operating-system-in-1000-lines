@@ -32,6 +32,8 @@ prompt:
         }
         else if (strcmp(cmdline, "writefile") == 0)
             writefile("hello.txt", "Hello from shell!\n", 19);
+        else if (strcmp(cmdline, "shutdown") == 0)
+            shutdown();
         else
             printf("unknown command: %s\n", cmdline);
     }

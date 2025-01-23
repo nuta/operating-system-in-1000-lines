@@ -268,6 +268,10 @@ long getchar(void) {
     return ret.error;
 }
 
+void shutdown(void) {
+    sbi_call(0, 0, 0, 0, 0, 0, 0, 8 /* Shutdown */);
+}
+
 __attribute__((naked))
 __attribute__((aligned(4)))
 void kernel_entry(void) {
@@ -528,6 +532,10 @@ void handle_syscall(struct trap_frame *f) {
             f->a0 = len;
             break;
         }
+        case SYS_SHUTDOWN:
+            printf("shuting down\n");
+            shutdown();
+            break;
         default:
             PANIC("unexpected syscall a3=%x\n", f->a3);
     }

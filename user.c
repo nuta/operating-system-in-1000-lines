@@ -32,6 +32,10 @@ int writefile(const char *filename, const char *buf, int len) {
     return syscall(SYS_WRITEFILE, (int) filename, (int) buf, len);
 }
 
+int shutdown(void) {
+    return syscall(SYS_SHUTDOWN, 0, 0, 0);
+}
+
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
     for (;;);
