@@ -238,7 +238,7 @@ end:
 void printf(const char *fmt, ...);
 ```
 
-`__builtin_`으로 시작하는 식별자들은 컴파일러(예: clang)에서 제공하는 빌트인 기능입니다(참고: [Clang 문서]((https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins))). 내부 처리는 컴파일러가 알아서 해주므로, 우리는 단순히 이러한 매크로를 정의만 해두면 됩니다.
+`__builtin_`으로 시작하는 식별자들은 컴파일러(예: clang)에서 제공하는 빌트인 기능입니다(참고: [Clang 문서](https://clang.llvm.org/docs/LanguageExtensions.html#variadic-function-builtins)). 내부 처리는 컴파일러가 알아서 해주므로, 우리는 단순히 이러한 매크로를 정의만 해두면 됩니다.
 
 이제 `printf`를 구현했으니, 커널에서 한번 사용해봅시다:
 
