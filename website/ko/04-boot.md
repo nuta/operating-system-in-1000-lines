@@ -1,24 +1,26 @@
 ---
-title: Boot
+title: 부트(Boot)
 ---
 
-# Booting the Kernel
+# 커널 부팅 과정
 
-When a computer is turned on, the CPU initializes itself and starts executing the OS. OS initializes the hardware and starts the applications. This process is called "booting".
+컴퓨터 전원을 켜면 CPU가 초기화되고, 이후 운영체제(OS)가 시작됩니다. OS는 하드웨어를 초기화하고 응용 프로그램을 실행합니다. 이를 "부팅(booting)"이라고 부릅니다.
 
-What happens before the OS starts? In PCs, BIOS (or UEFI in modern PCs) initializes the hardware, displays the splash screen, and loads the OS from the disk. In QEMU `virt` machine, OpenSBI is the equivalent of BIOS/UEFI.
+그렇다면 OS가 시작되기 전에는 무슨 일이 일어날까요? PC 환경에서는 BIOS(또는 최근 PC의 경우 UEFI)가 하드웨어를 초기화하고, 스플래시 화면을 띄운 뒤 디스크에서 OS를 불러옵니다. QEMU의 virt 머신 환경에서는 OpenSBI가 이 BIOS/UEFI 역할을 대신합니다.
 
-## Supervisor Binary Interface (SBI)
+## 슈퍼바이저 바이너리 인터페이스 (SBI, Supervisor Binary Interface)
 
-The Supervisor Binary Interface (SBI) is an API for OS kernels, but defines what the firmware (OpenSBI) provides to an OS.
+슈퍼바이저 바이너리 인터페이스(SBI)는 OS 커널을 위한 API이며, 동시에 펌웨어(OpenSBI)가 OS에 제공하는 기능을 정의한 것입니다.
 
-The SBI specification is [published on GitHub](https://github.com/riscv-non-isa/riscv-sbi-doc/releases). It defines useful features such as displaying characters on the debug console (e.g., serial port), reboot/shutdown, and timer settings.
+SBI 명세는 [GitHub](https://github.com/riscv-non-isa/riscv-sbi-doc/releases). 에 공개되어 있습니다. 디버그 콘솔(예: 시리얼 포트)에 문자열을 출력하거나(putchar 등), 재부팅/종료 요청 및 타이머 설정 등을 할 수 있게 정의합니다.
 
-A famous SBI implementation is [OpenSBI](https://github.com/riscv-software-src/opensbi). In QEMU, OpenSBI starts by default, performs hardware-specific initialization, and boots the kernel.
+가장 널리 사용되는 SBI 구현체 중 하나는 [OpenSBI](https://github.com/riscv-software-src/opensbi)입니다. QEMU에서 virt 머신을 실행하면 기본적으로 OpenSBI가 먼저 구동되어 하드웨어 특화 초기화를 수행한 뒤, 커널을 실행합니다.
 
-## Let's boot OpenSBI
 
-First, let's see how OpenSBI starts. Create a shell script named `run.sh` as follows:
+## OpenSBI 부팅해보기
+
+먼저 OpenSBI가 어떤 식으로 시작되는지 확인해보겠습니다. 아래와 같이 `run.sh` 스크립트를 만들어 주세요.
+
 
 ```
 $ touch run.sh
@@ -29,31 +31,31 @@ $ chmod +x run.sh
 #!/bin/bash
 set -xue
 
-# QEMU file path
+# QEMU 실행 파일 경로
 QEMU=qemu-system-riscv32
 
-# Start QEMU
+# QEMU 실행
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot
 ```
 
-QEMU takes various options to start the virtual machine. Here are the options used in the script:
+위 스크립트에서 사용한 QEMU 옵션은 다음과 같습니다:
 
-- `-machine virt`: Start a `virt` machine. You can check other supported machines with the `-machine '?'` option.
-- `-bios default`: Use the default firmware (OpenSBI in this case).
-- `-nographic`: Start QEMU without a GUI window.
-- `-serial mon:stdio`: Connect QEMU's standard input/output to the virtual machine's serial port. Specifying `mon:` allows switching to the QEMU monitor by pressing <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd>.
-- `--no-reboot`: If the virtual machine crashes, stop the emulator without rebooting (useful for debugging).
+- `-machine virt`: `virt` 머신을 시작합니다. `-machine '?'` 명령어로 다른 머신 종류를 확인할 수 있습니다.
+- `-bios default`: QEMU가 제공하는 기본 펌웨어(OpenSBI)를 사용합니다.
+- `-nographic`: GUI 없이 QEMU를 실행합니다.
+- `-serial mon:stdio`: QEMU의 표준 입출력을 가상 머신의 시리얼 포트에 연결합니다. `mon:` 접두사를 붙여 <kbd>Ctrl</kbd>+<kbd>A</kbd> 이후 <kbd>C</kbd>를 눌러 QEMU 모니터로 전환할 수 있습니다.
+- `--no-reboot`: 가상 머신이 크래시되면 재부팅하지 않고 종료합니다(디버깅 시에 편리합니다).
 
 > [!TIP]
 >
-> In macOS, you can check the path to Homebrew's QEMU with the following command:
+> macOS에서 Homebrew 버전의 QEMU 파일 경로는 다음 명령어로 확인할 수 있습니다:
 >
 > ```
 > $ ls $(brew --prefix)/bin/qemu-system-riscv32
 > /opt/homebrew/bin/qemu-system-riscv32
 > ```
 
-Run the script and you will see the following banner:
+스크립트를 실행하면 다음과 같은 배너가 표시됩니다:
 
 ```
 $ ./run.sh
@@ -76,11 +78,11 @@ Platform Timer Device     : aclint-mtimer @ 10000000Hz
 ...
 ```
 
-OpenSBI displays the OpenSBI version, platform name, features, number of HARTs (CPU cores), and more for debugging purposes.
+OpenSBI가 버전 정보, 플랫폼 이름, 제공 기능, HART(코어) 수 등을 출력합니다.
 
-When you press any key, nothing will happen. This is because QEMU's standard input/output is connected to the virtual machine's serial port, and the characters you type are being sent to the OpenSBI. However, no one reads the input characters.
+이 시점에서 아무 키를 눌러도 반응이 없는 것은 자연스러운 현상입니다. 현재 표준 입출력이 QEMU의 시리얼 포트에 연결되어 있고, OpenSBI에는 입력을 처리하는 루틴이 없기 때문에 입력에 대한 동작이 없게 됩니다.
 
-Press <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>C</kbd> to switch to the QEMU debug console (QEMU monitor). You can exit QEMU by `q` command in the monitor:
+<kbd>Ctrl</kbd>+<kbd>A</kbd>를 누른 후 <kbd>C</kbd>를 눌러 QEMU 디버그 콘솔(QEMU 모니터)로 전환합니다. 모니터에서 `q` 명령으로 QEMU를 종료할 수 있습니다.
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -89,23 +91,23 @@ QEMU 8.0.2 monitor - type 'help' for more information
 
 > [!TIP]
 >
-> <kbd>Ctrl</kbd>+<kbd>A</kbd> has several features besides switching to the QEMU monitor (<kbd>C</kbd> key). For example, pressing the <kbd>X</kbd> key will immediately exit QEMU.
+> <kbd>Ctrl</kbd>+<kbd>A</kbd>에는 <kbd>C</kbd> 키를 누르면 QEMU 모니터로 전환하는 기능 외에도 여러 기능이 있습니다. 예를 들어 <kbd>X</kbd> 키를 누르면 QEMU를 즉시 종료합니다.
 >
 > ```
-> C-a h    print this help
-> C-a x    exit emulator
-> C-a s    save disk data back to file (if -snapshot)
-> C-a t    toggle console timestamps
-> C-a b    send break (magic sysrq)
-> C-a c    switch between console and monitor
-> C-a C-a  sends C-a
+> C-a h    도움말 표시
+> C-a x    에뮬레이터 종료
+> C-a s    디스크 데이터를 파일에 저장(-snapshot 사용 시)
+> C-a t    콘솔 타임스탬프 토글
+> C-a b    break(매직 sysrq)
+> C-a c    콘솔과 모니터 간 전환
+> C-a C-a  C-a를 전송
 > ```
 
-## Linker script
+## 링커 스크립트(Linker Script)
 
-A linker script is a file which defines the memory layout of executable files. Based on the layout, the linker assigns memory addresses to functions and variables.
+링커 스크립트는 실행 파일의 메모리 배치를 정의하는 파일입니다. 링커는 이 정보를 기반으로 함수와 변수가 배치될 메모리 주소를 결정합니다.
 
-Let's create a new file named `kernel.ld`:
+아래와 같이 `kernel.ld` 파일을 만들어 주세요:
 
 ```ld [kernel.ld]
 ENTRY(boot)
@@ -137,39 +139,42 @@ SECTIONS {
     __stack_top = .;
 }
 ```
-Here are the key points of the linker script:
+주요 포인트는 다음과 같습니다:
 
-- The entry point of the kernel is the `boot` function.
-- The base address is `0x80200000`.
-- The `.text.boot` section is always placed at the beginning.
-- Each section is placed in the order of `.text`, `.rodata`, `.data`, and `.bss`.
-- The kernel stack comes after the `.bss` section, and its size is 128KB.
+- boot 함수를 엔트리 포인트로 지정합니다.
+- 베이스 주소(base address)는 0x80200000으로 설정합니다.
+- `.text.boot` 섹션을 가장 앞에 둡니다.
+- 각 섹션을 `.text`, `.rodata`, `.data`, `.bss`. 순서대로 배치합니다.
+- `.bss` 이후에 커널 스택을 배치하고, 크기는 128KB로 설정합니다.
 
-`.text`, `.rodata`, `.data`, and `.bss` sections mentioned here are data areas with specific roles:
+`.text`, `.rodata`, `.data`, `.bss` 는 각각 다음과 같은 용도를 갖는 섹션입니다:
 
-| Section   | Description                                                  |
-| --------- | ------------------------------------------------------------ |
-| `.text`   | This section contains the code of the program.               |
-| `.rodata` | This section contains constant data that is read-only.       |
-| `.data`   | This section contains read/write data.                       |
-| `.bss`    | This section contains read/write data with an initial value of zero. |
+| 섹션       | 설명                                                                |
+|----------|-------------------------------------------------------------------|
+| `.text`  | 프로그램의 코드(함수 등)가 저장되는 영역입니다.|
+| `.rodata` | 읽기 전용 상수 데이터가 저장되는 영역입니다. |
+| `.data`  | 읽기/쓰기가 가능한 데이터가 저장되는 영역입니다.                           |
+| `.bss`   | 초기값이 0인 읽기/쓰기가 가능한 데이터가 저장되는 영역입니다.|
 
-Let's take a closer look at the syntax of the linker script. First, `ENTRY(boot)` declares that the `boot` function is the entry point of the program. Then, the placement of each section is defined within the `SECTIONS` block.
+링커 스크립트 구문을 좀 더 살펴보겠습니다.
 
-The `*(.text .text.*)` directive places the `.text` section and any sections starting with `.text.` from all files (`*`) at that location.
+`ENTRY(boot)`는 `boot` 함수를 프로그램의 진입점으로 지정합니다.
+`*(.text .text.*)`와 같이 쓰면, `.text` 섹션과 `.text.`로 시작하는 모든 섹션을 해당 위치에 배치합니다.
+`.`(점)은 현재 주소를 의미하고, 섹션이 배치되면서 자동으로 증가합니다.
+`. += 128 * 1024`는 현재 주소를 128KB 늘린다는 의미입니다.
+`ALIGN(4)`는 4바이트 경계로 주소를 맞춥니다.
 
-The `.` symbol represents the current address. It automatically increments as data is placed, such as with `*(.text)`. The statement `. += 128 * 1024` means "advance the current address by 128KB". The `ALIGN(4)` directive ensures that the current address is adjusted to a 4-byte boundary.
-
-Finally, `__bss = .` assigns the current address to the symbol `__bss`. In C language, you can refer to a defined symbol using `extern char symbol_name`.
+`__bss = .`는 현재 주소를 `__bss`라는 심볼에 저장한다는 의미입니다. C 코드에서 `extern char __bss[];`처럼 선언해 두면, 이를 통해 `.bss`구간의 주소를 참조할 수 있습니다.
 
 > [!TIP]
 >
-> Linker scripts offer many convenient features, especially for kernel development. You can find real-world examples on GitHub!
+> 링커 스크립트는 커널 개발에 특히 유용한 기능을 많이 제공합니다. GitHub에서 실제 예제를 찾아보세요!
 
 
-## Minimal kernel
+## 최소화된 커널
 
-We're now ready to start writing the kernel. Let's start by creating a minimal one! Create a C language source code file named `kernel.c`:
+이번에는 실제 커널을 작성해보겠습니다. 가장 간단한 버전부터 시작하겠습니다. `kernel.c` 파일을 만들어 주세요:
+
 
 ```c [kernel.c]
 typedef unsigned char uint8_t;
@@ -203,31 +208,33 @@ void boot(void) {
 }
 ```
 
-Let's explore the key points one by one:
+핵심 내용은 다음과 같습니다:
 
-### The kernel entry point
+### 커널 진입점 (Kernel entry point)
 
-The execution of the kernel starts from the `boot` function, which is specified as the entry point in the linker script. In this function, the stack pointer (`sp`) is set to the end address of the stack area defined in the linker script. Then, it jumps to the `kernel_main` function. It's important to note that the stack grows towards zero, meaning it is decremented as it is used. Therefore, the end address (not the start address) of the stack area must be set.
+실행은 `boot` 함수에서 시작됩니다. 이는 링커 스크립트에서 ENTRY(boot)로 지정했기 때문입니다. 이 함수에서는 링커 스크립트가 지정한 스택 영역의 끝 주소를 스택 포인터(`sp`)에 대입하고, `kernel_main`으로 점프합니다. RISC-V 아키텍처에서는 스택이 내려가는 방향으로 성장하므로, 스택의 최상위(끝) 주소를 설정해야 합니다.
 
-### `boot` function attributes
 
-The `boot` function has two special attributes. The `__attribute__((naked))` attribute instructs the compiler not to generate unnecessary code before and after the function body, such as a return instruction. This ensures that the inline assembly code is the exact function body.
+### `boot` 함수 속성
 
-The `boot` function also has the `__attribute__((section(".text.boot")))` attribute, which controls the placement of the function in the linker script. Since OpenSBI simply jumps to `0x80200000` without knowing the entry point, the `boot` function needs to be placed at `0x80200000`.
+`boot` 함수에는 두 가지 속성이 지정되어 있습니다.
 
-### `extern char` to get linker script symbols
+- `__attribute__((naked))`: 함수 시작과 끝에서 컴파일러가 추가로 생성하는 코드(프롤로그, 에필로그 등)를 생략합니다.
+- `__attribute__((section(".text.boot")))`: .text.boot 섹션에 이 함수를 배치하도록 합니다.
 
-At the beginning of the file, each symbol defined in the linker script is declared using `extern char`. Here, we are only interested in obtaining the addresses of the symbols, so using `char` type is not that important.
+OpenSBI는 기본적으로 `0x80200000` 주소로 점프만 하기 때문에, 우리가 `boot` 함수를 해당 주소에 확실히 배치해야 합니다.
 
-We can also declare it as `extern char __bss;`, but `__bss` alone means *"the value at the 0th byte of the `.bss` section"* instead of *"the start address of the `.bss` section"*. Therefore, it is recommended to add `[]` to ensure that `__bss` returns an address and prevent any careless mistakes.
+### 링커 스크립트 심볼 (`extern char`)
 
-### `.bss` section initialization
+소스의 맨 윗부분에서 링커 스크립트에 정의한 심볼`(__bss, __bss_end, __stack_top)`을 `extern char __bss[], ...;`형태로 선언했습니다. 실제로는 "해당 심볼이 가리키는 주소"가 필요하기 때문에 `[]`를 사용하여 주소 형식으로 사용하는 것이 좋습니다.
 
-In the `kernel_main` function, the `.bss` section is first initialized to zero using the `memset` function. Although some bootloaders may recognize and zero-clear the `.bss` section, but we initialize it manually just in case. Finally, the function enters an infinite loop and the kernel terminates.
+### `.bss` 섹션 초기화
 
-## Let's run!
+`kernel_main` 함수에서는 `.bss`를 0으로 초기화합니다. 일부 부트로더가 `.bss`를 클리어해주기도 하지만, 여러 환경에서 확실히 동작하게 하려면 이렇게 수동으로 초기화하는 것이 안전합니다. 이후 무한 루프에 진입하여 커널이 종료되지 않도록 합니다.
 
-Add a kernel build command and a new QEMU option (`-kernel kernel.elf`) to `run.sh`:
+## 실행해보기
+
+`run.sh` 스크립트에 커널 빌드 명령과 `-kernel kernel.elf` 옵션을 추가해 보겠습니다:
 
 ```bash [run.sh] {6-12,16}
 #!/bin/bash
@@ -235,50 +242,50 @@ set -xue
 
 QEMU=qemu-system-riscv32
 
-# Path to clang and compiler flags
-CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu users: use CC=clang
+# clang 경로와 컴파일 옵션
+CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu 등 환경에 따라 경로 조정: CC=clang
 CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
 
-# Build the kernel
+# 커널 빌드
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
     kernel.c
 
-# Start QEMU
+# QEMU 실행
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -kernel kernel.elf
 ```
 
 > [!TIP]
 >
-> You can check the file path of the Homebrew version of clang on macOS with the following command:
+> macOS에서 Homebrew로 clang을 설치했다면 다음 명령어로 경로를 확인할 수 있습니다:
 >
 > ```
 > $ ls $(brew --prefix)/opt/llvm/bin/clang
 > /opt/homebrew/opt/llvm/bin/clang
 > ```
 
-The specified clang options (`CFLAGS` variable) are as follows:
+`CFLAGS`에 지정한 옵션의 의미는 다음과 같습니다:
 
-| Option | Description |
-| ------ | ----------- |
-| `-std=c11` | Use C11. |
-| `-O2` | Enable optimizations to generate efficient machine code. |
-| `-g3` | Generate the maximum amount of debug information. |
-| `-Wall` | Enable major warnings. |
-| `-Wextra` | Enable additional warnings. |
-| `--target=riscv32` | Compile for 32-bit RISC-V. |
-| `-ffreestanding` | Do not use the standard library of the host environment (your development environment). |
-| `-nostdlib` | Do not link the standard library. |
-| `-Wl,-Tkernel.ld` | Specify the linker script. |
-| `-Wl,-Map=kernel.map` | Output a map file (linker allocation result). |
+| 옵션 | 설명                                            |
+| ------ |-----------------------------------------------|
+| `-std=c11` | C11 표준 사용                                     |
+| `-O2` | 최적화 레벨 2 설정                                   |
+| `-g3` | 최대한의 디버그 정보 생성                                |
+| `-Wall` | 핵심 경고 활성화                                     |                                                                             
+| `-Wextra` | 추가 경고 활성화                                     |
+| `--target=riscv32` | 32비트 RISC-V 대상 아키텍처로 컴파일                      |
+| `-ffreestanding` | 호스트(개발 환경) 표준 라이브러리를 사용하지 않음                  |
+| `-nostdlib` | 표준 라이브러리를 링크하지 않음                             |
+| `-Wl,-Tkernel.ld` | 링커 스크립트(`kernel.ld`) 지정                         |
+| `-Wl,-Map=kernel.map` | 맵 파일(`kernel.map`) 생성 (링킹 결과와 섹션 배치를 확인할 수 있음) |
 
-`-Wl,` means passing options to the linker instead of the C compiler. `clang` command does C compilation and executes the linker internally.
+`-Wl,`는 링커 옵션을 직접 전달하는 방법입니다. `clang`은 내부적으로 링커를 실행하므로 이렇게 지정해 줍니다.
 
-## Your first kernel debugging
+## 첫 번째 커널 디버깅
 
-When you run `run.sh`, the kernel enters an infinite loop. There are no indications that the kernel is running correctly. But don't worry, this is quite common in low-level development! This is where QEMU's debugging features come in.
+`run.sh`를 실행하면, 작성한 커널이 `kernel_main`에서 무한 루프에 들어갑니다. 화면상으로는 별다른 변화가 없어 보일 수 있지만, 이는 매우 흔한 상황입니다. 이런 때는 QEMU의 디버그 기능을 사용해 실제로 코드가 어디까지 실행되었는지를 확인해볼 수 있습니다.
 
-To get more information about the CPU registers, open the QEMU monitor and execute the `info registers` command:
+QEMU 모니터에서 `info registers` 명령어를 실행하면 CPU 레지스터 정보를 확인할 수 있습니다:
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -300,9 +307,9 @@ CPU#0
 
 > [!TIP]
 >
-> The exact values may differ depending on the versions of clang and QEMU.
+> clang과 QEMU 버전에 따라 레지스터 값은 다를 수 있습니다.
 
-`pc 80200014` shows the current program counter, the address of the instruction being executed. Let's use the disassembler (`llvm-objdump`) to narrow down the specific line of code:
+`pc 80200014` 는 현재 0x80200014 주소의 명령어가 실행되고 있음을 의미합니다. 이제 `llvm-objdump`로 어떤 명령어가 있는지 확인해보겠습니다:
 
 ```
 $ llvm-objdump -d kernel.elf
@@ -323,15 +330,15 @@ Disassembly of section .text:
 80200014: f5 bf         j       0x80200010 <kernel_main>  ← pc is here
 ```
 
-Each line corresponds to an instruction. Each column represents:
+각 줄은 다음 정보를 보여줍니다:
 
-- The address of the instruction.
-- Hexadecimal dump of the machine code.
-- Disassembled instructions.
+- 명령어가 배치된 주소
+- 기계어(16진수)
+- 역어셈블된 명령어
 
-`pc 80200014` means the currently executed instruction is `j 0x80200010`. This confirms that QEMU has correctly reached the `kernel_main` function.
+`pc 80200014` 부분을 보면 `j 0x80200010` 명령어가 확인됩니다. 이는 곧 `kernel_main`의 무한 루프에 진입했음을 의미합니다.
 
-Let's also check if the stack pointer (sp register) is set to the value of `__stack_top` defined in the linker script. The register dump shows `x2/sp 80220018`. To see where the linker placed `__stack_top`, check `kernel.map` file:
+또한 스택 포인터(`sp`)가 정말로 링커 스크립트에서 정의한 `__stack_top` 주소로 설정되었는지도 확인해볼 수 있습니다. 레지스터 정보에서 `x2/sp 80220018`로 나와 있는데, `kernel.map`을 보면 다음과 같은 배치를 확인할 수 있습니다:
 
 ```
      VMA      LMA     Size Align Out     In      Symbol
@@ -343,7 +350,7 @@ Let's also check if the stack pointer (sp register) is set to the value of `__st
 80220018 80220018        0     1 __stack_top = .
 ```
 
-Alternatively, you can also check the addresses of functions/variables using `llvm-nm`:
+혹은 `llvm-nm` 명령어로도 확인할 수 있습니다:
 
 ```
 $ llvm-nm kernel.elf
@@ -354,9 +361,10 @@ $ llvm-nm kernel.elf
 80200010 T kernel_main
 ```
 
-The first column is the address where they are placed (VMA). You can see that `__stack_top` is placed at `0x80220018`. This confirms that the stack pointer is correctly set in the `boot` function. Nice!
+첫 열이 각 심볼의 배치된 가상 메모리 주소(`VMA`)이며, `__stack_top`이 `0x80220018` 주소로 배치된 것을 볼 수 있습니다. `QEMU`에서 본 스택 포인터 값과 동일하므로, 설정이 제대로 이루어졌음을 알 수 있습니다.
 
-As execution progresses, the results of `info registers` will change. If you want to temporarily stop the emulation, you can use the `stop` command in the QEMU monitor:
+만약 실행을 일시 정지하고 싶다면, `QEMU` 모니터에서 `stop` 명령어로 정지한 뒤 `info registers`를 통해 상태를 확인하고, `cont` 명령어로 재개할 수 있습니다:
+
 
 ```
 (qemu) stop             ← The process stops
@@ -364,4 +372,4 @@ As execution progresses, the results of `info registers` will change. If you wan
 (qemu) cont             ← The process resumes
 ```
 
-Now you've successfully written your first kernel!
+이제 첫 번째 커널을 성공적으로 작성했습니다! 여기까지 오느라 고생 많으셨습니다.

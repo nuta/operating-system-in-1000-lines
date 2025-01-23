@@ -1,50 +1,51 @@
 ---
-title: Overview
+title: 기능 및 구조 미리보기
 ---
 
-# What we will implement
+# 기능 및 구조 미리보기
 
-Before starting to build an OS, let's quickly get an overview of the features we will implement.
+OS를 본격적으로 만들기 시작하기 전에, 이 책에서 구현할 기능들을 간단히 살펴보겠습니다.
 
-## Features in 1K LoC OS
+## 1,000줄 짜리 OS에서 구현할 주요 기능
 
-In this book, we will implement the following major features:
+다음과 같은 주요 기능들을 구현할 예정입니다:
 
-- **Multitasking**: Switch between processes to allow multiple applications to share the CPU.
-- **Exception handler**: Handle events requiring OS intervention, such as illegal instructions.
-- **Paging**: Provide an isolated memory address space for each application.
-- **System calls**: Allow applications to call kernel features.
-- **Device drivers**: Abstract hardware functionalities, such as disk read/write.
-- **File system**: Manage files on disk.
-- **Command-line shell**: User interface for humans.
+- **멀티태스킹(Multitasking)**: 여러 애플리케이션이 CPU를 공유할 수 있도록 프로세스 간 전환을 지원합니다.
+- **예외 처리(Exception Handler)**: 잘못된 명령어 처리 등, OS의 개입이 필요한 이벤트를 다룹니다.
+- **페이징(Paging)**: 각 애플리케이션에 독립적인 메모리 주소 공간을 제공합니다.
+- **시스템 콜(System Calls)**: 애플리케이션이 커널 기능을 호출할 수 있는 방법을 제공합니다.
+- **디바이스 드라이버(Device Drivers)**: 디스크 읽기/쓰기처럼 하드웨어 기능을 추상화합니다.
+- **파일 시스템(File System)**: 디스크 상에서 파일을 관리합니다.
+- **명령줄 셸(Command-line Shell)**: 사람이 사용하는 명령줄 기반 인터페이스를 제공합니다.
 
-## Features not implemented
 
-The following major features are not implemented in this book:
+## 이 책에서 다루지 않는 기능
 
-- **Interrupt handling**: Instead, we will use a polling method (periodically check for new data on devices), also known as busy waiting.
-- **Timer processing**: Preemptive multitasking is not implemented. We'll use cooperative multitasking, where each process voluntarily yields the CPU.
-- **Inter-process communication**: Features such as pipe, UNIX domain socket, and shared memory are not implemented.
-- **Multi-processor support**: Only single processor is supported.
+아래와 같은 기능들은 이번 책에서 구현하지 않습니다:
 
-## Source code structure
+- **인터럽트 처리(Interrupt Handling)**: 대신 주기적으로 디바이스를 확인하는 폴링(polling) 방식을 사용합니다(busy waiting).
+- **타이머 처리(Timer Processing)**: 선점형(preemptive) 멀티태스킹은 구현하지 않습니다. 각 프로세스가 스스로 CPU를 양보하는 협력형(cooperative) 멀티태스킹을 사용할 예정입니다.
+- **프로세스 간 통신(Inter-process Communication)**: 파이프, UNIX 도메인 소켓, 공유 메모리 등의 기능은 구현하지 않습니다.
+- **멀티프로세서 지원(Multi-processor Support)**: 단일 프로세서만 지원합니다.
 
-We'll build from scratch incrementally, and the final file structure will look like this:
+## 소스 코드 구조
+
+맨바닥부터 점진적으로 빌드해나갈 것이며, 최종적으로 아래와 같은 파일 구조가 완성됩니다:
 
 ```
-├── disk/     - File system contents
-├── common.c  - Kernel/user common library: printf, memset, ...
-├── common.h  - Kernel/user common library: definitions of structs and constants
-├── kernel.c  - Kernel: process management, system calls, device drivers, file system
-├── kernel.h  - Kernel: definitions of structs and constants
-├── kernel.ld - Kernel: linker script (memory layout definition)
-├── shell.c   - Command-line shell
-├── user.c    - User library: functions for system calls
-├── user.h    - User library: definitions of structs and constants
-├── user.ld   - User: linker script (memory layout definition)
-└── run.sh    - Build script
+├── disk/ - 파일 시스템용 디렉터리 
+├── common.c - 커널/유저 공용 라이브러리(printf, memset 등)
+├── common.h - 커널/유저 공용 라이브러리용 구조체 및 상수 정의
+├── kernel.c - 커널(프로세스 관리, 시스템 콜, 디바이스 드라이버, 파일 시스템 등)
+├── kernel.h - 커널용 구조체 및 상수 정의
+├── kernel.ld - 커널용 링커 스크립트(메모리 레이아웃 정의)
+├── shell.c - 명령줄 셸
+├── user.c - 유저 라이브러리(시스템 콜 관련 함수)
+├── user.h - 유저 라이브러리용 구조체 및 상수 정의
+├── user.ld - 유저용 링커 스크립트(메모리 레이아웃 정의)
+└── run.sh - 빌드 스크립트
 ```
 
 > [!TIP]
 >
-> In this book, "user land" is sometimes abbreviated as "user". Consider it as "applications", and do not confuse it with "user account"!
+> 이 책에서 "user land"라는 용어는 종종 "user"로 축약해 사용됩니다. 이는 계정 단위의 “사용자(user account)”가 아니라, 애플리케이션 영역을 뜻하는 “유저 영역(user land)” 개념이니 혼동하지 마세요!
