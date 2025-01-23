@@ -6,11 +6,11 @@ hero:
   name: "Operating System in 1,000 Lines"
 
 features:
-  - title: English version
+  - title: English
     link: /en
-  - title: 日本語版
+  - title: 日本語
     link: /ja
-  - title: 简体中文版
+  - title: 简体中文
     link: /zh
   - title: 한국어
     link: /ko

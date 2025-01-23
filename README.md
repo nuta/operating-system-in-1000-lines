@@ -1,22 +1,12 @@
 # Writing an Operating System in 1,000 Lines
 
-- **[English version](https://operating-system-in-1000-lines.vercel.app/en)**
-- **[日本語版](https://operating-system-in-1000-lines.vercel.app/ja/)**
-- **[简体中文版](https://operating-system-in-1000-lines.vercel.app/zh/)** (Translated by [@YianAndCode](https://github.com/YianAndCode))
-- **[한국어판](https://operating-system-in-1000-lines.vercel.app/ko/)** (Translated by [@JoHwanhee](https://github.com/JoHwanhee))
+| **Language** | **Translator** |
+| --------- | -------------- |
+| **[English](https://operating-system-in-1000-lines.vercel.app/en)** | [@nuta](https://github.com/nuta) |
+| **[日本語](https://operating-system-in-1000-lines.vercel.app/ja/)** | [@nuta](https://github.com/nuta) |
+| **[简体中文](https://operating-system-in-1000-lines.vercel.app/zh/)** | [@YianAndCode](https://github.com/YianAndCode) |
+| **[한국어](https://operating-system-in-1000-lines.vercel.app/ko/)** | [@JoHwanhee](https://github.com/JoHwanhee) |
 
-This repository contains the source code and implementation examples for [Writing an OS in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/).
+![Operating System in 1,000 Lines](./screenshot.png)
 
-## License
-
-The text is written in Markdown can be used under the [CC BY 4.0 license](https://creativecommons.jp/faq). Everything else (implementation examples and source code in the text) is under the [MIT license](https://opensource.org/licenses/MIT).
-
-----
-
-# OSを1000行で自作してみよう
-
-このリポジトリは、[Writing an OS in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/) のソースコードと、その実装例です。
-
-## ライセンス
-
-Markdownで書かれている本文は [CC BY 4.0ライセンス](https://creativecommons.jp/faq) の下で利用できます。それ以外 (実装例や本文中のソースコード) は [MITライセンス](https://opensource.org/licenses/MIT) です。
+This repository contains the source code for the website [Operating System in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/), and a reference implementation.
