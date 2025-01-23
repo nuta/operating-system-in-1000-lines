@@ -16,6 +16,14 @@ Install [Homebrew](https://brew.sh) and run this command to get all tools you ne
 brew install llvm lld qemu
 ```
 
+Also, you need to add LLVM binutils to your `PATH`:
+
+```
+$ export PATH="$PATH:$(brew --prefix)/opt/llvm/bin"
+$ which llvm-objcopy
+/opt/homebrew/opt/llvm/bin/llvm-objcopy
+```
+
 ### Ubuntu
 
 Install packages with `apt`:

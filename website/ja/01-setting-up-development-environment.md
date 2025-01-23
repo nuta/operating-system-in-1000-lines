@@ -16,6 +16,14 @@ title: 開発環境
 brew install llvm lld qemu
 ```
 
+また、LLVMのユーティリティを使えるように `PATH` を設定します。
+
+```
+$ export PATH="$PATH:$(brew --prefix)/opt/llvm/bin"
+$ which llvm-objcopy
+/opt/homebrew/opt/llvm/bin/llvm-objcopy
+```
+
 ### Ubuntu
 
 次のコマンドで必要なパッケージをインストールします。他のLinuxディストリビューションをお使いの場合は、適宜読み替えてください。
