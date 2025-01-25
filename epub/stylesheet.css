@@ -1,3 +1,48 @@
+/* wrap long lines of code */
 pre, code {
   white-space: pre-wrap !important;
+}
+
+
+/* for all alerts */
+.title {
+    font-weight: bold;
+    font-size: 150%;
+    margin-left: 10%;
+}
+
+
+/* for notes */
+.note::before {
+    content: "📝";
+    float: left;
+    font-size: 150%;
+}
+
+.note {
+  margin-left: 10%;
+}
+
+
+/* for tips */
+.tip::before {
+    content: "💡";
+    float: left;
+    font-size: 150%;
+}
+
+.tip {
+  margin-left: 10%;
+}
+
+
+/* for warnings */
+.warning::before {
+    content: "❓";
+    float: left;
+    font-size: 150%;
+}
+
+.warning {
+  margin-left: 10%;
 }
