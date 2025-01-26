@@ -1,37 +1,38 @@
 ---
-title: Exception
+title: 예외 (Exception)
 ---
 
-# Exception
+# 예외 (Exception)
 
-Exception is a CPU feature that allows the kernel to handle various events, such as invalid memory access (aka. page faults), illegal instructions, and system calls.
+`Exception`은 CPU가 잘못된 메모리 접근(일명 페이지 폴트), 유효하지 않은 명령(Illegal Instructions), 그리고 시스템 콜 같은 다양한 이벤트가 발생했을 때 커널이 개입하도록 해주는 CPU 기능입니다.
 
-Exception is like a hardware-assisted `try-catch` mechanism in C++ or Java. Until CPU encounters the situation where kernel intervention is required, it continues to execute the program. The key difference from `try-catch` is that the kernel can resume the execution from the point where the exception occurred, as if nothing happened. Doesn't it sound like cool CPU feature?
+비유하자면, C++나 Java의 `try-catch`와 유사한 하드웨어 지원 메커니즘입니다. CPU는 커널이 개입해야 할 상황이 발생하기 전까지는 계속 프로그램을 실행하다가, 문제가 발생하면 예외가 발생해 커널이 개입하게 됩니다. `try-catch`와 다른 점은, 예외가 발생한 지점에서 커널이 개입했다가, 처리 후에 다시 “아무 일 없었던 것처럼” 같은 지점부터 프로그램을 재개할 수 있다는 것입니다. 꽤 멋진 기능이죠? 
 
-Exception can also be triggered in kernel mode and mostly they are fatal kernel bugs. If QEMU resets unexpectedly or the kernel does not work as expected, it's likely that an exception occurred. I recommend to implement an exception handler early to crash gracefully with a kernel panic. It's similar to adding an unhandled rejection handler as the first step in JavaScript development.
+`Exception`은 커널 모드에서도 발생할 수 있으며, 대부분 치명적인 커널 버그로 이어집니다. QEMU가 갑자기 리셋되거나 커널이 이상 동작한다면, 예외가 발생했을 가능성이 큽니다. 예외 핸들러를 일찍 구현해두면, 이런 경우 커널 패닉을 발생시켜 좀 더 우아하게 디버깅할 수 있습니다. 웹 개발에서 자바스크립트의 “unhandled rejection” 핸들러를 제일 먼저 달아두는 것과 비슷한 개념입니다.
 
-## Life of an exception
 
-In RISC-V, an exception will be handled as follows:
 
-1. CPU checks the `medeleg` register to determine which operation mode should handle the exception. In our case, OpenSBI has already configured to handle U-Mode/S-mode exceptions in S-Mode's handler.
-2. CPU saves its state (registers) into various CSRs (see below).
-3. The value of the `stvec` register is set to the program counter, jumping to the kernel's exception handler.
-4. The exception handler saves general-purpose registers (i.e. the program state), and handles the exception.
-5. Once it's done, the exception handler restores the saved execution state and calls the `sret` instruction to resume execution from the point where the exception occurred.
+## 예외가 처리되는 과정
 
-The CSRs updated in step 2 are mainly as follows. The kernel's exception determines necessary actions based on the CSRs:
+RISC-V에서 예외는 다음과 같은 단계를 거쳐 처리됩니다:
 
-| Register Name | Content                                                                                                                                         |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scause`      | Type of exception. The kernel reads this to identify the type of exception.                                                                     |
-| `stval`       | Additional information about the exception (e.g., memory address that caused the exception). Depends on the type of exception. |
-| `sepc`        | Program counter at the point where the exception occurred.                                                                                       |
-| `sstatus`     | Operation mode (U-Mode/S-Mode) when the exception has occurred.                                                                                        |
+1. CPU는 `medeleg` 레지스터를 확인하여 어떤 모드(운영 모드)에서 예외를 처리할지 결정합니다. 여기서는 OpenSBI가 이미 U-Mode와 S-Mode 예외를 S-Mode 핸들러에서 처리하도록 설정해두었습니다.
+2. CPU는 예외가 발생한 시점의 상태(각종 레지스터 값)를 여러 CSR(제어/상태 레지스터)들에 저장합니다(아래 표 참조).
+3. `stvec` 레지스터에 저장된 값이 프로그램 카운터로 설정되면서, 커널의 예외 핸들러로 점프합니다.
+4. 예외 핸들러는 일반 레지스터(프로그램 상태)를 별도로 저장한 뒤, 예외를 처리합니다.
+5. 처리 후, 저장해둔 실행 상태를 복원하고 `sret` 명령어를 실행해 예외가 발생했던 지점으로 돌아가 프로그램을 재개합니다.
+6. 2번 단계에서 업데이트되는 주요 CSR은 아래와 같습니다. 커널은 이 정보들을 기반으로 예외를 처리합니다:
 
-## Exception Handler
+| 레지스터     | 내용                                                   |
+|----------|------------------------------------------------------|
+| `scause` | 예외 유형. 커널은 이를 읽어 어떤 종류의 예외인지 판단합니다.                  |
+| `stval`  | 예외에 대한 부가 정보(예: 문제를 일으킨 메모리 주소). 예외 종류에 따라 다르게 사용됩니다. |
+| `sepc`   | 예외가 발생했을 때의 프로그램 카운터(PC) 값.                          |
+| `sstatus` | 예외가 발생했을 때의 운영 모드(U-Mode/S-Mode 등).                  |
 
-Now let's write your first exception handler! Here's the entry point of the exception handler to be registered in the `stvec` register:
+## 예외 핸들러 (Exception Handler) 구현
+
+이제 첫 번째 예외 핸들러를 구현해봅시다! 아래 코드는 `stvec` 레지스터에 등록할 예외 핸들러 진입점(entry point) 예시입니다:
 
 ```c [kernel.c]
 __attribute__((naked))
@@ -113,20 +114,21 @@ void kernel_entry(void) {
 }
 ```
 
-Here are some key points:
-
-- `sscratch` register is used as a temporary storage to save the stack pointer at the time of exception occurrence, which is later restored.
-- Floating-point registers are not used within the kernel, and thus there's no need to save them here. Generally, they are saved and restored during thread switching.
-- The stack pointer is set in the `a0` register, and the `handle_trap` function is called. At this point, the address pointed to by the stack pointer contains register values stored in the same structure as the `trap_frame` structure described later.
-- Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary. This is because the `stvec` register not only holds the address of the exception handler but also has flags representing the mode in its lower 2 bits.
+주요 포인트
+- `sscratch` 레지스터를 임시 저장소로 이용해 예외 발생 시점의 스택 포인터를 저장해두고, 나중에 복구합니다.
+- 커널에서는 부동소수점(FPU) 레지스터를 사용하지 않으므로(일반적으로 쓰레드 스위칭 시에만 저장/복원), 여기서는 저장하지 않았습니다.
+- 스택 포인터(`sp`) 값을 `a0` 레지스터에 넘겨 `handle_trap` 함수를 C 코드로 호출합니다. 이때 sp가 가리키는 곳에는 조금 뒤에 소개할 `trap_frame` 구조체와 동일한 형태로 레지스터들이 저장되어 있습니다.
+- `__attribute__((aligned(4)))`는 함수 시작 주소를 4바이트 경계에 맞추기 위함입니다. `stvec` 레지스터는 예외 핸들러 주소뿐 아니라 하위 2비트를 모드 정보 플래그로 사용하기 때문에, 핸들러 주소가 4바이트 정렬이 되어 있어야 합니다.
 
 > [!NOTE]
 >
-> The entry point of exception handlers is one of most critical and error-prone parts of the kernel. Reading the code closely, you'll notice that *original* values of general-purpose registers are saved onto the stack, even `sp` by using `sscratch`.
+> 예외 핸들러 진입점(entry point)은 커널에서 가장 까다롭고 실수하기 쉬운 부분 중 하나입니다. 코드를 자세히 보면, 원래의 일반 레지스터 값을 전부 스택에 저장하되, `sp`는 `sscratch`를 통해 우회적으로 저장하고 있음을 알 수 있습니다.
 >
-> If you accidentally overwrite `a0` register, it can lead to hard-to-debug problems like "local variable values change for no apparent reason". Save the program state perfectly not to spend your precious Saturday night debugging!
+> 만약 `a0` 레지스터를 잘못 덮어써버리면, “지역 변수 값이 이유 없이 바뀐다” 같은 디버깅하기 어려운 문제들을 일으킬 수 있습니다. 금요일 밤을 야근에 쏟고 싶지 않다면, 프로그램 상태를 잘 저장해두세요!
 
-In the entry point, the following `handle_trap` function is called to handle the exception in our favorite C language:
+
+위 진입점 코드에서는 `handle_trap` 함수를 호출해, 예외 처리를 C 언어로 진행합니다:
+
 
 ```c [kernel.c]
 void handle_trap(struct trap_frame *f) {
@@ -138,9 +140,9 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-It reads why the exception has occurred, and triggers a kernel panic for debugging purposes.
+`scause`가 어떤 이유로 예외가 발생했는지 알려주고, `stval`은 예외 부가정보(예: 잘못된 메모리 주소 등), `sepc`는 예외가 일어난 시점의 PC를 알려줍니다. 여기서는 디버깅을 위해 커널 패닉을 발생시킵니다.
 
-Let's define the various macros used here in `kernel.h:
+사용된 매크로들은 `kernel.h`에서 다음과 같이 정의합니다:
 
 ```c [kernel.h]
 #include "common.h"
@@ -193,9 +195,10 @@ struct trap_frame {
     } while (0)
 ```
 
-The `trap_frame` struct represents the program state saved in `kernel_entry`. `READ_CSR` and `WRITE_CSR` macros are convenient macros for reading and writing CSR registers.
+`trap_frame` 구조체는 `kernel_entry`에서 저장한 프로그램 상태를 나타냅니다. `READ_CSR`와 `WRITE_CSR` 매크로는 CSR 레지스터를 읽고 쓰는 편리한 매크로입니다.
 
-The last thing we need to do is to tell the CPU where the exception handler is located. It's done by setting the `stvec` register in the `kernel_main` function:
+마지막으로 CPU에게 예외 핸들러 위치를 알려주려면, `kernel_main` 함수에서 `stvec` 레지스터를 설정하면 됩니다:
+
 
 ```c [kernel.c] {4-5}
 void kernel_main(void) {
@@ -205,23 +208,26 @@ void kernel_main(void) {
     __asm__ __volatile__("unimp"); // new
 ```
 
-In addition to setting the `stvec` register, it executes `unimp` instruction. it's a pseudo instruction which triggers an illegal instruction exception.
+`stvec`를 설정한 뒤, `unimp` 명령어(illegal instruction 로 간주됨)를 실행해 일부러 예외를 일으키는 코드입니다.
+
 
 > [!NOTE]
 >
-> **`unimp` is a "pseudo" instruction**.
+> **`unimp` 는 “의사(pseudo) 명령어”**.
 >
-> According to [RISC-V Assembly Programmer's Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#instruction-aliases), the assembler translates `unimp` to the following instruction:
+> [RISC-V Assembly Programmer's Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#instruction-aliases), 에 따르면, 어셈블러는 `unimp`를 다음과 같은 명령어로 변환합니다:
 >
 > ```
 > csrrw x0, cycle, x0
 > ```
 >
-> This reads and writes the `cycle` register into `x0`. Since `cycle` is a read-only register, CPU determines that the instruction is invalid and triggers an illegal instruction exception.
+> `cycle` 레지스터는 읽기 전용(read-only) 레지스터이므로, 이를 쓰기 시도(`csrrw`)하는 것은 illegal instruction 예외로 이어집니다.
 
-## Let's try it
 
-Let's try running it and confirm that the exception handler is called:
+
+## 실행 해보기
+
+이제 실행해보고, 예외 핸들러가 호출되는지 확인해봅시다:
 
 ```
 $ ./run.sh
@@ -229,11 +235,13 @@ Hello World!
 PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=8020015e
 ```
 
-According to the specification, when the value of `scause` is 2, it indicates an "Illegal instruction," meaning that program tried to execute an invalid instruction. This is precisely the expected behavior of the `unimp` instruction!
+`scause`가 2면 “Illegal instruction” 예외에 해당합니다. 이는 우리가 `unimp`로 의도했던 동작과 일치합니다!
 
-Let's also check where the value of `sepc` is pointing. If it's pointing to the line where the `unimp` instruction is called,  everything is working correctly:
+또한 `sepc`가 어디를 가리키는지 확인해봅시다. `unimp` 명령어가 호출된 라인 번호에 해당한다면, 예외가 정상적으로 동작하고 있는 것입니다:
 
 ```
 $ llvm-addr2line -e kernel.elf 8020015e
 /Users/seiya/os-from-scratch/kernel.c:129
 ```
+
+해당 주소가 kernel.c에서 unimp를 실행한 줄을 가리키면 성공입니다!
