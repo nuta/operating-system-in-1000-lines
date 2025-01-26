@@ -1,12 +1,12 @@
 ---
-title: Kernel Panic
+title: 커널 패닉 (Kernel Panic)
 ---
 
-# Kernel Panic
+# 커널 패닉 (Kernel Panic)
 
-A kernel panic occurs when the kernel encounters an unrecoverable error, similar to the concept of `panic` in Go or Rust. Have you ever seen a blue screen on Windows? Let's implement the same concept in our kernel to handle fatal errors.
+커널 패닉은 커널에서 복구 불가능한 오류를 만났을 때 발생합니다. Go나 Rust에서의 `panic`과 비슷한 개념입니다. 윈도우에서 가끔 보이는 “블루 스크린”을 떠올려보면 이해가 쉽죠. 우리의 OS에도 크리티컬한 오류가 발생했을 때 커널이 알아서 멈추도록 구현해봅시다.
 
-The following `PANIC` macro is the implementation of kernel panic:
+다음 `PANIC` 매크로가 그 역할을 합니다.
 
 ```c [kernel.h]
 #define PANIC(fmt, ...)                                                        \
@@ -16,17 +16,18 @@ The following `PANIC` macro is the implementation of kernel panic:
     } while (0)
 ```
 
-It prints where the panic occurred, it enters an infinite loop to halt processing. We define it as a macro here. The reason for this is to correctly display the source file name (`__FILE__`) and line number (`__LINE__`). If we defined this as a function, `__FILE__` and `__LINE__` would show the file name and line number where `PANIC` is defined, not where it's called.
+이 매크로는 패닉이 발생한 소스 파일과 줄 번호를 출력한 뒤, 무한 루프에 빠져서 더 이상의 처리를 중단합니다. 매크로로 정의한 이유는 `__FILE__`과 `__LINE__`이 제대로 호출 위치의 파일명과 줄 번호를 표시하도록 하기 위해서입니다. 만약 함수를 썼다면, 이 매개변수들은 함수가 정의된 위치(매크로 정의가 들어 있는 파일/라인)로 잘못 표시될 것입니다.
 
-This macro also uses two idioms:
+이 매크로에서는 아래 두 가지 유용한 기법을 사용하고 있습니다:
 
-The first idiom is the `do-while` statement. Since it's `while (0)`, this loop is only executed once. This is a common way to define macros consisting of multiple statements. Simply enclosing with `{ ...}` can lead to unintended behavior when combined with statements like `if` (see [this clear example](https://www.jpcert.or.jp/sc-rules/c-pre10-c.html)). Also, note the backslash (`\`) at the end of each line. Although the macro is defined over multiple lines, newline characters are ignored when expanded.
+1. **do-while(0) 구조** : while (0)이므로 이 루프는 한 번만 실행됩니다. 여러 문장으로 이루어진 매크로를 do { ... } while (0)로 묶으면, 다른 구문(예: if 문)과 함께 사용할 때 의도치 않은 동작이 발생하는 것을 피할 수 있습니다. 그리고 각 줄 끝의 역슬래시(`\`)에 주의하세요. 매크로가 여러 줄에 걸쳐서 정의되어 있어도, 매크로 전개 시에는 줄바꿈이 무시됩니다.
 
-The second idiom is `##__VA_ARGS__`. This is a useful compiler extension for defining macros that accept a variable number of arguments (reference: [GCC documentation](https://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html)). `##` removes the preceding `,` when the variable arguments are empty. This allows compilation to succeed even when there's only one argument, like `PANIC("booted!")`.
+2. **`##__VA_ARGS__` 문법** : 매개변수가 가변적인 매크로를 정의할 때 유용한 확장 기능입니다. (참고: [GCC 문서](https://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html)) `##`는 가변 인자가 비어 있을 경우, 불필요한 쉼표(,)를 제거해줍니다. 예를 들어 `PANIC("booted!")`처럼 인자가 하나뿐이어도 오류 없이 잘 컴파일되도록 해줍니다. 
+   
 
-## Let's try it
+## 예시
 
-Let's try using `PANIC`. You can use it like `printf`:
+`PANIC`을 한 번 사용해봅시다. 그냥, `printf`처럼 쓰면 됩니다:
 
 ```c [kernel.c] {4-5}
 void kernel_main(void) {
@@ -37,11 +38,13 @@ void kernel_main(void) {
 }
 ```
 
-Try in QEMU and confirm that the correct file name and line number are displayed, and that the processing after `PANIC` is not executed (i.e., `"unreachable here!"` is not displayed):
+`QEMU`에서 실행했을 때, 커널 패닉이 실제로 발생하고 아래처럼 정확한 파일명과 줄 번호가 찍히는지, 그리고 `PANIC` 뒤의 코드는 전혀 실행되지 않는지(즉, `"unreachable here!"`가 출력되지 않는지) 확인해보세요.
+
 
 ```
 $ ./run.sh
 PANIC: kernel.c:46: booted!
 ```
 
-Blue screen in Windows and kernel panics in Linux are very scary, but in your own kernel, don't you think it is a nice feature to have? It's a "crash gracefully" mechanism, with a human-readable clue.
+윈도우의 블루 스크린이나 리눅스의 커널 패닉처럼 한편으론 무서운 기능이지만, 우리가 만드는 커널 안에서는 사용자에게 원인을 알려주고 멈출 수 있는 “우아한 크래시” 메커니즘이라고 할 수 있습니다. 이를 통해 인간이 이해할 수 있는 오류 메시지를 띄우고 시스템이 안전하게 멈추도록 하는 것이죠.
+
