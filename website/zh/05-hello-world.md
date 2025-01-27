@@ -162,7 +162,7 @@ void printf(const char *fmt, ...) {
     while (*fmt) {
         if (*fmt == '%') {
             fmt++; // 跳过 '%'
-            switch (*fmt) { // 读取下一个子富
+            switch (*fmt) { // 读取下一个字符
                 case '\0': // 当 '%' 作为格式字符串的末尾
                     putchar('%');
                     goto end;
