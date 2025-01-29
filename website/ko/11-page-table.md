@@ -1,22 +1,22 @@
 ---
-title: Page Table
+title: 페이지 테이블
 ---
 
-# Page Table
+# 페이지 테이블
 
-## Memory management and virtual addressing
+## 메모리 관리와 가상 주소
 
-When a program accesses memory, CPU translates the specified address (*virtual* address) into a physical address. The table that maps virtual addresses to physical addresses is called a *page table*. By switching page tables, the same virtual address can point to different physical addresses. This allows isolation of memory spaces (virtual address spaces) and separation of kernel and application memory areas, enhancing system security.
+프로그램이 메모리에 접근할 때, CPU는 지정된 가상 주소를 물리 주소로 변환합니다. 이때 **가상 주소**와 물리 주소의 매핑 정보를 저장하는 테이블을 페이지 테이블(page table) 이라고 합니다. 페이지 테이블을 교체함으로써 같은 가상 주소가 서로 다른 물리 주소를 가리키게 설정할 수도 있습니다. 이를 통해 메모리 공간(가상 주소 공간)을 분리하고, 커널 영역과 애플리케이션 영역을 분리하여 시스템 보안을 높일 수 있습니다.
 
-In this chapter, we'll implement the hardware-based memory isolation mechanism.
+이 장에서는 하드웨어 기반 메모리 격리 메커니즘을 직접 구현해 봅니다.
 
-## Structure of virtual address
+## 가상 주소 구조 (Virtual Address Structure)
 
-In this book, we use one of RISC-V's paging mechanisms called Sv32, which uses a two-level page table. The 32-bit virtual address is divided into a first-level page table index (`VPN[1]`), a second-level index (`VPN[0]`), and a page offset.
+이 책에서는 RISC-V의 페이징 메커니즘 중 하나인 Sv32를 사용합니다. Sv32는 2단계(page table)로 구성된 페이지 테이블 방식을 사용합니다. 32비트 가상 주소는 1단계 페이지 테이블 인덱스(`VPN[1]`), 2단계 인덱스(`VPN[0]`), 그리고 페이지 오프셋 (`offset`)으로 나뉩니다.
 
-Try **[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32-virtual-address.vercel.app/)** to see how virtual addresses are broken down into page table indices and offsets.
+[RISC-V Sv-32 Virtual Address Breakdown](https://riscv-sv32-virtual-address.vercel.app/) 를 사용해 가상 주소가 어떻게 구성되는지 확인해볼 수 있습니다.
 
-Here are some examples:
+아래는 몇 가지 예시입니다:
 
 | Virtual Address | `VPN[1]` (10 bits) | `VPN[0]` (10 bits) | Offset (12 bits) |
 | --------------- | ------------------ | ------------------ | ---------------- |
@@ -30,31 +30,32 @@ Here are some examples:
 
 > [!TIP]
 >
-> From the examples above, we can see the following characteristics of the indices:
+> 위 예시에서 다음과 같은 특징을 볼 수 있습니다:
 >
-> - Changing the middle bits (`VPN[0]`) doesn't affect the first-level index. This means page table entries for nearby addresses are concentrated in the same first-level page table.
-> - Changing the lower bits doesn't affect either `VPN[1]` or `VPN[0]`. This means addresses within the same 4KB page are in the same page table entry.
+> - 가운데 비트(`VPN[0]`)가 바뀌어도 첫 번째 인덱스(`VPN[1]`)에는 영향을 주지 않습니다. 즉, 주소가 서로 가깝다면 같은 1단계 페이지 테이블 안에 페이지 테이블 엔트리가 모여 있게 됩니다.
+> - 가장 낮은 비트는 `offset`이므로 `VPN[1]`이나 `VPN[0]`에 영향을 주지 않습니다. 즉, 4KB 페이지 내부 주소는 같은 페이지 테이블 엔트리를 공유합니다.
 >
-> This structure utilizes [the principle of locality](https://en.wikipedia.org/wiki/Locality_of_reference), allowing for smaller page table sizes and more effective use of the Translation Lookaside Buffer (TLB).
+> 이러한 구조는 [참조 지역성의 원리](https://en.wikipedia.org/wiki/Locality_of_reference)(locality of reference)를 활용해, 페이지 테이블을 작게 유지하고 TLB(Translation Lookaside Buffer)를 더욱 효율적으로 사용할 수 있게 합니다.
 
-When accessing memory, CPU calculates `VPN[1]` and `VPN[0]` to identify the corresponding page table entry, reads the mapped base physical address, and adds `offset` to get the final physical address.
+메모리에 접근할 때, CPU는 VPN[1]과 VPN[0]을 계산하여 해당하는 페이지 테이블 엔트리를 찾은 뒤, 거기에 저장된 물리 기본 주소(base physical address)에 offset을 더해 최종 물리 주소를 얻습니다.
 
-## Constructing the page table
+## 페이지 테이블 구성하기
 
-Let's construct a page table in Sv32. First, we'll define some macros. `SATP_SV32` is a single bit in the `satp` register which indicates "enable paging in Sv32 mode", and `PAGE_*` are flags to be set in page table entries.
+Sv32 방식의 페이지 테이블을 구성해 봅시다. 먼저 매크로들을 정의합니다. `SATP_SV32`는 `satp` 레지스터에서 "Sv32 모드 페이징 활성화"를 나타내는 비트이며, `PAGE_*`들은 페이지 테이블 엔트리에 설정할 플래그를 의미합니다.
 
 ```c [kernel.h]
 #define SATP_SV32 (1u << 31)
-#define PAGE_V    (1 << 0)   // "Valid" bit (entry is enabled)
-#define PAGE_R    (1 << 1)   // Readable
-#define PAGE_W    (1 << 2)   // Writable
-#define PAGE_X    (1 << 3)   // Executable
-#define PAGE_U    (1 << 4)   // User (accessible in user mode)
+#define PAGE_V    (1 << 0)   // "Valid" 비트 (엔트리가 유효함을 의미)
+#define PAGE_R    (1 << 1)   // 읽기 가능
+#define PAGE_W    (1 << 2)   // 쓰기 가능
+#define PAGE_X    (1 << 3)   // 실행 가능
+#define PAGE_U    (1 << 4)   // 사용자 모드 접근 가능
 ```
 
-## Mapping pages
+## 페이지 매핑하기
 
-The following `map_page` function takes the first-level page table (`table1`), the virtual address (`vaddr`), the physical address (`paddr`), and page table entry flags (`flags`):
+다음 `map_page` 함수는 1단계 페이지 테이블(`table1`), 가상 주소(`vaddr`), 물리 주소(`paddr`), 그리고 페이지 테이블 엔트리 플래그(`flags`)를 인자로 받습니다:
+
 
 ```c [kernel.c]
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
@@ -78,17 +79,19 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-This function prepares the second-level page table, and fills the page table entry in the second level.
+이 함수는 2단계 페이지 테이블이 없으면 할당한 뒤, 2단계 페이지 테이블의 페이지 테이블 엔트리를 채웁니다.
 
-It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself. Don't confuse the two!
+`paddr`를 `PAGE_SIZE`로 나누는 이유는 엔트리에 물리 주소 자체가 아니라 "물리 페이지 번호(physical page number)"를 저장해야 하기 때문입니다. 헷갈리지 않도록 주의합시다!
 
-## Mapping kernel memory area
 
-The page table must be configured not only for applications (user space), but also for the kernel.
+## 커널 메모리 영역 매핑
 
-In this book, the kernel memory mapping is configured so that the kernel's virtual addresses match the physical addresses (i.e. `vaddr == paddr`). This allows the same code to continue running even after enabling paging.
+페이지 테이블은 사용자 공간(애플리케이션)을 위해서만이 아니라, 커널을 위해서도 설정해주어야 합니다.
 
-First, let's modify the kernel's linker script to define the starting address used by the kernel (`__kernel_base`):
+이 책에서는 커널 메모리 매핑을`"커널의 가상 주소 == 물리 주소"`로 동일하게 설정합니다. 이렇게 하면 페이징을 활성화해도 동일한 코드가 문제없이 동작할 수 있습니다.
+
+먼저, 커널 링커 스크립트를 수정해 커널이 사용하는 시작 주소(`__kernel_base`)를 정의합니다:
+
 
 ```ld [kernel.ld] {5}
 ENTRY(boot)
@@ -100,9 +103,9 @@ SECTIONS {
 
 > [!WARNING]
 >
-> Define `__kernel_base` **after** the line `. = 0x80200000`. If the order is reversed, the value of `__kernel_base` will be zero.
+> __kernel_base 는 `. = 0x80200000` 줄 `뒤에` 정의해야 합니다. 순서가 바뀌면 `__kernel_base` 값이 0이 되어 버립니다.
 
-Next, add the page table to the process struct. This will be a pointer to the first-level page table.
+다음으로, 프로세스 구조체에 페이지 테이블을 가리키는 포인터를 추가합니다. 이 포인터는 1단계 페이지 테이블을 가리키게 됩니다.
 
 ```c [kernel.h] {5}
 struct process {
@@ -114,7 +117,7 @@ struct process {
 };
 ```
 
-Lastly, map the kernel pages in the `create_process` function. The kernel pages span from `__kernel_base` to `__free_ram_end`. This approach ensures that the kernel can always access both statically allocated areas (like `.text`), and dynamically allocated areas managed by `alloc_pages`:
+마지막으로, `create_process` 함수에서 커널 페이지들을 매핑해 줍니다. 커널 페이지는 `__kernel_base` 부터 `__free_ram_end` 까지를 커버합니다. 이렇게 하면 커널이 `.text` 같은 정적 할당 영역과 `alloc_pages`로 관리되는 동적 할당 영역도 모두 접근할 수 있게 됩니다.
 
 ```c [kernel.c] {1,6-11,15}
 extern char __kernel_base[];
@@ -136,13 +139,13 @@ struct process *create_process(uint32_t pc) {
 }
 ```
 
-## Switching page tables
+## 페이지 테이블 전환(switching)
 
-Let's switch the process's page table when context switching:
+컨텍스트 스위칭(context switching) 시에 프로세스의 페이지 테이블을 스위칭해야 합니다:
 
 ```c [kernel.c] {5-7,10-11}
 void yield(void) {
-    /* omitted */
+    /* 생략 */
 
     __asm__ __volatile__(
         "sfence.vma\n"
@@ -150,7 +153,7 @@ void yield(void) {
         "sfence.vma\n"
         "csrw sscratch, %[sscratch]\n"
         :
-        // Don't forget the trailing comma!
+        // 끝에 꼭 콤마가 있어야 함!
         : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table / PAGE_SIZE)),
           [sscratch] "r" ((uint32_t) &next->stack[sizeof(next->stack)])
     );
@@ -159,20 +162,17 @@ void yield(void) {
 }
 ```
 
-We can switch page tables by specifying the first-level page table in `satp`. Note that we divide by `PAGE_SIZE` because it's the physical page number.
+`satp` 레지스터에 1단계 페이지 테이블 주소를 지정하면 페이지 테이블을 전환할 수 있습니다. 이때도 "물리 주소"가 아닌 "물리 페이지 번호"를 지정해야 하므로 `PAGE_SIZ`E로 나누어줍니다.
 
-`sfence.vma` instructions added before and after setting the page table serve two purposes:
-
-1. To ensure that changes to the page table are properly completed (similar to a memory fence).
-2. To clear the cache of page table entries (TLB).
+`sfence.vma` 명령어들은 페이징 구조가 바뀌었을 때, CPU가 내부적으로 캐싱해둔 페이지 테이블(TLB)을 무효화하고, 페이지 테이블 변경이 올바르게 완료되었음을 보장하는 역할을 합니다.
 
 > [!TIP]
 >
-> When the kernel starts, paging is disabled by default (the `satp` register is not set). Virtual addresses behave as if they match physical addresses.
+> 커널이 시작할 때는 `satp` 레지스터가 설정되어 있지 않으므로 페이징이 비활성화된 상태입니다. 이때 가상 주소는 물리 주소와 동일하게 동작합니다.
 
-## Testing paging
+## 페이징 테스트하기
 
-let's try it and see how it works!
+이제 실제로 페이징을 설정해보고 테스트해봅시다!
 
 ```
 $ ./run.sh
@@ -182,11 +182,12 @@ Astarting process B
 BABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 ```
 
-The output is exactly the same as in the previous chapter (context switching). There's no visible change even after enabling paging. To check if we've set up the page tables correctly, let's inspect it with QEMU monitor!
+출력 결과는 이전 장(컨텍스트 스위칭만 했을 때)과 완전히 동일합니다. 페이징을 켰음에도 겉으로 보기에 달라진 것은 없습니다.
+페이지 테이블이 제대로 구성되었는지 확인하려면, QEMU 모니터를 통해 확인해볼 수 있습니다!
 
-## Examining page table contents
+## 페이지 테이블 내용 확인하기
 
-Let's look at how the virtual addresses around `0x80000000` are mapped. If set up correctly, they should be mapped so that `(virtual address) == (physical address)`.
+우선 `0x80000000` 주변 가상 주소들이 어떻게 매핑되는지 살펴봅시다. 잘 설정됐다면 `(가상 주소) == (물리 주소)` 형태로 매핑되어 있어야 합니다.
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -197,22 +198,23 @@ QEMU 8.0.2 monitor - type 'help' for more information
  ...
 ```
 
-You can see that `satp` is `0x80080253`. According to the specification (RISC-V Sv32 mode), interpreting this value gives us the first-level page table's starting physical address: `(0x80080253 & 0x3fffff) * 4096 = 0x80253000`.
+`satp` 레지스터 값이 `0x80080253` 으로 설정된 것을 볼 수 있습니다. RISC-V의 Sv32 사양에 따르면, `(0x80080253 & 0x3fffff) * 4096 = 0x80253000` 이 값이 1단계 페이지 테이블의 물리 시작 주소임을 의미합니다.
 
-Next, let's inspect the contents of the first-level page table. We want to know the second-level page table corresponding to the virtual address `0x80000000`. QEMU provides commands to display memory contents (memory dump). `xp` command dumps memory at the specified physical address. Dump the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
+이제 1단계 페이지 테이블 내용을 확인해봅시다. `0x80000000` 가상 주소에 해당하는 1단계 인덱스는 `0x80000000 >> 22 = 512`이므로, 1단계 테이블의 512번째 엔트리를 보고 싶습니다. 각 엔트리는 4바이트이므로, `512 * 4`를 더한 위치를 살펴봅니다:
 
 ```
 (qemu) xp /x 0x80253000+512*4
 0000000080253800: 0x20095001
 ```
 
-The first column shows the physical address, and the subsequent columns show the memory values. We can see that some non-zero values are set. The `/x` option specifies hexadecimal display. Adding a number before `x` (e.g., `/1024x`) specifies the number of entries to display.
+첫 번째 열은 물리 주소를 표시하고, 이후로 16진수 값이 나옵니다. (`/x` 옵션은 16진수 표시를 의미). `/1024x` 같은 식으로 개수를 지정하면 더 많은 엔트리를 덤프할 수 있습니다.
+
 
 > [!TIP]
 >
-> Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in our kernel space.
+> `x` 명령어(예: x /x 0x...)는 가상 주소 기준으로 메모리를 확인하는 명령어이고, `xp` 명령어는 물리 주소 기준으로 확인하는 명령어입니다. 커널 공간은 가상 주소와 물리 주소가 동일하지만, 사용자 공간처럼 가상 주소와 물리 주소가 다른 곳을 볼 땐 `xp`를 사용해야 올바르게 확인할 수 있습니다.
 
-According to the specification, the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. Let's dump the entire second-level table (1024 entries):
+스펙에 따르면, 2단계 페이지 테이블은 `(0x20095000 >> 10) * 4096 = 0x80254000` 에 위치합니다. 2단계 테이블(1024개 엔트리)을 전부 덤프해봅시다:
 
 ```
 (qemu) xp /1024x 0x80254000
@@ -234,9 +236,9 @@ According to the specification, the second-level page table is located at `(0x20
 ...
 ```
 
-The initial entries are filled with zeros, but values start appearing from the 512th entry (`254800`). This is because `__kernel_base` is `0x80200000`, and `VPN[1]` is `0x200`.
+처음 부분은 전부 0으로 채워져 있고, 512번째 엔트리(`254800` 부근)부터 값이 채워져 있음을 볼 수 있습니다. 이는 `__kernel_base`가 `0x80200000` 이고, `VPN[1]`이 `0x200` 부근이기 때문입니다.
 
-We've manually read memory dumps up, but QEMU actually provides a command that displays the current page table mappings in human-readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
+직접 메모리 덤프를 보는 대신, QEMU에는 현재 페이지 테이블 매핑 정보를 사람이 보기 좋게 출력해주는 `info mem` 명령어가 있습니다. 매핑이 제대로 되었는지 최종적으로 확인하고 싶다면 이 명령어를 이용하면 됩니다.
 
 ```
 (qemu) info mem
@@ -274,21 +276,21 @@ vaddr    paddr            size     attr
 84000000 0000000084000000 00241000 rwx----
 ```
 
-The columns represent, in order: virtual address, physical address, size (in hexadecimal bytes), and attributes.
+표의 각 열은 가상 주소, 물리 주소, 크기(16진수), 그리고 속성 정보를 나타냅니다.
 
-Attributes are represented by a combination of `r` (readable), `w` (writable), `x` (executable), `a` (accessed), and `d` (written), where `a` and `d` indicate that the CPU has "accessed the page" and "written to the page" respectively. They are auxiliary information for the OS to keep track of which pages are actually being used/modified.
+속성은 `r`(읽기 가능), `w`(쓰기 가능), `x`(실행 가능), `a`(accessed: CPU가 페이지를 읽거나 실행함), `d`(dirty: CPU가 페이지에 기록함)로 구성됩니다. `a`와 `d`는 OS가 “이 페이지가 실제로 사용되었는지(읽혔는지), 쓰여졌는지” 추적할 때 유용합니다.
 
 > [!TIP]
 >
-> For beginners, debugging page table can be quite challenging. If things aren't working as expected, refer to the "Appendix: Debugging paging" section.
+> 처음 접하는 사람에게는 페이지 테이블 디버깅이 쉽지 않습니다. 원하는 대로 동작하지 않으면, 아래 "부록: 페이징 디버깅" 섹션을 참고해보세요.
 
-## Appendix: Debugging paging
+## 부록: 페이징 디버깅
 
-Setting up page tables can be tricky, and mistakes can be hard to notice. In this appendix, we'll look at some common paging errors and how to debug them.
+페이지 테이블 설정은 실수하기 쉽고, 에러가 잘 드러나지 않을 때가 많습니다. 여기서는 흔히 발생하는 페이징 오류와, 이를 디버깅하는 방법을 살펴봅니다.
 
-### Forgetting to set the paging mode
+### 페이징 모드 비트 설정을 빼먹었을 때
 
-Let's say we forget to set the mode in the `satp` register:
+예를 들어, `satp` 레지스터에 모드를 설정하는 것을 깜빡했다고 합시다:
 
 ```c [kernel.c] {6}
     __asm__ __volatile__(
@@ -300,19 +302,20 @@ Let's say we forget to set the mode in the `satp` register:
     );
 ```
 
-However, when you run the OS, you'll see that it works as usual. This is because paging remains disabled and 
-memory addresses are treated as physical addresses as before.
+이 경우, OS를 실행해도 전과 달라진 점 없이 정상 작동하는 것처럼 보입니다. 실제로는 페이징이 꺼져 있어서 모든 주소가 여전히 물리 주소처럼 동작하기 때문입니다.
 
-To debug this case, try `info mem` command in the QEMU monitor. You'll see something like this:
+이를 디버깅하기 위해 QEMU 모니터에서 `info mem` 명령어를 써보면:
 
 ```
 (qemu) info mem
 No translation or protection
 ```
 
-### Specifying physical address instead of physical page number
+처럼 전혀 페이지 테이블 매핑 정보가 나오지 않습니다.
 
-Let's say we mistakenly specify the page table using a physical *address* instead of a physical *page number*:
+### 물리 페이지 번호 대신 물리 주소를 지정했을 때
+
+이번엔 다음처럼 페이지 테이블을 설정할 때 "물리 주소"를 그대로 써버려야 하는데, 실수로 "물리 페이지 번호" 대신 물리 주소를 그대로 써버렸다고 가정합시다:
 
 ```c [kernel.c] {6}
     __asm__ __volatile__(
@@ -324,7 +327,7 @@ Let's say we mistakenly specify the page table using a physical *address* instea
     );
 ```
 
-In this case, `info mem` will print no mappings:
+이 경우 `info mem` 명령어를 써보면 매핑이 전혀 잡히지 않은 것을 볼 수 있습니다:
 
 ```
 $ ./run.sh
@@ -336,7 +339,8 @@ vaddr    paddr            size     attr
 -------- ---------------- -------- -------
 ```
 
-To debug this, dump registers to see what the CPU is doing:
+디버깅을 위해 레지스터도 살펴봅시다:
+
 
 ```
 (qemu) info registers
@@ -349,9 +353,9 @@ CPU#0
  ...
 ```
 
-According to `llvm-addr2line`, `80200188` is the starting address of the exception handler. The exception reason in `scause` corresponds to "Instruction page fault". 
+`pc`가 `0x80200188`이고, `scause`가 `0000000c` (Instruction page fault)이라는 것을 확인할 수 있습니다. `llvm-addr2line`으로 `0x80200188`의 위치를 확인해 보면 예외 핸들러의 시작점임을 알 수 있습니다.
 
-Let's take a closer look at what's specifically happening by examining the QEMU logs:
+QEMU 로그(-d unimp,guest_errors,int,cpu_reset -D qemu.log)를 열어보면:
 
 ```bash [run.sh] {2}
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
@@ -368,12 +372,12 @@ Invalid read at addr 0x253000800, size 4, region '(null)', reason: rejected
 riscv_cpu_do_interrupt: hart:0, async:0, cause:0000000c, epc:0x80200188, tval:0x80200188, desc=exec_page_fault
 ```
 
-Here are what you can infer from the logs:
+이 로그로부터 몇 가지를 알 수 있습니다:
 
-- `epc`, which indicates the location of the page fault exception, is `0x80200580`. `llvm-objdump` shows that it points to the instruction immediately after setting the `satp` register. This means that a page fault occurs right after enabling paging.
+- `epc`(예외 발생 PC)가 `0x80200580`인 점을 보면, `satp`를 설정하자마자 곧바로 페이지 폴트가 발생했다는 것을 의미합니다.
 
-- All subsequent page faults show the same value. The exceptions occurred at `0x80200188`, points to the starting address of the exception handler. Because this log continues indefinitely, the exceptions (page fault) occurs when trying to execute the exception handler.
+- 이후 예외(page fault)가 `0x80200188`에서 반복적으로 일어나는데, 이 위치는 예외 핸들러의 시작점입니다. 결국 예외를 처리하려고 해도, 예외 핸들러 코드조차 페이지 폴트가 발생하는 악순환이 이어집니다.
 
-- Looking at the `info registers` in QEMU monitor, `satp` is `0x80253000`. Calculating the physical address according to the specification: `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`, which does not fit within a 32-bit address space. This indicates that an abnormal value has been set.
+- info registers에서 `satp`가 `0x80253000` 같은 값으로 설정되었고, Sv32에 따르면 `(0x80253000 & 0x3fffff) * 4096 = 0x253000000`처럼 주소가 32비트 범위를 초과해버리는 비정상적인 값이 되어 매핑 자체가 엉켜 버렸습니다.
 
-To summarize, you can investigate what's wrong by checking QEMU logs, register dumps, and memory dumps. However, the most important thing is to _"read the specification carefully."_ It's very common to overlook or misinterpret it.
+정리하자면, QEMU 로그나 레지스터 덤프, 메모리 덤프 등을 통해 무엇이 문제인지 추적할 수 있지만, 결국 가장 중요한 것은 "스펙을 꼼꼼히 읽고 정확히 구현하는 것" 입니다. 페이징에서는 사소한 실수로도 큰 오류가 발생하기 쉽습니다.

@@ -40,7 +40,7 @@ export default defineConfig({
               { link: '/ko/08-exception', text: '08. 예외' },
               { link: '/ko/09-memory-allocation', text: '09. 메모리 할당' },
               { link: '/ko/10-process', text: '10. 프로세스' },
-              { link: '/ko/11-page-table', text: '11. Page Table' },
+              { link: '/ko/11-page-table', text: '11. 페이지 테이블' },
               { link: '/ko/12-application', text: '12. Application' },
               { link: '/ko/13-user-mode', text: '13. User Mode' },
               { link: '/ko/14-system-call', text: '14. System Call' },
