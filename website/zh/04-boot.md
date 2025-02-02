@@ -237,7 +237,7 @@ QEMU=qemu-system-riscv32
 
 # clang 路径和编译器标志
 CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu 用户：使用 CC=clang
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
 
 # 构建内核
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
@@ -266,7 +266,8 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 | `-g3` | 生成最大量的调试信息。 |
 | `-Wall` | 启用主要警告。 |
 | `-Wextra` | 启用额外警告。 |
-| `--target=riscv32` | 编译为 32 位 RISC-V。 |
+| `--target=riscv32-unknown-elf` | 编译为 32 位 RISC-V。 |
+| `-fno-stack-protector` | 禁用栈保护功能（[#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393) 参考) |
 | `-ffreestanding` | 不使用主机环境（你的开发环境）的标准库。 |
 | `-nostdlib` | 不链接标准库。 |
 | `-Wl,-Tkernel.ld` | 指定链接器脚本。 |
