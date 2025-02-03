@@ -43,7 +43,7 @@ export default defineConfig({
               { link: '/ko/11-page-table', text: '11. 페이지 테이블' },
               { link: '/ko/12-application', text: '12. 애플리케이션' },
               { link: '/ko/13-user-mode', text: '13. 유저 모드' },
-              { link: '/ko/14-system-call', text: '14. System Call' },
+              { link: '/ko/14-system-call', text: '14. 시스템 콜' },
               { link: '/ko/15-virtio-blk', text: '15. Disk I/O' },
               { link: '/ko/16-file-system', text: '16. File System' },
               { link: '/ko/17-outro', text: '17. Outro' },

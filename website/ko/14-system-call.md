@@ -1,14 +1,15 @@
 ---
-title: System Call
+title: 시스템 콜
 ---
 
-# System Call
+# 시스템 콜
 
-In this chapter, we will implement *"system calls"* that allow applications to invoke kernel functions. Time to Hello World from the userland!
+이 장에서는 어플리케이션이 커널 기능을 호출할 수 있도록 하는 **"시스템 콜"** 을 구현해 보겠습니다. 사용자 영역에서 Hello World를 출력해볼 시간입니다!
 
-## User library
+## 사용자 라이브러리 (User library)
 
-Invoking system call is quite similar to [the SBI call implementation](/en/05-hello-world#say-hello-to-sbi) we've seen before:
+시스템 콜을 호출하는 방식은 우리가 이전에 본 [SBI 콜](/ko/05-hello-world#say-hello-to-sbi) 구현과 매우 유사합니다:
+
 
 ```c [user.c]
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -26,9 +27,12 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
 }
 ```
 
-The `syscall` function sets the system call number in the `a3` register and the system call arguments in the `a0` to `a2` registers, then executes the `ecall` instruction. The `ecall` instruction is a special instruction used to delegate processing to the kernel. When the `ecall` instruction is executed, an exception handler is called, and control is transferred to the kernel. The return value from the kernel is set in the `a0` register.
+`syscall` 함수는 `a3` 레지스터에 시스템 콜 번호를, `a0`부터 `a2` 레지스터에는 시스템 콜 인자를 저장한 후 ecall 명령어를 실행합니다.
+`ecall` 명령어는 커널로 처리를 위임하기 위해 사용되는 특별한 명령어입니다.
+`ecall` 명령어가 실행되면 예외 핸들러가 호출되어 제어권이 커널로 넘어갑니다.
+커널에서 반환하는 값은 `a0` 레지스터에 설정됩니다.
 
-The first system call we will implement is `putchar`, which outputs a character, via system call. It takes a character as the first argument. For the second and subsequent unused arguments are set to 0:
+우리가 처음 구현할 시스템 콜은 문자 출력 함수 `putchar`입니다. 이 시스템 콜은 첫 번째 인자로 문자를 받고, 두 번째 이후의 사용하지 않는 인자들은 0으로 설정됩니다:
 
 ```c [common.h]
 #define SYS_PUTCHAR 1
@@ -40,9 +44,9 @@ void putchar(char ch) {
 }
 ```
 
-## Handle `ecall` instruction in the kernel
+## 커널에서 ecall 명령어 처리
 
-Next, update the trap handler to handle `ecall` instruction:
+이제 예외 트랩 핸들러를 업데이트하여 `ecall` 명령어를 처리하도록 합시다:
 
 ```c [kernel.h]
 #define SCAUSE_ECALL 8
@@ -64,11 +68,12 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-Whether the `ecall` instruction was called can be determined by checking the value of `scause`. Besides calling the `handle_syscall` function, we also add 4 (the size of `ecall` instruction) to the value of `sepc`. This is because `sepc` points to the program counter that caused the exception, which points to the `ecall` instruction. If we don't change it, the kernel goes back to the same place, and the `ecall` instruction is executed repeatedly.
+`scause`의 값을 확인하면 `ecall` 명령어가 호출되었는지 판단할 수 있습니다. 또한, `handle_syscall` 함수를 호출한 후 `sepc`에 `4`(즉, `ecall` 명령어의 크기)를 더해줍니다. 이는 `sepc가` 예외를 발생시킨 명령어(즉, `ecall`)를 가리키기 때문인데, 만약 변경하지 않으면 커널이 동일한 위치로 돌아가 `ecall` 명령어를 반복 실행하게 됩니다.
 
-## System call handler
+## 시스템 콜 핸들러
 
-The following system call handler is called from the trap handler. It receives a structure of "registers at the time of exception" that was saved in the trap handler:
+
+아래의 시스템 콜 핸들러는 트랩 핸들러에서 호출됩니다. 이 함수는 예외가 발생했을 때 저장된 "레지스터 값들을 담은 구조체"를 인자로 받습니다:
 
 ```c [kernel.c]
 void handle_syscall(struct trap_frame *f) {
@@ -82,13 +87,11 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-It determines the type of system call by checking the value of the `a3` register. Now we only have one system call, `SYS_PUTCHAR`, which simply outputs the character stored in the `a0` register.
+핸들러는 `a3` 레지스터의 값을 확인하여 시스템 콜의 종류를 판별합니다. 현재는 오직 하나의 시스템 콜, `SYS_PUTCHAR만` 구현되어 있으며, 이는 `a0` 레지스터에 저장된 문자를 출력합니다.
 
-## Test the system call
+## 시스템 콜 테스트
 
-You've implemented the system call. Let's try it out!
-
-Do you remember the implementation of the `printf` function in `common.c`? It calls the `putchar` function to display characters. Since we have just implemented `putchar` in the userland library, we can use it as is:
+이제 시스템 콜을 구현했으니 테스트해 보겠습니다! `common.c`에 구현된 `printf` 함수를 기억하시나요? 이 함수는 내부적으로 `putchar` 함수를 호출하여 문자를 출력합니다. 이미 사용자 라이브러리에서 `putchar`를 구현했으므로 그대로 사용할 수 있습니다:
 
 ```c [shell.c] {2}
 void main(void) {
@@ -96,20 +99,21 @@ void main(void) {
 }
 ```
 
-You'll see the charming message on the screen:
+실행 결과는 다음과 같이 화면에 출력됩니다:
 
 ```
 $ ./run.sh
 Hello World from shell!
 ```
 
-Congratulations! You've successfully implemented the system call! But we're not done yet. Let's implement more system calls!
+축하합니다! 시스템 콜 구현에 성공했습니다. 하지만 여기서 멈추지 않고 다른 시스템 콜도 구현해보겠습니다!
 
-## Receive characters from keyboard (`getchar` system call)
+## 키보드 입력 받기 (getchar 시스템 콜)
 
-Our next goal is to implement shell. To do that, we need to be able to receive characters from the keyboard.
+이제 셸(shell)을 구현하려면 키보드로부터 문자를 입력받을 수 있어야 합니다.
 
-SBI provides an interface to read "input to the debug console". If there is no input, it returns `-1`:
+SBI는 "디버그 콘솔의 입력"을 읽어들이는 인터페이스를 제공합니다. 입력이 없을 경우 `-1`을 반환합니다:
+
 
 ```c [kernel.c]
 long getchar(void) {
@@ -118,7 +122,7 @@ long getchar(void) {
 }
 ```
 
-The `getchar` system call is implemented as follows:
+`getchar` 시스템 콜은 다음과 같이 구현됩니다:
 
 ```c [common.h]
 #define SYS_GETCHAR 2
@@ -153,15 +157,17 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-The implementation of the `getchar` system call repeatedly calls the SBI until a character is input. However, simply repeating this prevents other processes from running, so we call the `yield` system call to yield the CPU to other processes.
+이 시스템 콜의 구현에서는 SBI를 반복 호출하여 문자가 입력될 때까지 대기합니다. 하지만 단순히 반복 호출하게 되면 다른 프로세스들이 실행될 수 없으므로, `yield` 시스템 콜을 호출하여 CPU를 다른 프로세스에 양보합니다.
 
 > [!NOTE]
 >
-> Strictly speaking, SBI does not read characters from keyboard, but from the serial port. It works because the keyboard (or QEMU's standard input) is connected to the serial port.
+> 엄밀히 말하면, SBI는 키보드의 문자를 읽는 것이 아니라 시리얼 포트의 문자를 읽습니다. 키보드(QEMU의 표준 입력)가 시리얼 포트에 연결되어 있기 때문에 동작하는 것입니다.
 
-## Write a shell
 
-Let's write a shell with a simple command `hello`, which displays `Hello world from shell!`:
+
+## 셸 구현하기
+
+이제 `hello` 명령어를 지원하는 간단한 셸을 작성해보겠습니다. 이 명령어를 입력하면 `Hello world from shell!`이 출력됩니다:
 
 ```c [shell.c]
 void main(void) {
@@ -192,13 +198,13 @@ prompt:
 }
 ```
 
-It reads characters until a newline comes, and check if the entered string matches the command name.
+셸은 줄바꿈 문자가 입력될 때까지 문자를 읽어들이고, 입력된 문자열이 명령어와 일치하는지 확인합니다.
 
 > [!WARNING]
 >
-> Note that on the debug console, the newline character is (`'\r'`).
+> 디버그 콘솔에서는 줄바꿈 문자가 `'\r'`입니다.
 
-Let's try typing `hello` command:
+예를 들어, `hello` 명령어를 입력해보면:
 
 ```
 $ ./run.sh
@@ -207,11 +213,11 @@ $ ./run.sh
 Hello world from shell!
 ```
 
-Your OS is starting to look like a real OS! How fast you've come this far!
+이렇게 나오게 됩니다. 이제 여러분의 OS는 점점 실제 OS처럼 보이기 시작합니다. 정말 빠르게 진도를 나가고 있네요!
 
-## Process termination (`exit` system call)
+## 프로세스 종료 (exit 시스템 콜)
 
-Lastly, let's implement `exit` system call, which terminates the process:
+마지막으로, 프로세스를 종료시키는 `exit` 시스템 콜을 구현해 보겠습니다:
 
 ```c [common.h]
 #define SYS_EXIT    3
@@ -241,13 +247,13 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-The system call changes the process state to `PROC_EXITED`, and call `yield` to give up the CPU to other processes. The scheduler will only execute processes in `PROC_RUNNABLE` state, so it will never return to this process. However, `PANIC` macro is added to cause a panic in case it does return.
+해당 시스템 콜은 프로세스의 상태를 `PROC_EXITED`로 변경한 후, `yield`를 호출하여 CPU를 다른 프로세스에 양보합니다. 스케줄러는 `PROC_RUNNABLE` 상태의 프로세스만 실행하기 때문에, 이 프로세스는 다시 실행되지 않습니다. 하지만 혹시라도 돌아올 경우를 대비하여 `PANIC` 매크로를 추가해 두었습니다.
 
 > [!TIP]
 >
-> For simplicity, we only mark the process as exited (`PROC_EXITED`). If you want to build a practical OS, it is necessary to free resources held by the process, such as page tables and allocated memory regions.
+> 단순화를 위해, 여기서는 프로세스를 종료할 때 단순히 상태만 `PROC_EXITED`로 변경합니다. 실제 OS를 구축하려면, 페이지 테이블이나 할당된 메모리 영역과 같이 프로세스가 점유한 자원을 해제해야 합니다.
 
-Add the `exit` command to the shell:
+셸에 `exit` 명령어를 추가해보겠습니다:
 
 ```c [shell.c] {3-4}
         if (strcmp(cmdline, "hello") == 0)
@@ -258,7 +264,8 @@ Add the `exit` command to the shell:
             printf("unknown command: %s\n", cmdline);
 ```
 
-You're done! Let's try running it:
+이제 완료되었습니다! 실행해봅시다:
+
 
 ```
 $ ./run.sh
@@ -268,4 +275,5 @@ process 2 exited
 PANIC: kernel.c:333: switched to idle process
 ```
 
-When the `exit` command is executed, the shell process terminates via system call, and there are no other runnable processes remaining. As a result, the scheduler will select the idle process and cause a panic.
+`exit` 명령어를 실행하면 셸 프로세스가 시스템 콜을 통해 종료되고, 실행 가능한 다른 프로세스가 없으므로 스케줄러가 `idle` 프로세스를 선택하여 `PANIC`이 발생합니다.
+
