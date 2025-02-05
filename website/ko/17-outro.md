@@ -1,32 +1,34 @@
 ---
-title: Outro
+title: 끝내며
 ---
 
-# Outro
+# 끝내며
 
-Congratulations! You've completed the book. You've learned how to implement a simple OS kernel from scratch. You've learned about the basic concepts of operating systems, such as booting CPU, context switching, page table, user mode, system call, disk I/O, and file system.
+축하합니다! 이 책을 끝까지 읽으셨습니다. 여러분은 간단한 OS 커널을 처음부터 구현하는 방법을 배웠고, 부팅 CPU, 컨텍스트 스위칭, 페이지 테이블, 사용자 모드, 시스템 호출, 디스크 I/O, 파일 시스템 등 운영체제의 기본 개념들에 대해 익혔습니다.
 
-Although it's less than 1000 lines, it must have been quite challenging. This is because you built the core of the core of the core of kernel.
+비록 코드가 1000줄이 채 되지 않지만, 정말 도전적인 여정이었을 것입니다. 왜냐하면 여러분은 커널의 핵심 중의 핵심, 바로 커널의 코어를 직접 구현했기 때문입니다.
 
-For those who are not satisfied yet and wants to continue with something, here are some next steps:
+아직 만족스럽지 않거나 더 도전해보고 싶은 분들을 위해 다음과 같은 추가 단계들을 제안합니다:
 
-## Add new features
 
-In this book, we implemented the basic features of a kernel. However, there are still many features that can be implemented. For example, it would be interesting to implement the following features:
+## 새로운 기능 추가하기
 
-- A proper memory allocator that allows freeing memory.
-- Interrupt handling. Do not busy-wait for disk I/O.
-- A full-fledged file system. Implementing ext2 would be a good start.
-- Network communication (TCP/IP). It's not hard to implement UDP/IP (TCP is somewhat advanced). Virtio-net is very similar to virtio-blk!
+이 책에서는 커널의 기본 기능들을 구현했습니다. 하지만 여전히 구현할 수 있는 기능들이 많이 있습니다. 예를 들어, 다음과 같은 기능들을 추가해보는 것도 흥미로울 것입니다:
 
-## Read other OS implementations
+- 메모리 해제가 가능한 적절한 메모리 할당기
+- 인터럽트 처리: 디스크 I/O에 대해 바쁜 대기(busy-wait)를 하지 않도록 개선
+- 완전한 기능을 갖춘 파일 시스템: ext2와 같은 파일 시스템 구현이 좋은 출발점이 될 수 있음
+- 네트워크 통신(TCP/IP): UDP/IP 구현은 어렵지 않으며, TCP는 다소 복잡합니다. virtio-net은 virtio-blk와 매우 유사합니다!
 
-The most recommended next step is to read the implementation of existing OSes. Comparing your implementation with others and learning how others implemented is very educational.
+## 다른 OS 구현체 읽어보기
 
-My favorite is [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv). This is a UNIX-like OS for educational purposes, and it comes with an [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/). It's recommended for those who want to learn about UNIX-specific features like `fork(2)`.
+가장 추천하는 다음 단계는 다른 OS의 구현체들을 읽어보는 것입니다. 자신의 구현과 다른 구현체들을 비교하며, 다른 사람들이 어떻게 구현했는지 배우는 과정은 매우 교육적입니다.
 
-Another one is my project [Starina](https://starina.dev), a microkernel-based OS written in Rust. This is still very experimental, but would be interesting for those who want to learn about microkernel architecture and how Rust shines in OS development.
+제가 가장 좋아하는 구현체 중 하나는 [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv)입니다. 이 OS는 교육 목적으로 만들어진 UNIX-like 운영체제로, [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/)도 함께 제공됩니다. UNIX의 fork(2)와 같은 기능을 배우고자 하는 분들에게 추천합니다.
 
-## Feedbacks are very welcome!
+또 다른 추천 프로젝트는 제 개인 프로젝트 [Starina](https://starina.dev)입니다. Rust로 작성된 마이크로커널 기반 OS로, 아직 실험적인 단계이지만 마이크로커널 아키텍처와 OS 개발에서 Rust가 어떻게 빛을 발하는지 배우고 싶은 분들에게 흥미로운 자료가 될 것입니다.
 
-If you have any questions or feedback, please feel free to ask on [GitHub](https://github.com/nuta/operating-system-in-1000-lines/issues), or [send me an email](https://seiya.me) if you prefer. Happy your endless OS programming!
+
+## 피드백은 언제나 환영합니다!
+
+질문이나 피드백이 있다면, [GitHub](https://github.com/nuta/operating-system-in-1000-lines/issues)에 남겨주시거나, 원하신다면 [이메일](https://seiya.me)로 연락해 주세요. 여러분의 OS 프로그래밍 여정에 행운이 가득하길 바랍니다!

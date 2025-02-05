@@ -1,24 +1,27 @@
 ---
-title: File System
+title: 파일 시스템
 ---
 
-# File System
+# 파일 시스템
 
-You've done a great job so far! You've implemented a process, a shell, memory management, and a disk driver. Let's finish up by implementing a file system.
+지금까지 정말 잘 해왔습니다! 프로세스, 셸, 메모리 관리, 디스크 드라이버를 구현했습니다. 이제 파일 시스템 구현으로 마무리해보겠습니다.
 
-## Tar as file system
+## tar를 파일 시스템으로 사용하기
 
-In this book, we'll take an interesting approach to implement a file system: using a tar file as our file system.
+이 책에서는 흥미로운 방식으로 파일 시스템을 구현할 것입니다. 바로 tar 파일을 파일 시스템으로 사용하는 것입니다.
 
-Tar is an archive format that can contain multiple files. It contains file contents, filenames, creation dates, and other information necessary for a file system. Compared to common file system formats like FAT or ext2, tar has a much simpler data structure. Additionally, you can manipulate the file system image using the  tar command which you are already familiar with. Isn't it an ideal file format for educational purposes?
+tar는 여러 파일을 포함할 수 있는 아카이브 형식입니다. 파일의 내용, 파일 이름, 생성 날짜 등 파일 시스템에 필요한 정보들을 포함하고 있습니다. FAT나 ext2와 같은 일반적인 파일 시스템 형식에 비해 tar의 데이터 구조는 훨씬 간단합니다. 또한 익숙한 tar 명령어를 사용해 파일 시스템 이미지를 다룰 수 있으니 교육 목적으로 이상적인 파일 형식이라 할 수 있습니다.
+
 
 > [!TIP]
 >
-> Nowadays, tar is used as a ZIP alternative, but originally it was born as sort of file system for magnetic tape. We can use it as a file system as we do in this chapter, however, you'll notice that it is not suitable for random access. [The design of FAT file system](https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system) would be fun to read.
+> 요즘 tar는 ZIP의 대안으로도 사용되지만, 원래는 자기 테이프용 파일 시스템처럼 탄생했습니다. 이번 챕터처럼 tar 파일 시스템을 사용할 수 있지만, 무작위 접근에는 적합하지 않다는 점을 알아두세요. FAT 파일 시스템의 설계도 읽어보면 재미있을 것입니다.
 
-## Create a disk image (tar file)
 
-Let's start by preparing the contents of our file system. Create a directory called `disk` and add some files to it. Name one of them `hello.txt`:
+## 디스크 이미지(즉, tar 파일) 생성하기
+
+파일 시스템의 내용을 준비하기 위해 `disk`라는 디렉토리를 만들고 그 안에 몇 개의 파일을 추가합니다. 그중 하나의 이름은 `hello.txt`로 해봅니다:
+
 
 ```
 $ mkdir disk
@@ -26,7 +29,7 @@ $ vim disk/hello.txt
 $ vim disk/meow.txt
 ```
 
-Add a command to the build script to create a tar file and pass it as a disk image to QEMU:
+빌드 스크립트에 tar 파일을 생성하고 이를 QEMU에 디스크 이미지로 전달하는 명령을 추가합니다:
 
 ```bash [run.sh] {1,5}
 (cd disk && tar cf ../disk.tar --format=ustar ./*.txt)                          # new
@@ -38,18 +41,18 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -kernel kernel.elf
 ```
 
-The `tar` command options used here are:
+위의 `tar` 명령에서 사용한 옵션은 다음과 같습니다:
 
-- `cf`: Create tar file.
-- `--format=ustar`: Create in ustar format.
+- `cf`: tar 파일 생성 (create)
+- `--format=ustar`: ustar 형식으로 생성
 
 > [!TIP]
 >
-> The parentheses `(...)` create a subshell so that `cd` doesn't affect in other parts of the script.
+> 괄호 `(...)`는 서브셸을 생성하여 `cd` 명령이 스크립트의 다른 부분에 영향을 주지 않도록 합니다.
 
-## Tar file structure
+## tar 파일 구조
 
-A tar file has the following structure:
+tar 파일은 아래와 같은 구조로 되어 있습니다:
 
 ```
 +----------------+
@@ -64,13 +67,13 @@ A tar file has the following structure:
 |      ...       |
 ```
 
-In summary, a tar file is essentially a series of "tar header" and "file data" pair, one pair for each file. There are several types of tar formats, but we will use the **ustar format** ([Wikipedia](<https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format>)).
+요약하자면, tar 파일은 각 파일마다 한 쌍의 "tar header"와 "file data"로 구성되어 있습니다. 여러 종류의 tar 포맷이 존재하지만, 여기서는 **ustar 포맷**을 사용합니다. ([Wikipedia](<https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format>))
 
-We use this file structure as the data structure for our file system. Comparing this to a real file system would be very interesting and educational.
+이러한 파일 구조를 파일 시스템의 데이터 구조로 활용할 수 있습니다. 실제 파일 시스템과 비교해보면 매우 흥미롭고 교육적인 접근 방식입니다.
 
-## Reading the file system
+## 파일 시스템 읽기
 
-First, define the data structures related to tar file system in `kernel.h`:
+먼저, `kernel.h`에 tar 파일 시스템과 관련된 데이터 구조를 정의합니다:
 
 ```c [kernel.h]
 #define FILES_MAX      2
@@ -106,9 +109,10 @@ struct file {
 };
 ```
 
-In our file system implementation, all files are read from the disk into memory at boot. `FILES_MAX` defines the maximum number of files that can be loaded, and `DISK_MAX_SIZE` specifies the maximum size of the disk image.
+이 파일 시스템 구현에서는 부팅 시 디스크의 모든 파일을 메모리로 읽어옵니다. `FILES_MAX`는 로드할 수 있는 파일의 최대 개수를 정의하며, `DISK_MAX_SIZE`는 디스크 이미지의 최대 크기를 지정합니다.
 
-Next, let's read the whole disk into memory in `kernel.c`:
+다음으로, `kernel.c`에서 전체 디스크 이미지를 메모리로 읽어오는 코드를 추가합니다:
+
 
 ```c [kernel.c]
 struct file files[FILES_MAX];
@@ -151,11 +155,13 @@ void fs_init(void) {
 }
 ```
 
-In this function, we first use the `read_write_disk` function to load the disk image into a temporary buffer (`disk` variable). The `disk` variable is declared as a static variable instead of a local (stack) variable. This is because the stack has limited size, and it's preferable to avoid using it for large data areas.
+위 함수에서는 먼저 `read_write_disk` 함수를 이용해 디스크 이미지를 임시 버퍼인 `disk` 변수에 로드합니다. `disk` 변수는 스택 대신 정적 변수로 선언한 이유는 스택 크기가 제한적이기 때문입니다.
 
-After loading the disk contents, we sequentially copy them into the `files` variable entries. Note that **the numbers in the tar header are in octal format**. It's very confusing because it looks like decimals. The `oct2int` function is used to convert these octal string values to integers.
 
-Lastly, make sure to call the `fs_init` function after initializing the virtio-blk device (`virtio_blk_init`) in `kernel_main`:
+디스크 내용을 로드한 후, 순차적으로 `files` 배열에 복사합니다. 여기서 주의할 점은 tar 헤더에 저장된 숫자들은 8진수 문자열이라는 것입니다. 숫자가 10진수처럼 보이지만, 실제로는 8진수 문자열이므로 oct2int 함수를 사용해 이를 정수로 변환합니다.
+
+
+마지막으로, `kernel_main` 함수에서 `virtio-blk` 장치 초기화(`virtio_blk_init`) 이후에 fs_init을 호출하도록 합니다:
 
 ```c [kernel.c] {5}
 void kernel_main(void) {
@@ -168,9 +174,9 @@ void kernel_main(void) {
 }
 ```
 
-## Test file reads
+## 파일 읽기 테스트
 
-Let's try! It should print the file names and their sizes in `disk` directory:
+실행해보세요! `disk` 디렉토리에 있는 파일 이름과 크기가 출력됩니다:
 
 ```
 $ ./run.sh
@@ -180,9 +186,9 @@ file: world.txt, size=0
 file: hello.txt, size=22
 ```
 
-## Writing to the disk
+## 파일 시스템 디스크에 쓰기
 
-Writing files can be implemented by writing the contents of the `files` variable back to the disk in tar file format:
+파일을 쓰는 작업은 메모리 상의 `files` 변수에 있는 파일 내용을 tar 파일 형식으로 다시 디스크에 기록하는 방식으로 구현할 수 있습니다:
 
 ```c [kernel.c]
 void fs_flush(void) {
@@ -232,16 +238,27 @@ void fs_flush(void) {
 }
 ```
 
-In this function, a tar file is built in the `disk` variable, then written to the disk using the `read_write_disk` function. Isn't it simple?
+이 함수에서는 먼저 `disk` 버퍼에 tar 파일 형식으로 파일들을 구성한 뒤, `read_write_disk` 함수를 통해 실제 디스크에 기록합니다. 정말 간단하죠?
 
-## Design file read/write system calls
+## 파일 읽기/쓰기를 위한 시스템 호출 설계
 
-Now that we have implemented file system read and write operations, let's make it possible for applications to read and write files. We'll provide two system calls: `readfile` for reading files and `writefile` for writing files. Both take as arguments the filename, a memory buffer for reading or writing, and the size of the buffer.
+이제 파일 시스템의 읽기 및 쓰기 기능을 구현했으니, 애플리케이션에서 파일을 읽고 쓸 수 있도록 시스템 호출을 제공해보겠습니다.
+
+두 개의 시스템 호출을 제공할 것입니다:
+
+`readfile`: 파일을 읽기 위한 호출
+`writefile`: 파일을 쓰기 위한 호출
+두 호출 모두 파일 이름, 읽기/쓰기를 위한 메모리 버퍼, 버퍼 크기를 인자로 받습니다.
+
+먼저, common.h에 시스템 호출 번호를 정의합니다:
+
 
 ```c [common.h]
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
 ```
+
+그리고 사용자 라이브러리 코드는 다음과 같이 작성합니다:
 
 ```c [user.c]
 int readfile(const char *filename, char *buf, int len) {
@@ -260,11 +277,11 @@ int writefile(const char *filename, const char *buf, int len);
 
 > [!TIP]
 >
-> It would be interesting to read the design of system calls in general operating systems and compare what has been omitted here. For example, why do `read(2)` and `write(2)` system calls in Linux take file descriptors as arguments, not filenames?
+> 일반 운영체제의 시스템 호출 설계와 비교해보면 흥미로운 점들이 있습니다. 예를 들어, 왜 리눅스의 read(2)와 write(2) 시스템 호출은 파일 이름 대신 파일 디스크립터를 인자로 받는지 생각해보세요.
 
-## Implement system calls
+## 시스템 호출 구현
 
-Let's implement the system calls we defined in the previous section.
+이제 앞에서 정의한 시스템 호출을 실제로 구현해봅니다.
 
 ```c [kernel.c] {1-9,14-39}
 struct file *fs_lookup(const char *filename) {
@@ -312,15 +329,18 @@ void handle_syscall(struct trap_frame *f) {
 }
 ```
 
-File read and write operations are mostly the same, so they are grouped together in the same place. The `fs_lookup` function searches for an entry in the `files` variable based on the filename. For reading, it reads data from the file entry, and for writing, it modifies the contents of the file entry. Lastly, the `fs_flush` function writes to the disk.
+위 코드에서, 파일 읽기와 쓰기 작업은 거의 동일하므로 하나의 케이스에서 처리합니다.
+`fs_lookup` 함수는 주어진 파일 이름으로 `files` 배열에서 해당 파일 항목을 찾습니다.
+읽기 작업의 경우 파일의 데이터를 버퍼에 복사하고, 쓰기 작업은 버퍼의 내용을 파일 항목에 기록한 후 `fs_flush`를 호출하여 디스크에 저장합니다.
+
 
 > [!WARNING]
 >
-> For simplicity, we are directly referencing pointers passed from applications (aka. *user pointers*), but this poses security issues. If users can specify arbitrary memory areas, they could read and write kernel memory areas through system calls.
+> 여기서는 단순함을 위해 애플리케이션에서 전달받은 포인터(즉, user pointer)를 직접 참조하고 있습니다. 만약 사용자가 임의의 메모리 영역을 지정할 수 있다면, 시스템 호출을 통해 커널 메모리에 접근할 위험이 있으므로 보안에 문제가 될 수 있습니다.
 
-## File read/write commands
+## 파일 읽기/쓰기 명령어
 
-Let's read and write files from the shell. Since the shell doesn't implement command-line argument parsing, we'll implement `readfile` and `writefile` commands that read and write a hardcoded `hello.txt` file for now:
+이제 셸에서 파일 읽기와 쓰기를 시도해봅니다. 셸에서는 명령줄 인자 파싱을 구현하지 않았으므로, 간단하게 `readfile`과 `writefile` 명령어를 구현하여 하드코딩된 `hello.txt` 파일을 대상으로 합니다:
 
 ```c [shell.c]
         else if (strcmp(cmdline, "readfile") == 0) {
@@ -333,7 +353,7 @@ Let's read and write files from the shell. Since the shell doesn't implement com
             writefile("hello.txt", "Hello from shell!\n", 19);
 ```
 
-It's easy peasy! However, it causes a page fault:
+간단해 보이지만, 실행 시 페이지 폴트(page fault)가 발생합니다:
 
 ```
 $ ./run.sh
@@ -342,7 +362,7 @@ $ ./run.sh
 PANIC: kernel.c:561: unexpected trap scause=0000000d, stval=01000423, sepc=8020128a
 ```
 
-Let's dig into the cause. According the `llvm-objdump`, it happens in `strcmp` function:
+`llvm-objdump` 결과를 확인해보면, 페이지 폴트는 `strcmp` 함수에서 발생합니다:
 
 ```
 $ llvm-objdump -d kernel.elf
@@ -361,7 +381,8 @@ $ llvm-objdump -d kernel.elf
 80201298: 93 b6 16 00   seqz    a3, a3
 ```
 
-Upon checking the page table contents in QEMU monitor, the page at `0x1000423` (with `vaddr = 01000000`) is indeed mapped as a user page (`u`) with read, write, and execute (`rwx`) permissions:
+QEMU 모니터에서 페이지 테이블 내용을 확인해보면, 가상 주소 `0x1000423` (`vaddr = 01000000`)가 사용자 페이지(`u`)로 매핑되어 있으며 읽기, 쓰기, 실행(`rwx`) 권한을 가지고 있는 것을 확인할 수 있습니다:
+
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -371,7 +392,7 @@ vaddr    paddr            size     attr
 01000000 000000008026c000 00001000 rwxu-a-
 ```
 
-Let's dump the memory at the virtual address (`x` command):
+또한, QEMU 모니터의 `x` 명령을 사용해 해당 가상 주소의 메모리 내용을 덤프하면 "hello.txt" 문자열이 존재함을 확인할 수 있습니다:
 
 ```
 (qemu) x /10c 0x1000423
@@ -380,26 +401,24 @@ Let's dump the memory at the virtual address (`x` command):
 01000443: 't' '\x00' 'w' 'r' 'i' 't' 'e' 'f'
 ```
 
-If the page table settings are incorrect, the `x` command will display an error or contents in other pages. Here, we can see that the page table is correctly configured, and the pointer is indeed pointing to the string `"hello.txt"`.
+그렇다면 페이지 테이블 설정은 올바른데 왜 페이지 폴트가 발생할까요? 그 원인은 바로 SUM (Supervisor User Memory access) 비트가 설정되어 있지 않기 때문입니다.
 
-In that case, what could be the cause of the page fault? The answer is:  `SUM` bit in `sstatus` CSR is not set.
+## 사용자 포인터 접근
 
-## Accessing user pointers
-
-In RISC-V, the behavior of S-Mode (kernel) can be configured through  `sstatus` CSR, including **SUM (permit Supervisor User Memory access) bit**. When SUM is not set, S-Mode programs (i.e. kernel) cannot access U-Mode (user) pages.
+RISC-V에서는 S-모드(커널)가 U-모드(사용자) 페이지에 접근할 수 있는지 여부를 `sstatus` **CSR의 SUM 비트**를 통해 제어할 수 있습니다. SUM 비트가 설정되어 있지 않으면, S-모드(커널)에서는 U-모드(사용자) 페이지에 접근할 수 없습니다.
 
 > [!TIP]
 >
-> This is a safety measure to prevent unintended references to user memory areas.
-> Incidentally, Intel CPUs also have the same feature named "SMAP (Supervisor Mode Access Prevention).
+> 이는 커널이 사용자 메모리 영역을 의도치 않게 참조하는 것을 방지하기 위한 안전장치입니다.
+> 참고로, 인텔 CPU에도 "SMAP (Supervisor Mode Access Prevention)"이라는 유사한 기능이 있습니다.
 
-Define the position of the `SUM` bit as follows:
+`kernel.h`에 `SUM` 비트의 위치를 다음과 같이 정의합니다:
 
 ```c [kernel.h]
 #define SSTATUS_SUM  (1 << 18)
 ```
 
-All we need to do is to set the `SUM` bit when entering user space:
+사용자 공간으로 진입할 때 sstatus CSR의 `SUM` 비트를 설정하면 됩니다:
 
 ```c [kernel.c] {8}
 __attribute__((naked)) void user_entry(void) {
@@ -416,19 +435,22 @@ __attribute__((naked)) void user_entry(void) {
 
 > [!TIP]
 >
-> I explained that _"the SUM bit was the cause"_, but you may wonder how you could find this on your own. It is indeed tough - even if you are aware that a page fault is occurring, it's often hard to narrow down. Unfortunately, CPUs don't even provide detailed error codes. The reason I noticed was, simply because I knew about the SUM bit.
+> "SUM 비트가 원인이었다"라고 설명했지만, 여러분이 직접 이런 문제를 해결하려면 어떻게 찾아내야 할까요? 페이지 폴트가 발생하더라도 원인을 좁혀내기란 쉽지 않습니다. CPU는 상세한 오류 코드를 제공하지 않기 때문입니다.
 >
-> Here are some debugging methods for when things don't work *"properly"*:
+> 다음과 같은 디버깅 방법들이 있습니다:
 >
-> - Read the RISC-V specification carefully. It does mention that *"when the SUM bit is set, S-Mode can access U-Mode pages."*
-> - Read QEMU's source code. The aforementioned page fault cause is [implemented here](https://github.com/qemu/qemu/blob/d1181d29370a4318a9f11ea92065bea6bb159f83/target/riscv/cpu_helper.c#L1008). However, this can be as challenging or more so than reading the specification thoroughly.
-> - Ask LLMs. Not joking. It's becoming your best pair programmer.
->
-> This is one of the major reasons why building an OS from scratch is a time sink and prone to giving up. However, more you overcome these challenges, the more you'll learn and ... be super happy!
+> - RISC-V 공식문서를 꼼꼼히 읽어보세요. "SUM 비트가 설정되어 있으면 S-모드에서 U-모드 페이지에 접근할 수 있다"라는 내용을 찾을 수 있습니다. 
+> - QEMU의 소스 코드를 읽어보세요. 위 페이지 폴트 원인이 [여기](https://github.com/qemu/qemu/blob/d1181d29370a4318a9f11ea92065bea6bb159f83/target/riscv/cpu_helper.c#L1008)에서 구현된 것을 확인할 수 있습니다. 
+> - LLM(대형 언어 모델)에게 물어보세요. 정말 유용한 페어 프로그래머가 되어줄 것입니다.
 
-## Testing file reads/writes
+>
+> OS를 처음부터 만드는 것은 어려운 작업이며 중도 포기의 원인이 되기도 합니다. 하지만 이러한 도전을 극복할수록 더 많은 것을 배우고, 성취감도 커지게 됩니다!
 
-Let's try reading and writing files again. `readfile` should display the contents of `hello.txt`:
+
+## 파일 읽기/쓰기 테스트
+
+
+이제 파일 읽기와 쓰기를 다시 시도해봅니다. `readfile` 명령어를 실행하면 `hello.txt`의 내용이 출력되어야 합니다:
 
 ```
 $ ./run.sh
@@ -437,14 +459,14 @@ $ ./run.sh
 Can you see me? Ah, there you are! You've unlocked the achievement "Virtio Newbie!"
 ```
 
-Let's also try writing to the file. Once it's done the number of bytes written should be displayed:
+또한, writefile 명령어를 실행하면 파일에 쓰기가 완료된 후, 기록한 바이트 수가 출력됩니다:
 
 ```
 > writefile
 wrote 2560 bytes to disk
 ```
 
-Now the disk image has been updated with the new contents. Exit QEMU and extract `disk.tar`. You should see the updated contents:
+이제 디스크 이미지가 업데이트 되었으며, QEMU를 종료한 후 `disk.tar` 파일을 추출해보면 업데이트된 내용을 확인할 수 있습니다:
 
 ```
 $ mkdir tmp
@@ -460,4 +482,4 @@ $ cat hello.txt
 Hello from shell!
 ```
 
-You've implemented a key feature _"file system"_! Yay!
+축하합니다! 이제 파일 시스템이라는 핵심 기능을 구현했습니다. 무야호!
