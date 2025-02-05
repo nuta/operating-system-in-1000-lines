@@ -10,7 +10,7 @@ A process is an instance of an application. Each process has its own independent
 
 The following `process` structure defines a process object. It's also known as  _"Process Control Block (PCB)"_.
 
-```c
+```c [kernel.h]
 #define PROCS_MAX 8       // Maximum number of processes
 
 #define PROC_UNUSED   0   // Unused process control structure
