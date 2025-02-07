@@ -10,7 +10,7 @@ A process is an instance of an application. Each process has its own independent
 
 The following `process` structure defines a process object. It's also known as  _"Process Control Block (PCB)"_.
 
-```c
+```c [kernel.h]
 #define PROCS_MAX 8       // Maximum number of processes
 
 #define PROC_UNUSED   0   // Unused process control structure
@@ -254,7 +254,7 @@ The key point of this initialization process is `current_proc = idle_proc`. This
 
 Lastly, modify `proc_a_entry` and `proc_b_entry` as follows to call the `yield` function instead of directly calling the `switch_context` function:
 
-```c [kernel.c] {5,14}
+```c [kernel.c] {5,13}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {
