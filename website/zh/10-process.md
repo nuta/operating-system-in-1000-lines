@@ -14,7 +14,7 @@ title: 进程
 
 以下`process`结构定义了一个进程对象。它也被称为 _"Process Control Block (PCB)"_。
 
-```c
+```c [kernel.c]
 #define PROCS_MAX 8       // 最大进程数量
 
 #define PROC_UNUSED   0   // 未使用的进程控制结构
@@ -258,7 +258,7 @@ void kernel_main(void) {
 
 最后，修改`proc_a_entry`和`proc_b_entry`如下，调用`yield`函数而不是直接调用`switch_context`函数：
 
-```c [kernel.c] {5,14}
+```c [kernel.c] {5,13}
 void proc_a_entry(void) {
     printf("starting process A\n");
     while (1) {

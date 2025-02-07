@@ -15,7 +15,7 @@ title: 프로세스
 
 다음 `process` 구조체는 프로세스 객체를 정의합니다. 흔히 “프로세스 제어 블록(PCB, Process Control Block)”이라고 불립니다:
 
-```c
+```c [kernel.c]
 #define PROCS_MAX 8       // 최대 프로세스 개수
 
 #define PROC_UNUSED   0   // 사용되지 않는 프로세스 구조체
