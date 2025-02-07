@@ -29,7 +29,7 @@ $ vim disk/meow.txt
 在构建脚本中添加一条命令来创建 tar 文件并将其作为磁盘镜像传递给 QEMU：
 
 ```bash [run.sh] {1,5}
-(cd disk && tar cf ../disk.tar --format=ustar ./*.txt)                          # new
+(cd disk && tar cf ../disk.tar --format=ustar *.txt)                          # new
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \

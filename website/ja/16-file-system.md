@@ -29,7 +29,7 @@ $ vim disk/meow.txt
 ビルドスクリプトにtarファイルの作成コマンドを追加し、それをディスクイメージとしてQEMUに渡すようにします。
 
 ```bash [run.sh] {1,5}
-(cd disk && tar cf ../disk.tar --format=ustar ./*.txt)
+(cd disk && tar cf ../disk.tar --format=ustar *.txt)
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
