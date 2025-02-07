@@ -44,9 +44,9 @@ export default defineConfig({
               { link: '/ko/12-application', text: '12. 애플리케이션' },
               { link: '/ko/13-user-mode', text: '13. 유저 모드' },
               { link: '/ko/14-system-call', text: '14. 시스템 콜' },
-              { link: '/ko/15-virtio-blk', text: '15. Disk I/O' },
-              { link: '/ko/16-file-system', text: '16. File System' },
-              { link: '/ko/17-outro', text: '17. Outro' },
+              { link: '/ko/15-virtio-blk', text: '15. 디스크 I/O' },
+              { link: '/ko/16-file-system', text: '16. 파일 시스템' },
+              { link: '/ko/17-outro', text: '17. 끝내며' },
             ]
           },
           {
