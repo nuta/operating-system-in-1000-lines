@@ -25,7 +25,7 @@ $ vim disk/meow.txt
 Add a command to the build script to create a tar file and pass it as a disk image to QEMU:
 
 ```bash [run.sh] {1,5}
-(cd disk && tar cf ../disk.tar --format=ustar ./*.txt)                          # new
+(cd disk && tar cf ../disk.tar --format=ustar *.txt)                          # new
 
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
     -d unimp,guest_errors,int,cpu_reset -D qemu.log \
