@@ -225,7 +225,7 @@ uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
 
-使用 `xsrr` 指令来读取 `sepc` CSR 的值，然后将它分配给 `value` 变量。`%0` 对应到 `value` 变量。
+使用 `csrr` 指令来读取 `sepc` CSR 的值，然后将它分配给 `value` 变量。`%0` 对应到 `value` 变量。
 
 ```c
 __asm__ __volatile__("csrw sscratch, %0" : : "r"(123));
