@@ -1,0 +1,14 @@
+{
+  "name": "Operating System in 1000 Lines",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": [
+    "ms-vscode.cpptools",
+    "ms-vscode.makefile-tools"
+  ],
+  "remoteUser": "vscode"
+}
