@@ -59,27 +59,28 @@ void printf(const char *fmt, ...) {
                 }
                 case 'd': {
                     int value = va_arg(vargs, int);
+                    unsigned magnitude = value;
                     if (value < 0) {
                         putchar('-');
-                        value = -value;
+                        magnitude = -magnitude;
                     }
 
-                    int divisor = 1;
-                    while (value / divisor > 9)
+                    unsigned divisor = 1;
+                    while (magnitude / divisor > 9)
                         divisor *= 10;
 
                     while (divisor > 0) {
-                        putchar('0' + value / divisor);
-                        value %= divisor;
+                        putchar('0' + magnitude / divisor);
+                        magnitude %= divisor;
                         divisor /= 10;
                     }
 
                     break;
                 }
                 case 'x': {
-                    int value = va_arg(vargs, int);
-                    for (int i = 7; i >= 0; i--) {
-                        int nibble = (value >> (i * 4)) & 0xf;
+                    unsigned value = va_arg(vargs, unsigned);
+                    for (unsigned i = 7; i >= 0; i--) {
+                        unsigned nibble = (value >> (i * 4)) & 0xf;
                         putchar("0123456789abcdef"[nibble]);
                     }
                 }

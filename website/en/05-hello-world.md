@@ -175,27 +175,28 @@ void printf(const char *fmt, ...) {
                 }
                 case 'd': { // Print an integer in decimal.
                     int value = va_arg(vargs, int);
+                    unsigned magnitude = value; // https://github.com/nuta/operating-system-in-1000-lines/issues/64
                     if (value < 0) {
                         putchar('-');
-                        value = -value;
+                        magnitude = -magnitude;
                     }
 
-                    int divisor = 1;
-                    while (value / divisor > 9)
+                    unsigned divisor = 1;
+                    while (magnitude / divisor > 9)
                         divisor *= 10;
 
                     while (divisor > 0) {
-                        putchar('0' + value / divisor);
-                        value %= divisor;
+                        putchar('0' + magnitude / divisor);
+                        magnitude %= divisor;
                         divisor /= 10;
                     }
 
                     break;
                 }
                 case 'x': { // Print an integer in hexadecimal.
-                    int value = va_arg(vargs, int);
-                    for (int i = 7; i >= 0; i--) {
-                        int nibble = (value >> (i * 4)) & 0xf;
+                    unsigned value = va_arg(vargs, unsigned);
+                    for (unsigned i = 7; i >= 0; i--) {
+                        unsigned nibble = (value >> (i * 4)) & 0xf;
                         putchar("0123456789abcdef"[nibble]);
                     }
                 }
@@ -214,7 +215,7 @@ end:
 
 It's surprisingly concise, isn't it? It goes through the format string character by character, and if we encounter a `%`, we look at the next character and perform the corresponding formatting operation. Characters other than `%` are printed as is.
 
-For decimal numbers, if `value` is negative, we first output a `-` and then get its absolute value. We then calculate the divisor to get the most significant digit and output the digits one by one.
+For decimal numbers, if `value` is negative, we first output a `-` and then get its absolute value. We then calculate the divisor to get the most significant digit and output the digits one by one. We use `unsigned` for `magnitude` to handle `INT_MIN` case. See [this issue](https://github.com/nuta/operating-system-in-1000-lines/issues/64) for more details.
 
 For hexadecimal numbers, we output from the most significant *nibble* (a hexadecimal digit, 4 bits) to the least significant. Here, `nibble` is an integer from 0 to 15, so we use it as the index in string `"0123456789abcdef"` to get the corresponding character.
 
