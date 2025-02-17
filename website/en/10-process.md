@@ -228,7 +228,7 @@ void yield(void) {
 }
 ```
 
-Here, we introduce two global variables. `current_proc` points to the currently running process. `idle_proc` refers to the idle process, which is "the process to run when there are no runnable processes". The `idle_proc` is created at startup as a process with process ID `-1`, as shown below:
+Here, we introduce two global variables. `current_proc` points to the currently running process. `idle_proc` refers to the idle process, which is "the process to run when there are no runnable processes". The `idle_proc` is created at startup as a process with process ID `0`, as shown below:
 
 ```c [kernel.c] {8-10,15-16}
 void kernel_main(void) {
@@ -239,7 +239,7 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
     idle_proc = create_process((uint32_t) NULL);
-    idle_proc->pid = -1; // idle
+    idle_proc->pid = 0; // idle
     current_proc = idle_proc;
 
     proc_a = create_process((uint32_t) proc_a_entry);

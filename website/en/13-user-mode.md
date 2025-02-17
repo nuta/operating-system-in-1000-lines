@@ -73,7 +73,7 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
     idle_proc = create_process(NULL, 0); // updated!
-    idle_proc->pid = -1; // idle
+    idle_proc->pid = 0; // idle
     current_proc = idle_proc;
 
     // new!

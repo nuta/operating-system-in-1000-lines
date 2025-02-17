@@ -555,7 +555,7 @@ void kernel_main(void) {
     fs_init();
 
     idle_proc = create_process(NULL, 0);
-    idle_proc->pid = -1; // idle
+    idle_proc->pid = 0; // idle
     current_proc = idle_proc;
 
     create_process(_binary_shell_bin_start, (size_t) _binary_shell_bin_size);

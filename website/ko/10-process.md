@@ -244,7 +244,7 @@ void yield(void) {
 }
 ```
 
-여기서 `current_proc`는 현재 실행 중인 프로세스를 가리키고, `idle_proc`는 “실행할 프로세스가 없을 때 대신 실행할 프로세스”를 가리키는 전역 변수입니다. 부팅할 때 아이들 프로세스를 만들고, 이 프로세스의 pid를 `-1`로 설정해둡니다:
+여기서 `current_proc`는 현재 실행 중인 프로세스를 가리키고, `idle_proc`는 “실행할 프로세스가 없을 때 대신 실행할 프로세스”를 가리키는 전역 변수입니다. 부팅할 때 아이들 프로세스를 만들고, 이 프로세스의 pid를 `0`로 설정해둡니다:
 
 ```c [kernel.c] {8-10,15-16}
 void kernel_main(void) {
@@ -255,7 +255,7 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
     idle_proc = create_process((uint32_t) NULL);
-    idle_proc->pid = -1; // idle
+    idle_proc->pid = 0; // idle
     current_proc = idle_proc;
 
     proc_a = create_process((uint32_t) proc_a_entry);

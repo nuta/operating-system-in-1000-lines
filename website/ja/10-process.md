@@ -217,7 +217,7 @@ void yield(void) {
 }
 ```
 
-ここで、2つのグローバル変数を導入しています。`current_proc`は現在実行中のプロセスを指します。`idle_proc`はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。`idle_proc`はプロセスIDが`-1`のプロセスとして、次のように起動時に作成しておきます。
+ここで、2つのグローバル変数を導入しています。`current_proc`は現在実行中のプロセスを指します。`idle_proc`はアイドル (idle) プロセスという「実行可能なプロセスがないときに実行するプロセス」です。`idle_proc`はプロセスIDが`0`のプロセスとして、次のように起動時に作成しておきます。
 
 ```c [kernel.c] {8-10,15-16}
 void kernel_main(void) {
@@ -228,7 +228,7 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
     idle_proc = create_process((uint32_t) NULL);
-    idle_proc->pid = -1; // idle
+    idle_proc->pid = 0; // idle
     current_proc = idle_proc;
 
     proc_a = create_process((uint32_t) proc_a_entry);

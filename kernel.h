@@ -43,7 +43,7 @@
 #define VIRTIO_BLK_T_OUT 1
 
 struct process {
-    int pid; // -1 if it's an idle process
+    int pid; // 0 if it's an idle process
     int state; // PROC_UNUSED, PROC_RUNNABLE, PROC_EXITED
     vaddr_t sp; // kernel stack pointer
     uint32_t *page_table; // points to first level page table
