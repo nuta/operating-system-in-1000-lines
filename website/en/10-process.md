@@ -278,7 +278,8 @@ If "A" and "B" are printed as before, it works perfectly!
 
 In the exception handler, it saves the execution state onto the stack. However, since we now use separate kernel stacks for each process, we need to update it slightly.
 
-First, set the initial value of the kernel stack for the currently executing process in the `sscratch` register during process switching.
+First, store a pointer to the bottom of the kernel stack for the currently executing process in the `sscratch` register during process switching.
+We will read this during the exception handler (see [Appendix: Why do we reset the stack pointer?](#appendix-why-do-we-reset-the-stack-pointer) for more explanation).
 
 ```c [kernel.c] {4-8}
 void yield(void) {
@@ -361,7 +362,14 @@ sscratch = tmp;
 
 Thus, `sp` now points to the *kernel* (not *user*) stack of the currently running process. Also, `sscratch` now holds the original value of `sp` (user stack) at the time of the exception.
 
-After saving other registers onto the kernel stack, We restore the original `sp` value from `sscratch` and save it onto the kernel stack. Then, calculate the initial value of `sscratch` and restore it.
+After saving other registers onto the kernel stack, we restore the original value of `sp` from `sscratch` and save it onto the kernel stack.
+Then, we calculate the original value that `sscratch` had when the exception handler was called and restore it.
+
+> [!NOTE]
+>
+> We are overwriting the bottom 31 words of the kernel stack when we save these registers: our simple OS does not support nested interrupt handling.
+> When the CPU enters the `stvec` handler (`kernel_entry`), it automatically disables interrupts until it returns to user mode, and anyway our kernel panics when an exception occurs.
+> One possible approach for handling nested interrupts is to have a separate `stvec` handler for user mode and for kernel mode.
 
 The key point here is that each process has its own independent kernel stack. By switching the contents of `sscratch` during context switching, we can resume the execution of the process from the point where it was interrupted, as if nothing had happened.
 
