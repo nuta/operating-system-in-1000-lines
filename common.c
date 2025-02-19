@@ -79,7 +79,7 @@ void printf(const char *fmt, ...) {
                 }
                 case 'x': {
                     unsigned value = va_arg(vargs, unsigned);
-                    for (unsigned i = 7; i >= 0; i--) {
+                    for (unsigned i = 7; i >= 0 && i <= 7; i--) {
                         unsigned nibble = (value >> (i * 4)) & 0xf;
                         putchar("0123456789abcdef"[nibble]);
                     }
