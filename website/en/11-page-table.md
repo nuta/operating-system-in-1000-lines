@@ -182,7 +182,7 @@ The output is exactly the same as in the previous chapter (context switching). T
 
 ## Examining page table contents
 
-Let's look at how the virtual addresses around `0x80000000` are mapped. If set up correctly, they should be mapped so that `(virtual address) == (physical address)`.
+Let's look at how the virtual addresses around `0x80200000` are mapped. If set up correctly, they should be mapped so that `(virtual address) == (physical address)`.
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -195,7 +195,7 @@ QEMU 8.0.2 monitor - type 'help' for more information
 
 You can see that `satp` is `0x80080253`. According to the specification (RISC-V Sv32 mode), interpreting this value gives us the first-level page table's starting physical address: `(0x80080253 & 0x3fffff) * 4096 = 0x80253000`.
 
-Next, let's inspect the contents of the first-level page table. We want to know the second-level page table corresponding to the virtual address `0x80000000`. QEMU provides commands to display memory contents (memory dump). `xp` command dumps memory at the specified physical address. Dump the 512th entry because `0x80000000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
+Next, let's inspect the contents of the first-level page table. We want to know the second-level page table corresponding to the virtual address `0x80200000`. QEMU provides commands to display memory contents (memory dump). `xp` command dumps memory at the specified physical address. Dump the 512th entry because `VPN[1] = 0x80200000 >> 22 = 512`. Since each entry is 4 bytes, we multiply by 4:
 
 ```
 (qemu) xp /x 0x80253000+512*4
@@ -208,10 +208,20 @@ The first column shows the physical address, and the subsequent columns show the
 >
 > Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in our kernel space.
 
-According to the specification, the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. Let's dump the entire second-level table (1024 entries):
+According to the specification, the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. We again dump its 512th entry because `VPN[0] = (0x80200000 >> 12) & 0x3ff = 512`:
 
 ```
-(qemu) xp /1024x 0x80254000
+(qemu) xp /x 0x80254000+512*4
+0000000080254800: 0x200800cf
+```
+
+The value `0x200800cf` corresponds to the physical page number `0x200800cf >> 10 = 0x80200` (according to the specification, we ignore the lowest 10 bits, which contain permission flags).
+This means that the virtual address `0x80200000` is mapped to the physical address `0x80200000`, as we wanted!
+
+Let's also dump the entire first-level table (1024 entries):
+
+```
+(qemu) xp /1024x 0x80253000
 0000000080254000: 0x00000000 0x00000000 0x00000000 0x00000000
 0000000080254010: 0x00000000 0x00000000 0x00000000 0x00000000
 0000000080254020: 0x00000000 0x00000000 0x00000000 0x00000000
@@ -232,7 +242,7 @@ According to the specification, the second-level page table is located at `(0x20
 
 The initial entries are filled with zeros, but values start appearing from the 512th entry (`254800`). This is because `__kernel_base` is `0x80200000`, and `VPN[1]` is `0x200`.
 
-We've manually read memory dumps up, but QEMU actually provides a command that displays the current page table mappings in human-readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
+We've manually read memory dumps, but QEMU actually provides a command that displays the current page table mappings in human-readable format. If you want to do a final check on whether the mapping is correct, you can use the `info mem` command:
 
 ```
 (qemu) info mem
