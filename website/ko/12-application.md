@@ -64,7 +64,7 @@ extern char __stack_top[];
 
 __attribute__((noreturn)) void exit(void) {
     for (;;);
-}putchar(char ch)
+}
 
 void putchar(char c) {
     /* TODO */
