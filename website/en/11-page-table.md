@@ -62,7 +62,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
     uint32_t vpn1 = (vaddr >> 22) & 0x3ff;
     if ((table1[vpn1] & PAGE_V) == 0) {
-        // Create the non-existent 2nd level page table.
+        // Create the 1st level page table if it doesn't exist.
         uint32_t pt_paddr = alloc_pages(1);
         table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
     }
@@ -74,9 +74,13 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-This function prepares the second-level page table, and fills the page table entry in the second level.
+This function ensures the first-level page table entry exists (creating the second-level table if needed), and then sets the second-level page table entry to map the physical page.
 
-It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself. Don't confuse the two!
+It divides `paddr` by `PAGE_SIZE` because the entry should contain the physical page number, not the physical address itself.
+
+> [!IMPORTANT]
+>
+> Physical addresses and physical page numbers (PPN) are different. Be careful not to confuse them when setting up a page table.
 
 ## Mapping kernel memory area
 

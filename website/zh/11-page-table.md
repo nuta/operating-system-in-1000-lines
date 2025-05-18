@@ -66,7 +66,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
     uint32_t vpn1 = (vaddr >> 22) & 0x3ff;
     if ((table1[vpn1] & PAGE_V) == 0) {
-        // 创建不存在的二级页表。
+        // 如果一级页表项不存在，则创建二级页表。
         uint32_t pt_paddr = alloc_pages(1);
         table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
     }
@@ -78,9 +78,13 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-此函数准备二级页表，并填充二级中的页表项。
+此函数确保一级页表项存在（如果需要则创建二级页表），然后设置二级页表项以映射物理页面。
 
 它将 `paddr` 除以 `PAGE_SIZE`，因为条目应该包含物理页号，而不是物理地址本身。不要混淆这两者！
+
+> [!IMPORTANT]
+>
+> 处理页表时，请特别注意物理地址和物理页号之间的区别。它们很容易混淆，并可能导致难以发现的错误。
 
 ## 映射内核内存区域
 

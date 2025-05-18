@@ -67,7 +67,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
     uint32_t vpn1 = (vaddr >> 22) & 0x3ff;
     if ((table1[vpn1] & PAGE_V) == 0) {
-        // Create the non-existent 2nd level page table.
+        // 1단계 페이지 테이블 엔트리가 존재하지 않으면 2단계 페이지 테이블을 생성합니다.
         uint32_t pt_paddr = alloc_pages(1);
         table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
     }
@@ -79,10 +79,13 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-이 함수는 2단계 페이지 테이블이 없으면 할당한 뒤, 2단계 페이지 테이블의 페이지 테이블 엔트리를 채웁니다.
+이 함수는 1단계 페이지 테이블 엔트리가 없으면 2단계 테이블을 할당하고, 그 다음 2단계 페이지 테이블 엔트리에 물리 페이지 번호와 플래그를 설정합니다.
 
-`paddr`를 `PAGE_SIZE`로 나누는 이유는 엔트리에 물리 주소 자체가 아니라 "물리 페이지 번호(physical page number)"를 저장해야 하기 때문입니다. 헷갈리지 않도록 주의합시다!
+`paddr`를 `PAGE_SIZE`로 나누는 이유는 엔트리에 물리 주소 자체가 아니라 "물리 페이지 번호(physical page number)"를 저장해야 하기 때문입니다.
 
+> [!IMPORTANT]
+>
+> 페이지 테이블을 다룰 때는 물리 주소와 물리 페이지 번호의 차이를 특히 유념해야 합니다. 혼동하기 쉽고 찾기 어려운 버그의 원인이 될 수 있습니다.
 
 ## 커널 메모리 영역 매핑
 

@@ -62,7 +62,7 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 
     uint32_t vpn1 = (vaddr >> 22) & 0x3ff;
     if ((table1[vpn1] & PAGE_V) == 0) {
-        // 2段目のページテーブルが存在しないので作成する
+        // 1段目のページテーブルが存在しないので作成する
         uint32_t pt_paddr = alloc_pages(1);
         table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
     }
@@ -74,9 +74,13 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 ```
 
-2段目のページテーブルを用意して、2段目の設定したいページテーブルエントリへマップ先の物理ページ番号とフラグを設定するだけです。
+1段目のページテーブルを用意して、2段目の設定したいページテーブルエントリへマップ先の物理ページ番号とフラグを設定するだけです。
 
 `paddr / PAGE_SIZE`と`PAGE_SIZE`で割っているのは、エントリに設定するのは物理アドレスではなく物理ページ番号だからです。
+
+> [!IMPORTANT]
+>
+> ページテーブルといじる際には、物理アドレスと物理ページ番号の違いを特に意識しておきましょう。混同しやすい上に、気づきにくいバグの原因になります。
 
 ## カーネルページのマッピング
 
