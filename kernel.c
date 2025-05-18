@@ -63,7 +63,7 @@ struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
 struct virtio_virtq *blk_request_vq;
 struct virtio_blk_req *blk_req;
 paddr_t blk_req_paddr;
-unsigned blk_capacity;
+uint64_t blk_capacity;
 
 uint32_t virtio_reg_read32(unsigned offset) {
     return *((volatile uint32_t *) (VIRTIO_BLK_PADDR + offset));

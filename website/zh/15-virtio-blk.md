@@ -203,7 +203,7 @@ struct process *create_process(const void *image, size_t image_size) {
 struct virtio_virtq *blk_request_vq;
 struct virtio_blk_req *blk_req;
 paddr_t blk_req_paddr;
-unsigned blk_capacity;
+uint64_t blk_capacity;
 
 void virtio_blk_init(void) {
     if (virtio_reg_read32(VIRTIO_REG_MAGIC) != 0x74726976)
