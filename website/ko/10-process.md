@@ -319,7 +319,7 @@ void yield(void) {
 
 다음으로 예외 핸들러(`kernel_entry`)에서 수정합니다.
 
-```c [kernel.c] {3-4,38-44}
+```c [kernel.c] {3-4,38,42-44}
 void kernel_entry(void) {
     __asm__ __volatile__(
         // Retrieve the kernel stack of the running process from sscratch.
