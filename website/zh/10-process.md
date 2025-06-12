@@ -305,7 +305,7 @@ void yield(void) {
 
 对异常处理程序的修改如下：
 
-```c [kernel.c] {3-4,38-44}
+```c [kernel.c] {3-4,38,42-44}
 void kernel_entry(void) {
     __asm__ __volatile__(
         // 从sscratch中获取运行进程的内核栈

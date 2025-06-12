@@ -302,7 +302,7 @@ Since the stack pointer extends towards lower addresses, we set the address at t
 
 The modifications to the exception handler are as follows:
 
-```c [kernel.c] {3-4,38-44}
+```c [kernel.c] {3-4,38,42-44}
 void kernel_entry(void) {
     __asm__ __volatile__(
         // Retrieve the kernel stack of the running process from sscratch.
