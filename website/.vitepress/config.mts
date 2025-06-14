@@ -21,6 +21,48 @@ export default defineConfig({
     ],
   },
   locales: {
+    tw:{
+      label: '繁體中文',
+      lang: 'tw',
+      themeConfig: {
+        sidebar: [
+          {
+            text: '目錄',
+            items: [
+              { link: '/tw/', text: '00. 簡介' },
+              { link: '/tw/01-setting-up-development-environment', text: '01. 開始' },
+              { link: '/tw/02-assembly', text: '02. RISC-V 101' },
+              { link: '/tw/03-overview', text: '03. 總覽' },
+              { link: '/tw/04-boot', text: '04. 啟動 (Booting)' },
+              { link: '/tw/05-hello-world', text: '05. Hello World!' },
+              { link: '/tw/06-libc', text: '06. C 標準函式庫（libc）' },
+              { link: '/tw/07-kernel-panic', text: '07. 核心錯誤處理（Kernel Panic）' },
+              { link: '/tw/08-exception', text: '08. 例外處理（Exception）' },
+              { link: '/tw/09-memory-allocation', text: '09. 記憶體配置' },
+              { link: '/tw/10-process', text: '10. 行程（Process）' },
+              { link: '/tw/11-page-table', text: '11. 分頁表（Page Table）' },
+              { link: '/tw/12-application', text: '12. 應用程式（Application）' },
+              { link: '/tw/13-user-mode', text: '13. 使用者模式（User Mode）' },
+              { link: '/tw/14-system-call', text: '14. 系統呼叫（System Call）' },
+              { link: '/tw/15-virtio-blk', text: '15. 虛擬磁碟 I/O（VirtIO Block）' },
+              { link: '/tw/16-file-system', text: '16. 檔案系統（File System）' },
+              { link: '/tw/17-outro', text: '17. 總結' },
+            ]
+          },
+          {
+            text: 'Links',
+            items: [
+              { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
+              { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'Design and Implementation of Microkernels' },
+              { link: '/ja', text: '日本語版' },
+              { link: '/en', text: 'English version' },
+              { link: '/zh', text: '简体中文版' },
+              { link: '/ko', text: '한국어판' },
+            ]
+          }
+        ],
+      }
+    },
     ko: {
       label: '한국어',
       lang: 'ko',
@@ -56,6 +98,7 @@ export default defineConfig({
               { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'Design and Implementation of Microkernels' },
               { link: '/ja', text: '日本語版' },
               { link: '/en', text: 'English version' },
+              { link: '/tw', text: '繁體中文版' },
             ]
           },
         ],
@@ -100,6 +143,7 @@ export default defineConfig({
               { link: '/ja', text: '日本語版' },
               { link: '/zh', text: '简体中文版' },
               { link: '/ko', text: '한국어판' },
+              { link: '/tw', text: '繁體中文版' },
             ]
           },
         ],
@@ -144,6 +188,7 @@ export default defineConfig({
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHubリポジトリ' },
               { link: 'https://www.hanmoto.com/bd/isbn/9784798068718', text: 'マイクロカーネル本' },
               { link: '/ko', text: '한국어판' },
+              { link: '/tw', text: '繁體中文版' },
             ]
           },
         ],
@@ -186,6 +231,7 @@ export default defineConfig({
               { link: 'https://github.com/nuta/operating-system-in-1000-lines', text: 'GitHub repository' },
               { link: '/en', text: 'English version' },
               { link: '/ja', text: '日本語版' },
+              { link: '/tw', text: '繁體中文版' },
             ]
           },
         ],

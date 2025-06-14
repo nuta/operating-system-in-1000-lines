@@ -14,5 +14,7 @@ features:
     link: /zh
   - title: 한국어
     link: /ko
+  - title: 繁體中文
+    link: /tw
 ---
 
