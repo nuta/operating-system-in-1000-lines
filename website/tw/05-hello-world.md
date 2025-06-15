@@ -126,7 +126,7 @@ Hello World!
 > 當你呼叫 SBI 時，字元會經過以下流程被顯示出來：
 >
 > 1. 核心執行 `ecall` 指令，此時 CPU 跳轉至由 OpenSBI 在啟動時設定的 M 模式陷阱處理器（trap handler），該處理器的位址保存在 `mtvec` 暫存器中。
-> 2. OpenSBI 儲存暫存器後，呼叫用 [C 語言撰寫的 trap handler]((https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263))。
+> 2. OpenSBI 儲存暫存器後，呼叫用 [C 語言撰寫的 trap handler](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263)。
 > 3. 根據 `eid`，呼叫 [對應的 SBI 處理函式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65).
 > 4. 呼叫對應的 8250 UART [裝置驅動程式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77)（可參考 [Wikipedia: 8250 UART](https://en.wikipedia.org/wiki/8250_UAR)）。
 > 5. QEMU 的 8250 UART 模擬器收到這個字元並傳送到標準輸出（stdout）。
