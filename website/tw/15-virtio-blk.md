@@ -32,7 +32,6 @@ Virtio 裝置中有一種稱為 virtqueue 的結構，顧名思義，它是一�
 
 詳細資訊可參考 [virtio 規格文件](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html)。在本章的實作中，我們會專注於一個名為 virtio-blk 的裝置。
 
-
 ## 啟用 virtio 裝置
 
 在撰寫裝置驅動程式之前，讓我們先準備一個測試用的檔案。請建立一個名為 `lorem.txt` 的檔案，並填入像下面這樣的一些隨機文字內容：
@@ -53,8 +52,8 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 新加入的 QEMU 參數說明如下：
 
-- `-drive id=drive0`:定義一個名為 drive0 的磁碟，並使用 lorem.txt 作為磁碟映像。磁碟格式為 raw，也就是直接將檔案內容視為磁碟資料。
-- `-device virtio-blk-device`:加入一個 virtio-blk 裝置，並使用 `drive0` 作為磁碟來源。`bus=virtio-mmio-bus.0` 表示將該裝置掛載到 virtio 的記憶體對應匯流排（MMIO）。
+- `-drive id=drive0`：定義一個名為 `drive0` 的磁碟，並使用 `lorem.txt` 作為磁碟映像。磁碟格式為 `raw`，也就是直接將檔案內容視為磁碟資料。
+- `-device virtio-blk-device`：加入一個 virtio-blk 裝置，並使用 `drive0` 作為磁碟來源。`bus=virtio-mmio-bus.0` 表示將該裝置掛載到 virtio 的記憶體對應匯流排（MMIO）。
 
 ## 定義 C 巨集與結構
 
@@ -137,7 +136,7 @@ struct virtio_blk_req {
 
 > [!NOTE]
 >
-> `__attribute__((packed))` 是一種編譯器擴充語法，用來告訴編譯器「不要在結構成員之間加入 *填充位元（padding）*」。否則，編譯器可能會為了對齊效能，在成員之間自動插入隱藏的填充位元，導致驅動程式與裝置看到的資料格式不一致，進而發生錯誤。
+> `__attribute__((packed))` 是一種編譯器擴充語法，用來告訴編譯器「不要在結構成員之間加入*填充位元（padding）*」。否則，編譯器可能會為了對齊效能，在成員之間自動插入隱藏的填充位元，導致驅動程式與裝置看到的資料格式不一致，進而發生錯誤。
 
 接下來，在 `kernel.c` 中加入存取 MMIO（記憶體對映 I/O）暫存器的輔助函式：
 
@@ -284,7 +283,7 @@ struct virtio_virtq *virtq_init(unsigned index) {
 
 ## 傳送 I/O 請求
 
-現在我們已經初始化好一個 virtio-blk 裝置了。接下來，我們要送出一筆 I/O 請求給磁碟。對磁碟的 I/O 請求，是透過 _「將處理請求加入 virtqueue」_ 的方式來實作的，步驟如下：
+現在我們已經初始化好一個 virtio-blk 裝置了。接下來，我們要送出一筆 I/O 請求給磁碟。對磁碟的 I/O 請求，是透過「將處理請求加入 virtqueue」的方式來實作的，步驟如下：
 
 ```c [kernel.c]
 // Notifies the device that there is a new request. `desc_index` is the index
@@ -321,7 +320,7 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
     vq->descs[0].addr = blk_req_paddr;
     vq->descs[0].len = sizeof(uint32_t) * 2 + sizeof(uint64_t);
     vq->descs[0].flags = VIRTQ_DESC_F_NEXT;
-    vq->descs[0].next = 1; 
+    vq->descs[0].next = 1;
 
     vq->descs[1].addr = blk_req_paddr + offsetof(struct virtio_blk_req, data);
     vq->descs[1].len = SECTOR_SIZE;
@@ -355,13 +354,13 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 傳送一筆請求的步驟如下：
 
 1. 在 `blk_req` 中建立一筆請求。指定你要存取的磁區號（sector number）以及讀取或寫入的類型。
-2. 建立一組描述元鏈（descriptor chain），指向 `blk_req` 中的每個區域（如下圖所示）。
+2. 建立一組描述元鏈（descriptor chain），指向 `blk_req` 中的每個區域（見後方描述）。
 3. 將描述元鏈（descriptor chain）中第一個描述元的索引值加入 Available Ring 中。
 4. 通知裝置：有一筆新的待處理請求。
 5. 等待裝置處理完成（這個過程稱為 *busy-waiting* 或 *polling*）。
 6. 檢查裝置的回應結果。
 
-在這裡，我們建立了一組由三個描述元組成的描述元鏈。 我們需要三個描述元，因為每個描述元具有不同的屬性（`flags`），如下所示：
+在這裡，我們建立了一組由三個描述元組成的描述元鏈。我們需要三個描述元，因為每個描述元具有不同的屬性（`flags`），如下所示：
 
 ```c
 struct virtio_blk_req {
@@ -378,8 +377,7 @@ struct virtio_blk_req {
 } __attribute__((packed));
 ```
 
-因為我們每次都會忙等（busy-wait）直到裝置處理完成，所以可以簡單地每次都使用環形緩衝區（ring）中的 *前* 三個描述元（descriptor）。然而，在實務中，若要同時處理多筆請求，就需要追蹤哪些描述元是「可用的」與「已使用的」。
-
+因為我們每次都會忙等（busy-wait）直到裝置處理完成，所以可以簡單地每次都使用環形緩衝區（ring）中的「前」三個描述元（descriptor）。然而，在實務中，若要同時處理多筆請求，就需要追蹤哪些描述元是「可用的」與「已使用的」。
 
 ## 實際試用看看
 

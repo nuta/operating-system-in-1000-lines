@@ -56,7 +56,7 @@ struct process *create_process(const void *image, size_t image_size) {
     }
 ```
 
-我們已經修改了 `create_process` 函式，讓它接受執行映像的指標 (`image`)以及映像大小 (`image_size`)作為參數。它會根據指定的大小，逐頁複製執行映像，並將這些頁面映射到該行程的分頁表中。此外，它會將第一次上下文切換（context switch）時要跳轉的目標位址設定為 `user_entry`。目前我們會先將 `user_entry` 留空，作為預留的跳轉點。
+我們已經修改了 `create_process` 函式，讓它接受執行映像的指標（`image`）以及映像大小（`image_size`）作為參數。它會根據指定的大小，逐頁複製執行映像，並將這些頁面映射到該行程的分頁表中。此外，它會將第一次上下文切換（context switch）時要跳躍的目標位址設定為 `user_entry`。目前我們會先將 `user_entry` 留空，作為預留的跳躍點。
 
 > [!WARNING]
 >
@@ -180,9 +180,8 @@ __attribute__((naked)) void user_entry(void) {
 
 從 S-Mode 切換到 U-Mode 是透過 `sret` 指令完成的。但在實際切換模式之前，需要對兩個 CSR（控制暫存器）進行寫入：
 
-- 設定 `sepc` 暫存器，指定切換到 U-Mode 時的程式計數器（Program Counter）位置。也就是說，這是 `sret` 執行後會跳轉到的位址。
-- 設定 `sstatus` 暫存器中的 `SPIE` 位元。啟用這個位元表示進入 U-Mode 時會允許硬體中斷，並在發生中斷時跳轉到 `stvec` 中指定的中斷處理函式（handler）。
-
+- 設定 `sepc` 暫存器，指定切換到 U-Mode 時的程式計數器（program counter）位置。也就是說，這是 `sret` 執行後會跳躍到的位址。
+- 設定 `sstatus` 暫存器中的 `SPIE` 位元。啟用這個位元表示進入 U-Mode 時會允許硬體中斷，並在發生中斷時跳躍到 `stvec` 中指定的中斷處理函式（handler）。
 
 > [!TIP]
 >
@@ -219,11 +218,11 @@ $ ./run.sh
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
 ```
 
-第 15 號例外（`scause = 0xf = 15`）對應的是「Store/AMO 頁面錯誤（Store/AMO page fault）」。而且 `sepc` 中的程式計數器（PC）也正好指向我們在 `shell.c` 中加上的那一行：
+第 15 號例外（`scause = 0xf = 15`）對應的是「Store/AMO 頁面錯誤（Store/AMO page fault）」。而且 `sepc` 中的程式計數器（program counter）也正好指向我們在 `shell.c` 中加上的那一行：
 
 ```
 $ llvm-addr2line -e shell.elf 0x100001a
 /Users/seiya/dev/os-from-scratch/shell.c:4
 ```
 
-恭喜你！你已經成功執行了你的第一個應用程式！是不是覺得很驚訝，其實實作使用者模式（User Mode）這麼簡單？其實核心和一般應用程式非常相似-- 只是它擁有更多的特權（privileges）罷了。
+恭喜你！你已經成功執行了你的第一個應用程式！是不是覺得很驚訝，其實實作使用者模式（User Mode）這麼簡單？其實核心和一般應用程式非常相似，只是它擁有更多的特權（privileges）罷了。
