@@ -8,9 +8,9 @@
 - 它是近年來很熱門的 ISA（Instruction Set Architecture，指令集架構），並與 x86、Arm 並列。
 - 設計中的決策思維有完整記錄在規格中，閱讀起來也很有趣。
 
-我們將會為 **32 位元** 的 RISC-V 撰寫作業系統。你當然也可以夠過一些小改動改寫為 64 位元版本，不過 64 位元的地址空間較長，會稍微增加複雜度與閱讀難度。
+我們將會為 **32 位元**的 RISC-V 撰寫作業系統。你當然也可以透過一些小改動改寫為 64 位元版本，不過 64 位元的位址空間較長，會稍微增加複雜度與閱讀難度。
 
-## QEMU virt machine 
+## QEMU virt machine
 
 一台電腦是由各種裝置組成的：CPU、記憶體、網卡、硬碟等等。例如，iPhone 和 Raspberry Pi 雖然都使用 Arm CPU，但我們會認為它們是不同的電腦。
 
@@ -22,18 +22,17 @@
 
 ## RISC-V 組合語言入門
 
-RISC-V（RISC-V ISA，指令集架構）定義了 CPU 可以執行哪些指令。對程式設計師來說，這很像 API 或程式語言的規格。當你寫 C 程式時，編譯器會把它轉成 RISC-V 組合語言。不過寫作業系統時，還是免不了要寫一些組合語言。不過別擔心，組合語言其實沒有你想像的那麼難。
-
+RISC-V，或稱 RISC-V ISA（指令集架構）定義了 CPU 可以執行哪些指令。對程式設計師來說，這很像 API 或程式語言的規格。當你寫 C 程式時，編譯器會把它轉成 RISC-V 組合語言。不過寫作業系統時，還是免不了要寫一些組合語言。不過別擔心，組合語言其實沒有你想像的那麼難。
 
 > [!TIP]
 >
 > **試試看 Compiler Explorer!**
 >
-> 一個很好學組合語言的工具是[Compiler Explorer](https://godbolt.org/)，它是一個線上編譯器。你撰寫 C 程式碼時，它就會顯示對應的組合語言。
+> 一個很好學組合語言的工具是 [Compiler Explorer](https://godbolt.org/)，它是一個線上編譯器。你撰寫 C 程式碼時，它就會顯示對應的組合語言。
 >
 > 它預設使用的是 x86-64，你可以在右側選擇 `RISC-V rv32gc clang (trunk)`，來產生 32 位元 RISC-V 組合語言。
 >
-> 你也可以嘗試設定 `-O0`（關閉最佳化）或 `-O2`（最佳化等級 2），觀察組合語言的變化。 
+> 你也可以嘗試設定 `-O0`（關閉最佳化）或 `-O2`（最佳化等級 2），觀察組合語言的變化。
 
 ### 組合語言的基本語法
 
@@ -45,7 +44,6 @@ addi a0, a1, 123
 
 每一行組合語言通常對應一條指令。第一欄（addi）是指令名稱（**opcode**），後面的欄位（`a0, a1, 123`）是操作元（**operands**），也就是指令的參數。
 這行意思是：把暫存器 `a1` 的值加上常數 `123`，結果存入 `a0` 暫存器。
-
 
 ### 暫存器
 
@@ -70,14 +68,13 @@ addi a0, a1, 123
 >
 > **呼叫慣例（Calling Convention）:**
 >
-> 通常來說，雖然你可以自由使用暫存器，但為了跟其他軟體互通，使用暫存器的方法是有規定的-- 這叫做 **呼叫慣例**。 
+> 通常來說，雖然你可以自由使用暫存器，但為了跟其他軟體互通，使用暫存器的方法是有規定的-- 這叫做 **呼叫慣例**。
 >
-> 舉例來說，`x10` 到 `x11` 這些暫存器是用來放函式參數與回傳值的。為了可讀性，在 ABI（應用二進位介面）中會給它們別名如 `a0` 和 `a1`。更多細節可參考 [the spec](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf)。
+> 舉例來說，`x10` 到 `x11` 這些暫存器是用來放函式參數與回傳值的。為了可讀性，在 ABI（應用二進位介面）中會給它們別名如 `a0` 和 `a1`。更多細節可參考 [spec](https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf)。
 
 ### 記憶體存取（Memory access）
 
-暫存器存取非常快速，但數量有限。大多數資料實際上是儲存在記憶體中。程式通常使用 `lw`（load word，載入一個 32 位元資料）和 `sw`（store word，儲存一個 32 位元資料）指令來讀寫記憶體：
-
+暫存器的存取非常快速，但數量有限。大多數資料實際上是儲存在記憶體中。程式通常使用 `lw`（load word，載入一個 32 位元資料）和 `sw`（store word，儲存一個 32 位元資料）指令來讀寫記憶體：
 
 ```asm
 lw a0, (a1)  // 從 a1 指向的位址讀取一個 32 位元的值，存入 a0
@@ -91,23 +88,19 @@ sw a0, (a1)  // 將 a0 中的值寫入 a1 指向的記憶體位置
 
 你可以把 `(...)` 想成是 C 語言中的指標解參（dereference）。在這個例子中，`a1` 就是指向一個 32 位元整數的指標。
 
-
 ### 分支指令（Branch instructions）
 
 分支指令用來改變程式的控制流程，通常用來實作像 `if`、`for`、`while` 這類條件判斷或迴圈結構。
 
-
 ```asm
     bnez    a0, <label>   // 如果 a0 不為 0，就跳到 <label>
-    // If a0 is zero, continue here
+    // 如果 a0 為 0，則從此處繼續執行
 
 <label>:
-    // 若剛剛跳轉，則從這裡繼續執行
+    // 若剛剛跳到了 label，則從這裡繼續執行
 ```
-`bnez` 的意思是「如果不等於零就跳轉」（branch if not equal to zero）。其他常見的分支指令還包括：
-`beq`：相等就跳轉（branch if equal）
-`blt`：小於就跳轉（branch if less than）
-這些指令類似於 C 語言中的 goto，但具備條件限制。
+
+`bnez` 的意思是「如果不等於零就跳躍（branch if not equal to zero）」。其他常見的分支指令還包括 `beq`（相等就跳躍，原文為 branch if equal）與 `blt`（小於就跳躍，原文為 branch if less than）。這些指令類似於 C 語言中的 goto，但具備條件限制。
 
 ### 函式呼叫（Function calls）
 
@@ -115,7 +108,7 @@ sw a0, (a1)  // 將 a0 中的值寫入 a1 指向的記憶體位置
 
 ```asm
     li  a0, 123      // 將 123 載入 a0 暫存器（作為函式參數）
-    jal ra, <label>  // 跳轉到 <label>，並將回傳位址存入 ra 暫存器（x1）
+    jal ra, <label>  // 跳躍到 <label>，並將回傳位址存入 ra 暫存器（x1）
 
     // 函式執行完畢後，從這裡繼續...
 
@@ -140,7 +133,6 @@ sw a0, (a1)  // 將 a0 中的值寫入 a1 指向的記憶體位置
 
 ```asm
     addi sp, sp, -4  // 堆疊指標往下移動 4 bytes（配置空間）
-
     sw   a0, (sp)    //  將 a0 儲存至堆疊頂端
 ```
 
@@ -155,14 +147,14 @@ sw a0, (a1)  // 將 a0 中的值寫入 a1 指向的記憶體位置
 >
 > 在 C 語言中，堆疊操作會由編譯器自動產生，不需要你手動撰寫這些組合語言。
 
-## CPU 模式（CPU Modes
+## CPU 模式（CPU Modes）
 
 CPU 有多種運作模式，每種模式擁有不同的權限。在 RISC-V 架構中，共有三種主要模式：
 
 | 模式   | 概要                            |
 | ------ | ----------------------------------- |
 | M-mode | 機器模式，OpenSBI（類似 BIOS）在此模式下執行     |
-| S-mode | 超級使用者模式，也稱為「核心模式」（kernel mode），作業系統在此運作 |
+| S-mode | 超級使用者模式，也稱為「核心模式（kernel mode）」，作業系統在此運作 |
 | U-mode | 使用者模式（user mode），應用程式執行的模式  |
 
 ## 特權指令（Privileged Instructions）
@@ -177,13 +169,13 @@ CPU 有多種運作模式，每種模式擁有不同的權限。在 RISC-V 架�
 | `sret`                   | 從陷阱（trap）處理器返回，恢復程式計數器與模式等狀態 |                                  |
 | `sfence.vma`             | 清除 TLB（轉譯後備緩衝區）快取                                   |                                  |
 
-**控制與狀態暫存器, CSR (Control and Status Register)** 是用來儲存 CPU 設定與狀態的重要暫存器。
+**控制與狀態暫存器（Control and Status Register，簡寫為 CSR）**是用來儲存 CPU 設定與狀態的重要暫存器。
 完整的 CSR 清單可參見官方的 [RISC-V Privileged Specification](https://riscv.org/specifications/privileged-isa/)。
 
 > [!TIP]
 >
 > 有些特權指令（例如 `sret`）會進行較複雜的系統狀態還原操作。若你想更深入了解其實際行為，可參考 RISC-V 模擬器的原始碼。
-特別推薦 [rvemu](https://github.com/d0iasm/rvemu) —— 它的設計直觀易讀，像這段 [sret 的實作](https://github.com/d0iasm/rvemu/blob/f55eb5b376f22a73c0cf2630848c03f8d5c93922/src/cpu.rs#L3357-L3400) 就很值得參考。
+特別推薦 [rvemu](https://github.com/d0iasm/rvemu)——它的設計直觀易讀，像這段 [sret 的實作](https://github.com/d0iasm/rvemu/blob/f55eb5b376f22a73c0cf2630848c03f8d5c93922/src/cpu.rs#L3357-L3400)就很值得參考。
 
 ##  嵌入式組合語言（Inline assembly）
 
@@ -194,7 +186,7 @@ uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
 
-這就是 *「內嵌組合語言」*（inline assembly），一種在 C 程式碼中嵌入組合語言的方式。雖然你可以把組合語言寫在獨立的 `.S` 檔案中，但使用 inline assembly 通常比較方便，原因如下：
+這是「內嵌組合語言（inline assembly）」，一種在 C 程式碼中嵌入組合語言的方式。雖然你可以把組合語言寫在獨立的 `.S` 檔案中，但使用 inline assembly 通常比較方便，原因如下：
 - 可以在組合語言中使用 C 的變數，也能將組合語言的結果指定給 C 變數。
 - 暫存器的配置可以交給編譯器處理，不用手動保存與還原暫存器。
 
@@ -209,7 +201,7 @@ __asm__ __volatile__("assembly" : output operands : input operands : clobbered r
 | 欄位               | 說明                                                                 |
 | ------------------ | --------------------------------------------------------------------------- |
 | `__asm__`          | 表示這是一段內嵌組合語言                                           |
-| `__volatile__`     | 告訴編譯器不要最佳化這段 *「內嵌組合語言」*                         |
+| `__volatile__`     | 告訴編譯器不要最佳化這段「內嵌組合語言」                         |
 | `"assembly"`       | 以字串形式書寫的組合語言內容                                  |
 | 輸出操作元（output operands）  | 組合語言執行結果要存入的 C 變數                           |
 | 輸入操作元（input operands）   | 組合語言中使用的輸入值（例如常數或變數）             |
@@ -227,7 +219,7 @@ __asm__ __volatile__("assembly" : output operands : input operands : clobbered r
 uint32_t value;
 __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 ```
-這段使用 `csrr` 指令從 `sepc` CSR 讀取值，並存入 `value` 變數。其中 `%0` 就是對應 `value`。
+這段使用 `csrr` 指令從 `sepc` CSR 讀取值，並存入 `value` 變數。其中 `%0` 對應到 `value`。
 
 ```c
 __asm__ __volatile__("csrw sscratch, %0" : : "r"(123));
@@ -246,4 +238,4 @@ csrw  sscratch, a0   // 將 a0 的值寫入 sscratch
 >
 > Inline assembly 是編譯器提供的擴充功能，不屬於 C 語言標準的一部分。你可以參考 [GCC 官方文件](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html) 了解完整語法。不過因為每種 CPU 架構的語法限制不同，新手可能會感到困難。
 >
-> 新手建議多看實例學習，例如：[HinaOS](https://github.com/nuta/microkernel-book/blob/52d66bd58cd95424f009e2df8bc1184f6ffd9395/kernel/riscv32/asm.h) 的 asm.h、[xv6-riscv](https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h) 的 riscv.h 都是不錯的參考資料。
+> 新手建議多看實例學習，例如 [HinaOS](https://github.com/nuta/microkernel-book/blob/52d66bd58cd95424f009e2df8bc1184f6ffd9395/kernel/riscv32/asm.h) 的 asm.h 與 [xv6-riscv](https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h) 的 riscv.h 都是不錯的參考資料。

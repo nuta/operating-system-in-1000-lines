@@ -1,12 +1,12 @@
-# Process（行程）
+# 行程（Process）
 
 「行程（Process）」是一個應用程式的實例。每個行程都有自己獨立的執行上下文與資源，例如虛擬記憶體空間。
 
 > [!NOTE]
 >
-> 實際的作業系統中，執行上下文會以 *「執行緒（Thread）」*作為獨立的概念來處理。為了簡化說明，本書中會假設每個行程僅包含一個執行緒。
+> 實際的作業系統中，執行上下文會以「執行緒（Thread）」作為獨立的概念來處理。為了簡化說明，本書中會假設每個行程僅包含一個執行緒。
 
-## Process control block（行程控制區塊）
+## 行程控制區塊（Process control block）
 
 以下的 `process` 結構體定義了一個行程物件，也就是所謂的「行程控制區塊（Process Control Block, PCB）」。
 
@@ -30,11 +30,11 @@ struct process {
 >
 > 有另一種做法叫做「單一核心堆疊（single kernel stack）」。這種方式不是每個行程（或執行緒）都擁有自己的核心堆疊，而是每顆 CPU 僅使用一個堆疊空間。[seL4 就採用了這種方式](https://trustworthy.systems/publications/theses_public/05/Warton%3Abe.abstract)。
 >
-> 這個 *「程式上下文要存在哪裡」* 的問題，也出現在像 Go 和 Rust 這類語言的非同步執行框架中。如果你有興趣，可以搜尋 *"stackless async"* 來了解更多。
+> 這個「程式上下文要存在哪裡」的問題，也出現在像 Go 和 Rust 這類語言的非同步執行框架中。如果你有興趣，可以搜尋 *"stackless async"* 來了解更多。
 
-## Context switch（上下文切換）
+## 上下文切換（Context switch）
 
-切換行程的執行上下文稱為 *「上下文切換」（context switching）* 。以下這個 `switch_context` 函式就是上下文切換的實作：
+切換行程的執行上下文稱為「上下文切換（context switching）」。以下這個 `switch_context` 函式就是上下文切換的實作：
 
 ```c [kernel.c]
 __attribute__((naked)) void switch_context(uint32_t *prev_sp,
@@ -79,11 +79,12 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
     );
 }
 ```
+
 `switch_context` 會將「被呼叫者需要保留的暫存器（callee-saved registers）」儲存到堆疊上，然後切換堆疊指標，最後再從堆疊中還原那些暫存器。換句話說，執行上下文是以暫時的區域變數形式，儲存在堆疊上。你也可以選擇把上下文存在 `struct process` 結構裡，不過這種基於堆疊的做法簡單又優雅，不是嗎？
 
 所謂「callee-saved registers」是指被呼叫的函式在返回前必須恢復的暫存器。在 RISC-V 架構中，`s0` 到 `s11` 就是這類暫存器。而像 `a0` 這種暫存器則是由呼叫者負責保存（caller-saved），通常已由呼叫端儲存在堆疊上了。這也是為什麼 `switch_context` 只處理部分暫存器的原因。
 
-`naked` 屬性告訴編譯器不要產生任何除了 inline assembly 以外的其他程式碼。即使不加這個屬性也可能運作正常，但當你需要手動操作堆疊指標時，加上 naked 是一種良好習慣，可以避免預期外的行為。
+`naked` 屬性告訴編譯器不要產生任何除了 inline assembly 以外的其他程式碼。即使不加這個屬性也可能運作正常，但當你需要手動操作堆疊指標時，加上 `naked` 是一種良好習慣，可以避免預期外的行為。
 
 > [!TIP]
 >
@@ -179,7 +180,7 @@ void kernel_main(void) {
 
 `proc_a_entry` 和 `proc_b_entry` 函式分別是 A 程序與 B 程序的進入點。它們會透過 `putchar` 函式輸出一個字元後，利用 `switch_context` 函式切換到另一個程序。
 
-`delay` 函式實作的是「忙等」（busy wait），用來避免輸出速度太快導致終端機變得無回應。`nop` 指令代表「不做任何事」，加上它是為了避免編譯器最佳化把迴圈刪掉。
+`delay` 函式實作的是「忙等（busy wait）」，用來避免輸出速度太快導致終端機變得無回應。`nop` 指令代表「不做任何事」，加上它是為了避免編譯器最佳化把迴圈刪掉。
 
 現在我們測試一下！執行後會先顯示啟動訊息各一次，接著終端機會無限輸出 "ABABAB..."：
 
@@ -279,7 +280,7 @@ void proc_b_entry(void) {
 
 首先，在程序切換時，將目前執行中程序的核心堆疊底部指標儲存到 `sscratch` 暫存器中。
 
-接著在例外處理器中讀取這個值（更多細節請見 [附錄：為什麼我們要重設堆疊指標？](#appendix-why-do-we-reset-the-stack-pointer) ）。
+接著在例外處理器中讀取這個值（更多細節請見[附錄：為什麼我們要重設堆疊指標？](#appendix-why-do-we-reset-the-stack-pointer)）。
 
 ```c [kernel.c] {4-8}
 void yield(void) {
@@ -298,7 +299,7 @@ void yield(void) {
 }
 ```
 
-由於堆疊指標（stack pointer）是往低位址方向延伸的，我們將核心堆疊的初始值設為 next->stack 陣列的最後一個位元組（也就是 `sizeof(next->stack)` 位置）。
+由於堆疊指標（stack pointer）是往低位址方向延伸的，我們將核心堆疊的初始值設為第 `sizeof(next->stack)` 個位元組的位址。
 
 以下是修改後的例外處理器邏輯：
 
@@ -360,10 +361,10 @@ sp = sscratch;
 sscratch = tmp;
 ```
 
-因此，`sp` 現在指向的是目前執行中的程序的 *核心（不是 使用者）* 堆疊。而 `sscratch` 則保存了例外發生當下原本的 `sp` 值（也就是使用者堆疊指標）。
+因此，`sp` 現在指向的是目前執行中的程序的「核心（而非使用者）」堆疊。而 `sscratch` 則保存了例外發生當下原本的 `sp` 值（也就是使用者堆疊指標）。
 
-在將其他暫存器存入核心堆疊後，我們會從 `sscratch` 中還原原本的 sp，並將它也存入核心堆疊。
-然後再計算出例外處理器被呼叫時 `sscratch` 原本的值並還原它。
+在將其他暫存器存入核心堆疊後，我們會從 `sscratch` 中還原原本的 `sp`，並將它也存入核心堆疊。然後再計算出例外處理器被呼叫時 `sscratch` 原本的值並還原它。
+
 > [!NOTE]
 >
 > 在儲存這些暫存器時，我們會覆寫核心堆疊底部的 31 個 word。我們這個簡易 OS 並不支援中斷巢狀處理（nested interrupt handling）。
@@ -372,17 +373,15 @@ sscratch = tmp;
 
 重點是：每個程序都有自己獨立的核心堆疊。透過在上下文切換時交換 `sscratch` 的內容，我們就能在程序被中斷後再恢復執行，就像什麼事都沒發生一樣。
 
-The key point here is that each process has its own independent kernel stack. By switching the contents of `sscratch` during context switching, we can resume the execution of the process from the point where it was interrupted, as if nothing had happened.
-
 > [!TIP]
 >
-> 我們目前已經完成的是針對「核心」堆疊的上下文切換機制。應用程式使用的堆疊（即所謂的 *使用者堆疊* ）會與核心堆疊分開配置，這部分會在後續章節中實作。透過在上下文切換時交換 sscratch 的內容，我們就能在程序被中斷後再恢復執行，就像什麼事都沒發生一樣。
+> 我們目前已經完成的是針對「核心」堆疊的上下文切換機制。應用程式使用的堆疊（即所謂的「使用者堆疊」）會與核心堆疊分開配置，這部分會在後續章節中實作。透過在上下文切換時交換 `sscratch` 的內容，我們就能在程序被中斷後再恢復執行，就像什麼事都沒發生一樣。
 
 ## 附錄：為什麼我們要重設堆疊指標？
 
 在上一節中，你可能會疑惑：為什麼我們需要透過調整 `sscratch` 來切換至核心堆疊？
 
-這是因為我們不能信任發生例外時的堆疊指標（stack pointer, sp）。在例外處理器中，我們需要考慮以下三種情境：
+這是因為我們不能信任發生例外時的堆疊指標。在例外處理函式中，我們需要考慮以下三種情境：
 
 1. 在核心模式（kernel mode）中發生例外。
 2. 在處理其他例外的過程中再次發生例外（巢狀例外）。
@@ -417,19 +416,17 @@ epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault <- an aborted write to th
 ...
 ```
 
-首先，`unimp` 偽指令會觸發一個「非法指令」例外（invalid instruction exception），並轉移到核心的 trap handler。然而，因為堆疊指標 sp 指向了一個未映射的位址（例如 `0xdeadbeef`），在嘗試儲存暫存器時會再次觸發例外，導致再次跳回 trap handler 的開頭。這會形成無限迴圈，使核心卡死。為了避免這種情況，我們必須從 `sscratch` 中取得一個可信任的堆疊區域來使用。
+首先，`unimp` 偽指令會觸發一個「非法指令」例外（invalid instruction exception），並轉移到核心的 trap handler。然而，因為堆疊指標指向了一個未映射的位址（例如 `0xdeadbeef`），在嘗試儲存暫存器時會再次觸發例外，導致再次跳回 trap handler 的開頭。這會形成無限迴圈，使核心卡死。為了避免這種情況，我們必須從 `sscratch` 中取得一個可信任的堆疊區域來使用。
 
-另一種解法是使用多組例外處理器。在 RISC-V 版本的 xv6（一個著名的教育用途 UNIX 類作業系統）中，針對情況 (1)/(2) 和 (3) 分別使用了不同的處理器函式：
-處理情況 (1)/(2) 的 [`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14)
-處理情況 (3) 的 [`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)
-前者會直接沿用例外發生時的堆疊指標，後者則會改用分配好的核心堆疊。當 CPU 進入或離開核心時，trap handler 的進入點會被 [切換](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46)。
+另一種解法是使用多組例外處理函式。在 RISC-V 版本的 xv6（一個著名的教育用途 UNIX 類作業系統）中，針對情況 (1)/(2) 和 (3) 分別使用了不同的處理函式：
+處理情況 (1)/(2) 的 [`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14) 與處理情況 (3) 的 [`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)。前者會直接沿用例外發生時的堆疊指標，後者則會改用分配好的核心堆疊。當 CPU 進入或離開核心時，trap handler 的進入點會被[切換](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46)。
 
 > [!TIP]
 >
-> 在 Google 開發的作業系統 Fuchsia 中，就曾發生過 [一個漏洞](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html)：允許使用者任意設定程式計數器（program counter）的 API 成為攻擊入口。在核心開發中，不信任使用者（應用程式）輸入是非常重要的習慣。
+> 在 Google 開發的作業系統 Fuchsia 中，就曾發生過[一個漏洞](https://blog.quarkslab.com/playing-around-with-the-fuchsia-operating-system.html)：允許使用者任意設定程式計數器（program counter）的 API 成為攻擊入口。在核心開發中，不信任使用者（應用程式）輸入是非常重要的習慣。
 
 ## 接下來的目標
 
 現在我們已經成功讓多個程序能夠同時執行，實現了一個具備「多工處理」能力的作業系統。
 然而，目前的實作下，程序仍然可以任意讀寫核心的記憶體區域，這是非常危險的！
-在接下來的章節中，我們將探討如何安全地執行應用程式，換句話說，也就是如何將核心與應用程式「隔離」。。
+在接下來的章節中，我們將探討如何安全地執行應用程式，換句話說，也就是如何將核心與應用程式「隔離」。

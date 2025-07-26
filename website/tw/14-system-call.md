@@ -4,7 +4,7 @@
 
 ## 使用者函式庫
 
-呼叫系統呼叫的方式，其實與我們之前看到的 [SBI 呼叫實作](/en/05-hello-world#say-hello-to-sbi) 非常類似：
+呼叫系統呼叫的方式，其實與我們之前看到的 [SBI 呼叫實作](/en/05-hello-world#say-hello-to-sbi)非常類似：
 
 ```c [user.c]
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -60,7 +60,7 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-是否執行了 `ecall` 指令，可以透過檢查 `scause` 的值來判斷。除了呼叫 `handle_syscall` 函式外，我們還需要將 `sepc` 的值加上 4（即 ecall 指令的大小）。這是因為 `sepc` 指向的是觸發例外的那條指令的程式計數器（PC），也就是那一條 ecall 指令本身。如果我們不更新它，核心回到使用者模式時會再次執行 `ecall`，導致陷入無限次的陷入（exception loop）。
+是否執行了 `ecall` 指令，可以透過檢查 `scause` 的值來判斷。除了呼叫 `handle_syscall` 函式外，我們還需要將 `sepc` 的值加上 4（即 `ecall` 指令的大小）。這是因為 `sepc` 指向的是觸發例外的那條指令的程式計數器，也就是那一條 `ecall` 指令本身。如果我們不更新它，核心回到使用者模式時會再次執行 `ecall`，導致陷入無限次的陷入（exception loop）。
 
 ## 系統呼叫處理函式
 

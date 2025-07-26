@@ -4,11 +4,11 @@ title: 開始
 
 # 開始
 
-本書假設您使用的是 UNIX 或類似 UNIX 的作業系統，例如 macOS 或 Ubuntu。如果您使用的是 Windows，請安裝適用於 Linux 的 Windows 子系統 （WSL2） 並按照 Ubuntu 說明進行作。
+本書假設您使用的是 UNIX 或類似 UNIX 的作業系統，例如 macOS 或 Ubuntu。如果您使用的是 Windows，請安裝適用於 Linux 的 Windows 子系統（WSL2）並按照 Ubuntu 說明進行操作。
 
 ## 安裝開發工具
 
-### macOS 
+### macOS
 
 透過 [Homebrew](https://brew.sh) 安裝並執行此指令以取得您需要的所有工具：
 
@@ -50,25 +50,25 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 如果您使用的是其他作系統，請取得以下工具：
 
-- `bash`: shell。通常它是預設安裝的。 
+- `bash`: shell。通常它是預設安裝的。
 - `tar`: 通常是預設安裝的。請使用 GNU 而不是 BSD 版本。
 - `clang`: C 編譯器。請確保它支援 32 位 RISC-V CPU（見下文）。
 - `lld`: LLVM 連結器（linker），是用來將已編譯的目標檔（object files）整合成一個可執行檔的工具。
 - `llvm-objcopy`: 目標檔編輯器（Object file editor），隨 LLVM 套件一同提供（通常在 `llvm` 套件中）。
 - `llvm-objdump`: 一個反組譯器（Disassembler），功能類似於 `llvm-objcopy`。
 - `llvm-readelf`: 一個 ELF 檔案讀取工具，功能也類似於 `llvm-objcopy`。
-- `qemu-system-riscv32`: 32 位元 RISC-V 處理器模擬器，是 QEMU 套件的一部分（通常包含在 `qemu` 套件中）。 
+- `qemu-system-riscv32`: 32 位元 RISC-V 處理器模擬器，是 QEMU 套件的一部分（通常包含在 `qemu` 套件中）。
 
 > [!TIP]
 >
-> 如果要檢查您的 `clang` 是否支援 32位元的 RISC-V CPU，執行以下命令：
+> 如果要檢查您的 `clang` 是否支援 32 位元的 RISC-V CPU，執行以下命令：
 >
 > ```
 > $ clang -print-targets | grep riscv32
 >     riscv32     - 32-bit RISC-V
 > ```
 >
-> 你應該看到 `riscv32`。請注意：macOS 預設安裝的clan不會顯示此結果，因此你需要另外安裝 Homebrew 版本的 `llvm` 套件。
+> 你應該看到 `riscv32`。請注意：macOS 預設安裝的 clang 不會顯示此結果，因此你需要另外安裝 Homebrew 版本的 `llvm` 套件。
 
 ## 設定 Git 儲存庫（可選）
 

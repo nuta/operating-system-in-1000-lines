@@ -2,14 +2,14 @@
 
 當電腦啟動時，CPU 首先會初始化自身，接著開始執行作業系統。作業系統會初始化硬體、啟動應用程式。這整個流程就叫做「開機」（booting）。
 
-那麼在作業系統開始前發生了什麼事呢？在 PC 中，BIOS（或較新的 UEFI）會初始化硬體、顯示開機畫面、並從磁碟載入 OS。而在 QEMU 的 `
+那麼在作業系統開始前發生了什麼事呢？在 PC 中，BIOS（或較新的 UEFI）會初始化硬體、顯示開機畫面、並從磁碟載入 OS。而在 QEMU 的 
 `virt` 虛擬機中，OpenSBI 就扮演著 BIOS/UEFI 的角色。
 
 ## Supervisor Binary Interface (SBI)
 
 Supervisor Binary Interface（SBI）是一種提供給作業系統核心的 API，它定義了 firmware（例如 OpenSBI）對作業系統所提供的功能。
 
-SBI 的規格可以在 [GitHub]((https://github.com/riscv-non-isa/riscv-sbi-doc/releases) 找到。它定義了許多有用的功能，例如在除錯用序列埠上顯示字元、重開機／關機、定時器設定等。
+SBI 的規格可以在 [GitHub](https://github.com/riscv-non-isa/riscv-sbi-doc/releases) 找到。它定義了許多有用的功能，例如在除錯用序列埠上顯示字元、重開機／關機、定時器設定等。
 
 目前最常見的 SBI 實作就是 [OpenSBI](https://github.com/riscv-software-src/opensbi)。在 QEMU 中，OpenSBI 會在開機時預設啟動，先執行硬體相關的初始化，再啟動核心。
 
@@ -21,7 +21,9 @@ SBI 的規格可以在 [GitHub]((https://github.com/riscv-non-isa/riscv-sbi-doc/
 $ touch run.sh
 $ chmod +x run.sh
 ```
+
 內容如下：
+
 ```bash [run.sh]
 #!/bin/bash
 set -xue
@@ -32,9 +34,10 @@ QEMU=qemu-system-riscv32
 # 啟動 QEMU
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot
 ```
+
 這段指令用 QEMU 啟動一台虛擬機，參數說明如下：
 
-- `machine virt`：使用 `virt` 虛擬機（可用 -machine '?' 查詢支援的其他機種）
+- `machine virt`：使用 `virt` 虛擬機（可用 `-machine '?'` 查詢支援的其他機種）
 - `bios default`：使用預設 BIOS（QEMU 中就是 OpenSBI）
 - `nographic`：不開啟 GUI 視窗
 - `serial mon:stdio`：將 QEMU 標準輸入／輸出接到虛擬機的序列埠，可按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 再按 <kbd>C</kbd> 進入 QEMU monitor
@@ -88,11 +91,11 @@ QEMU 8.0.2 monitor - type 'help' for more information
 > <kbd>Ctrl</kbd>+<kbd>A</kbd> 除了用來切換到 QEMU 的監控介面（<kbd>C</kbd> 鍵）之外，還有其他多種功能。例如，按下  <kbd>X</kbd> 鍵可以立即關閉 QEMU。
 >
 > ```
-> C-a h    顯示此幫助畫面  
-> C-a x    離開模擬器  
-> C-a s    將磁碟資料儲存回檔案（若使用 -snapshot）  
-> C-a t    切換是否顯示主控台時間戳  
-> C-a b    傳送中斷（magic sysrq） 
+> C-a h    顯示此幫助畫面
+> C-a x    離開模擬器
+> C-a s    將磁碟資料儲存回檔案（若使用 -snapshot）
+> C-a t    切換是否顯示主控台時間戳
+> C-a b    傳送中斷（magic sysrq）
 > C-a c    在主控台與監控介面之間切換
 > C-a C-a  傳送 C-a 自身字元
 > ```
@@ -133,17 +136,19 @@ SECTIONS {
     __stack_top = .;
 }
 ```
+
 重點說明：
+
 - 核心的進入點是 `boot` 函式。
 - 程式的起始位址為 `0x80200000`。
 - `.text.boot` 區段會被放在最前面。
 - `.bss` 後面配置堆疊，大小為 128KB。
-- 區段依序為 `.text`、`.rodata`、`.data`、`.bss`。
-這些區段說明如下：
+
+區段依序為 `.text`、`.rodata`、`.data`、`.bss`。這些區段的說明如下：
 
 | 區段   | 說明                                                  |
 | --------- | ------------------------------------------------------------ |
-| `.text`   | 程式的機器碼（Code）所在區段。               |
+| `.text`   | 程式的機器碼（code）所在區段。               |
 | `.rodata` | 只讀常數資料。       |
 | `.data`   | 可讀寫的已初始化資料。                       |
 | `.bss`    | 可讀寫但初始值為 0 的資料。 |
@@ -152,14 +157,13 @@ SECTIONS {
 
 `*(.text .text.*)` 這個指令會將所有來源檔中名為 `.text` 和以 `.text.` 開頭的區段放在此處。
 
-`.` 符號代表當前位址，當資料被配置時（像是 `*(.text)`），它會自動遞增。而 `. += 128 * 1024` 的意思是「將當前位址往後推移 128KB」。ALIGN(4) 則確保當前位址對齊到 4 位元組（bytes）的邊界。
+`.` 符號代表當前位址，當資料被配置時（像是 `*(.text)`），它會自動遞增。而 `. += 128 * 1024` 的意思是「將當前位址往後推移 128KB」。`ALIGN(4)` 則確保當前位址對齊到 4-byte 的邊界。
 
-最後，`__bss = .` 表示將當前位址指定給符號 `__bss`。在 C 語言中，你可以透過 `extern char symbol_name`; 來參考 linker script 中定義的符號。
+最後，`__bss = .` 表示將當前位址指定給符號 `__bss`。在 C 語言中，你可以透過 `extern char symbol_name` 來參考 linker script 中定義的符號。
 
 > [!TIP]
 >
 > Linker script 提供了許多方便的功能，尤其在開發核心（kernel）時非常有用。你可以在 GitHub 上找到許多實際範例！
-
 
 ## 最小核心（Minimal kernel）
 
@@ -190,7 +194,7 @@ __attribute__((naked))
 void boot(void) {
     __asm__ __volatile__(
         "mv sp, %[stack_top]\n" // 設定堆疊指標
-        "j kernel_main\n"       // 跳轉至 kernel_main 函式
+        "j kernel_main\n"       // 跳躍至 kernel_main 函式
         :
         : [stack_top] "r" (__stack_top) // 傳遞堆疊頂端位址
     );
@@ -201,19 +205,19 @@ void boot(void) {
 
 ### 核心進入點（Entry Point）
 
-核心的執行從 `boot` 函式開始，這個函式已在 linker script 中被指定為進入點。在此函式中，我們將堆疊指標（`sp`）設定為 linker script 所定義堆疊區域的結尾地址。接著跳轉至 `kernel_main()` 函式。請注意，堆疊的成長方向是往地址遞減的方向（往 0 成長），因此我們要指定的是「堆疊的結尾地址」而非開頭。
+核心的執行從 `boot` 函式開始，這個函式已在 linker script 中被指定為進入點。在此函式中，我們將堆疊指標（`sp`）設定為 linker script 所定義堆疊區域的結尾位址。接著跳躍至 `kernel_main()` 函式。請注意，堆疊的成長方向是往位址遞減的方向（往 0 成長），因此我們要指定的是「堆疊的結尾位址」而非開頭。
 
-### `boot` function attributes 函式的屬性
+### `boot` 函式的屬性（function attributes）
 
-`boot` 函式有兩個特殊屬性（attribute）：`__attribute__((naked))`：指示編譯器不要在函式進出時插入多餘的程式碼（例如 ret 指令），確保整個函式就是我們寫的 inline assembly。
+`boot` 函式有兩個特殊屬性（attribute）。屬性 `__attribute__((naked))` 指示編譯器不要在函式進出時插入多餘的程式碼（例如 return 指令），確保整個函式就是我們寫的 inline assembly。
 
-`__attribute__((section(".text.boot")))`：將這個函式強制放到 `.text.boot` 區段中，這樣它就能被 linker script 放置在位址 `0x80200000`，這是 OpenSBI 開機時直接跳轉的位置。
+而屬性 `__attribute__((section(".text.boot")))` 會將這個函式強制放到 `.text.boot` 區段中，這樣它就能被 linker script 放置在位址 `0x80200000`，開機時 OpenSBI 會直接跳躍至此位址。
 
 ### 使用 `extern char` 取得 linker script 中的符號
 
-在檔案開頭，我們透過 `extern char` 宣告 linker script 所定義的符號（symbol）。這裡我們只想取得它們的「地址」，所以型別使用 `char` 並不會影響。
+在檔案開頭，我們透過 `extern char` 宣告 linker script 所定義的符號（symbol）。這裡我們只想取得它們的「位址」，所以型別使用 `char` 並不會影響。
 
-我們也可以寫成 `extern char __bss;`，但這樣會變成 *「取得 `__bss` 段開頭那個位元組的值」*，而不是 *「取得段的地址」*，因此加上 `[]` 更能避免誤用。
+我們也可以寫成 `extern char __bss;`，但這樣會變成「取得 `__bss` 段開頭那個位元組的值」，而不是「取得段的位址」，因此加上 `[]` 更能避免誤用。
 
 ### `.bss` 區段初始化
 
@@ -261,8 +265,8 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 | `-Wall` | 開啟主要警告訊息 |
 | `-Wextra` | 開啟額外警告訊息 |
 | `--target=riscv32-unknown-elf` | 目標平台為 32-bit RISC-V |
-| `-ffreestanding` |告訴編譯器我們不使用主機的標準函式庫 |
-| `-fno-stack-protector` | 關閉[stack protection](https://wiki.osdev.org/Stack_Smashing_Protector)，避免影響底層堆疊操作（詳見 [#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393) |
+| `-ffreestanding` | 告訴編譯器我們不使用主機的標準函式庫 |
+| `-fno-stack-protector` | 關閉 [stack protection](https://wiki.osdev.org/Stack_Smashing_Protector)，避免影響底層堆疊操作（詳見 [#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)） |
 | `-nostdlib` | 不連結標準函式庫 |
 | `-Wl,-Tkernel.ld` | 使用指定的 linker script |
 | `-Wl,-Map=kernel.map` | 輸出 linker 分配結果（map 檔） |
@@ -273,7 +277,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 執行 `run.sh` 之後，核心只是進入一個無限迴圈，看不到任何輸出訊息。這在底層開發中很常見，因為還沒設定 UART 等輸出裝置。這時就要用 QEMU 的除錯功能來幫助觀察。
 
-要查看更多有關 CPU 暫存器的資訊，你可以開啟 QEMU monitor，並執行 `info registers` ：
+要查看更多有關 CPU 暫存器的資訊，你可以開啟 QEMU monitor，並執行 `info registers`：
 
 ```
 QEMU 8.0.2 monitor - type 'help' for more information
@@ -295,7 +299,7 @@ CPU#0
 
 > [!TIP]
 >
-> 根據你使用的 Clang 與 QEMU 版本，實際顯示的值可能會有所不同。
+> 根據你使用的 clang 與 QEMU 版本，實際顯示的值可能會有所不同。
 
 `pc 80200014` 表示目前的程式計數器（Program Counter），也就是正在執行的指令位址。讓我們使用反組譯工具（`llvm-objdump`）來對照對應的程式碼行：
 
@@ -324,11 +328,9 @@ Disassembly of section .text:
 - 該指令的十六進位機器碼
 - 對應的反組譯指令
 
-`pc 80200014` 表示目前執行的指令是 `j 0x80200010`，也就是跳回 kernel_main，這證實 QEMU 已正確進入 `kernel_main()` 函式。
+`pc 80200014` 表示目前執行的指令是 `j 0x80200010`，也就是跳回 `kernel_main`，這證實 QEMU 已正確進入 `kernel_main()` 函式。
 
-接下來，我們也來確認 stack pointer（sp 暫存器）是否正確設定為 linker script 中定義的 `__stack_top`。從暫存器的 dump 資訊可見：
-我們也來檢查一下 Stack Pointer（sp 暫存器）是否確實被設為 linker script 中定義的 `__stack_top`。
-從暫存器輸出中可以看到 `x2/sp 80220018`。要確認 linker 實際將 `__stack_top` 放在哪個位置，可以查看 `kernel.map` 檔案中的內容：
+接下來，我們也來確認 stack pointer（sp 暫存器）是否正確設定為 linker script 中定義的 `__stack_top`。從暫存器輸出中可以看到 `x2/sp 80220018`。要確認 linker 實際將 `__stack_top` 放在哪個位置，可以查看 `kernel.map` 檔案中的內容：
 
 ```
      VMA      LMA     Size Align Out     In      Symbol

@@ -19,7 +19,7 @@
 以下是本書不會實作的功能：
 
 - **中斷處理（Interrupt handling）**: 改用輪詢（polling）方式，也就是忙碌等待（busy waiting），定期檢查裝置是否有新資料。
-- **定時器處理（Timer processing）**: P不實作「搶佔式多工」，而是採用「合作式多工」，每個行程自行決定何時讓出 CPU。
+- **定時器處理（Timer processing）**: 不實作「搶佔式多工」，而是採用「合作式多工」，每個行程自行決定何時讓出 CPU。
 - **行程間通訊（Inter-process communication, IPC）**: 例如管線（pipe）、UNIX domain socket、共享記憶體等功能將不包含在內。
 - **多處理器支援（Multi-processor support）**: 本系統僅支援單一處理器。
 
