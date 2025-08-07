@@ -4,19 +4,19 @@ title: 開始
 
 # 開始
 
-本書假設您使用的是 UNIX 或類似 UNIX 的作業系統，例如 macOS 或 Ubuntu。如果您使用的是 Windows，請安裝適用於 Linux 的 Windows 子系統（WSL2）並按照 Ubuntu 說明進行操作。
+本書假設你使用的是 UNIX 或類似 UNIX 的作業系統，例如 macOS 或 Ubuntu。如果你使用的是 Windows，請安裝適用於 Linux 的 Windows 子系統（WSL2）並按照 Ubuntu 說明進行操作。
 
 ## 安裝開發工具
 
 ### macOS
 
-透過 [Homebrew](https://brew.sh) 安裝並執行此指令以取得您需要的所有工具：
+透過 [Homebrew](https://brew.sh) 安裝並執行此指令以取得你需要的所有工具：
 
 ```
 brew install llvm lld qemu
 ```
 
-此外，您需要將 LLVM binutils 添加到您的 PATH 中：
+此外，你需要將 LLVM binutils 添加到 PATH 中：
 
 ```
 $ export PATH="$PATH:$(brew --prefix)/opt/llvm/bin"
@@ -32,7 +32,7 @@ $ which llvm-objcopy
 sudo apt update && sudo apt install -y clang llvm lld qemu-system-riscv32 curl
 ```
 
-另外，下載 OpenSBI（將其視為 PC 的 BIOS/UEFI）：
+並下載 OpenSBI（將其視為 PC 的 BIOS/UEFI）：
 
 ```
 curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
@@ -40,7 +40,7 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 > [!WARNING]
 >
-> 當你執行 QEMU 時，請確保 `opensbi-riscv32-generic-fw_dynamic.bin` 位於目前的目錄中。如果不是，您將看到以下錯誤：
+> 當你執行 QEMU 時，請確保 `opensbi-riscv32-generic-fw_dynamic.bin` 位於目前的目錄中。如果不是，你將看到以下錯誤：
 >
 > ```
 > qemu-system-riscv32: Unable to load the RISC-V firmware "opensbi-riscv32-generic-fw_dynamic.bin"
@@ -48,7 +48,7 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 ### 其他 OS 的使用者
 
-如果您使用的是其他作系統，請取得以下工具：
+如果你使用的是其他作業系統，請取得以下工具：
 
 - `bash`: shell。通常它是預設安裝的。
 - `tar`: 通常是預設安裝的。請使用 GNU 而不是 BSD 版本。
@@ -61,7 +61,7 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 > [!TIP]
 >
-> 如果要檢查您的 `clang` 是否支援 32 位元的 RISC-V CPU，執行以下命令：
+> 如果要檢查你的 `clang` 是否支援 32 位元的 RISC-V CPU，執行以下命令：
 >
 > ```
 > $ clang -print-targets | grep riscv32
