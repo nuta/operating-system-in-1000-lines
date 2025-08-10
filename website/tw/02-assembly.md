@@ -12,7 +12,7 @@
 
 ## QEMU virt machine
 
-一台電腦是由各種裝置組成的：CPU、記憶體、網卡、硬碟等等。例如，iPhone 和 Raspberry Pi 雖然都使用 Arm CPU，但我們會認為它們是不同的電腦。
+一台電腦是由各種裝置組成的：CPU、記憶體、網卡、磁碟等等。例如，iPhone 和 Raspberry Pi 雖然都使用 Arm CPU，但我們會認為它們是不同的電腦。
 
 在這本書中，我們選擇支援 QEMU 的 `virt` 機器（[documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)），原因如下：
 
