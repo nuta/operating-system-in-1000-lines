@@ -189,7 +189,7 @@ __attribute__((naked)) void user_entry(void) {
 
 ## 嘗試進入使用者模式
 
-現在就來試試看吧！不過因為 `shell.c` 只是執行一個無限迴圈，所以從畫面上其實看不出來它有沒有正常執行。我們可以改用 QEMU monitor 來觀察：
+現在就來試試看吧！不過因為 `shell.c` 只是執行一個無窮迴圈，所以從畫面上其實看不出來它有沒有正常執行。我們可以改用 QEMU monitor 來觀察：
 
 ```
 (qemu) info registers
