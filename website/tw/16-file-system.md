@@ -22,7 +22,7 @@ $ vim disk/hello.txt
 $ vim disk/meow.txt
 ```
 
-在建置腳本中加入一條指令用來建立一個 tar 檔案並將它作為磁碟映像傳遞給 QEMU
+在建置腳本中加入一條指令用來建立一個 tar 檔案並將它作為磁碟映像傳遞給 QEMU：
 
 ```bash [run.sh] {1,5}
 (cd disk && tar cf ../disk.tar --format=ustar *.txt)                          # new
@@ -329,7 +329,7 @@ void handle_syscall(struct trap_frame *f) {
             writefile("hello.txt", "Hello from shell!\n", 19);
 ```
 
-這真的非常簡單！但它會導致一個頁錯（page fault）
+這真的非常簡單！但它會導致一個頁錯（page fault）：
 
 ```
 $ ./run.sh
@@ -412,7 +412,7 @@ __attribute__((naked)) void user_entry(void) {
 
 > [!TIP]
 >
-> 我剛才解釋了「是 SUM 位元造成的問題」，但你可能會好奇：這要怎麼自己找出來？這確實很困難——即使你知道有發生 page fault，要縮小範圍通常也很不容易。更糟的是，CPU 甚至不會提供詳細的錯誤代碼。我能找出這問題的原因，其實只是因為我剛好知道有 SUM 這個位元。
+> 我剛才解釋了「是 SUM 位元造成的問題」，但你可能會好奇：這要怎麼自己找出來？這確實很困難 ― 即使你知道有發生 page fault，要縮小範圍通常也很不容易。更糟的是，CPU 甚至不會提供詳細的錯誤代碼。我能找出這問題的原因，其實只是因為我剛好知道有 SUM 這個位元。
 >
 > 以下是當事情「看起來正常但實際上*不正常*」時，可以嘗試的一些除錯方法：
 >
@@ -456,4 +456,4 @@ $ cat hello.txt
 Hello from shell!
 ```
 
-你已經實作了一個關鍵功能——_「檔案系統」_ ！耶！
+你已經實作了一個關鍵功能 ― 「檔案系統」！耶！

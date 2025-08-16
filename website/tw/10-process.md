@@ -136,7 +136,7 @@ struct process *create_process(uint32_t pc) {
 
 ## 測試上下文切換
 
-我們已經實作了程序最基本的功能——讓多個行程可以同時執行（並行）。現在我們來建立兩個程序：
+我們已經實作了程序最基本的功能 ― 讓多個行程可以同時執行（並行）。現在我們來建立兩個程序：
 
 ```c [kernel.c] {1-25,32-34}
 void delay(void) {
@@ -416,7 +416,7 @@ epc:0x802009dc, tval:0xdeadbcff, desc=store_page_fault <- an aborted write to th
 ...
 ```
 
-首先，`unimp` 偽指令會觸發一個「非法指令」例外（invalid instruction exception），並轉移到核心的 trap handler。然而，因為堆疊指標指向了一個未映射的位址（例如 `0xdeadbeef`），在嘗試儲存暫存器時會再次觸發例外，導致再次跳回 trap handler 的開頭。這會形成無限迴圈，使核心卡死。為了避免這種情況，我們必須從 `sscratch` 中取得一個可信任的堆疊區域來使用。
+首先，`unimp` 偽指令會觸發一個「非法指令」例外（invalid instruction exception），並轉移到核心的 trap handler。然而，因為堆疊指標指向了一個未映射的位址（例如 `0xdeadbeef`），在嘗試儲存暫存器時會再次觸發例外，導致再次跳回 trap handler 的開頭。這會形成無窮迴圈，使核心卡死。為了避免這種情況，我們必須從 `sscratch` 中取得一個可信任的堆疊區域來使用。
 
 另一種解法是使用多組例外處理函式。在 RISC-V 版本的 xv6（一個著名的教育用途 UNIX 類作業系統）中，針對情況 (1)/(2) 和 (3) 分別使用了不同的處理函式：
 處理情況 (1)/(2) 的 [`kernelvec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/kernelvec.S#L13-L14) 與處理情況 (3) 的 [`uservec`](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trampoline.S#L74-L75)。前者會直接沿用例外發生時的堆疊指標，後者則會改用分配好的核心堆疊。當 CPU 進入或離開核心時，trap handler 的進入點會被[切換](https://github.com/mit-pdos/xv6-riscv/blob/f5b93ef12f7159f74f80f94729ee4faabe42c360/kernel/trap.c#L44-L46)。

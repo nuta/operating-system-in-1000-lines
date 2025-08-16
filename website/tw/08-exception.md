@@ -225,7 +225,7 @@ PANIC: kernel.c:47: unexpected trap scause=00000002, stval=ffffff84, sepc=802001
 
 根據規範，當 `scause` 的值為 2 時，表示「非法指令（Illegal instruction）」，也就是程式嘗試執行一條無效的指令。這正是我們使用 `unimp` 指令所預期觸發的行為！
 
-接下來，我們也來檢查 `sepc`（Supervisor Exception Program Counter）的值是指向哪裡。如果它指向的是執行 `unimp` 指令的那一行，那就表示整個例外處理流程運作正確:
+接下來，我們也來檢查 `sepc`（Supervisor Exception Program Counter）的值是指向哪裡。如果它指向的是執行 `unimp` 指令的那一行，那就表示整個例外處理流程運作正確：
 
 ```
 $ llvm-addr2line -e kernel.elf 8020015e

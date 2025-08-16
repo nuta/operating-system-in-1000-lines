@@ -10,7 +10,7 @@ title: 開始
 
 ### macOS
 
-透過 [Homebrew](https://brew.sh) 安裝並執行此指令以取得你需要的所有工具：
+透過 [Homebrew](https://brew.sh) 安裝並執行此命令以取得你需要的所有工具：
 
 ```
 brew install llvm lld qemu

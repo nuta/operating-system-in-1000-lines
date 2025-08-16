@@ -1,6 +1,6 @@
 # 記憶體分配（Memory Allocation）
 
-在本章中，我們將實作一個簡單的記憶體配置器（memory allocato
+在本章中，我們將實作一個簡單的記憶體配置器（memory allocator）。
 
 ## 回顧 Linker Script
 
