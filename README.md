@@ -1,10 +1,10 @@
 # Writing an Operating System in 1,000 Lines
 
-**[English](https://operating-system-in-1000-lines.vercel.app/en)** ∙ **[日本語](https://operating-system-in-1000-lines.vercel.app/ja/)** ∙ **[简体中文](https://operating-system-in-1000-lines.vercel.app/zh/)** *(translated by [@YianAndCode](https://github.com/YianAndCode))* ∙ **[한국어](https://operating-system-in-1000-lines.vercel.app/ko/)** *(translated by [@JoHwanhee](https://github.com/JoHwanhee))* ∙ **[繁體中文](https://operating-system-in-1000-lines.vercel.app/tw/)** *(translated by [@alanhc](https://github.com/alanhc))*
+**[English](https://1000os.seiya.me/en)** ∙ **[日本語](https://1000os.seiya.me/ja/)** ∙ **[简体中文](https://1000os.seiya.me/zh/)** *(translated by [@YianAndCode](https://github.com/YianAndCode))* ∙ **[한국어](https://1000os.seiya.me/ko/)** *(translated by [@JoHwanhee](https://github.com/JoHwanhee))* ∙ **[繁體中文](https://1000os.seiya.me/tw/)** *(translated by [@alanhc](https://github.com/alanhc))*
 
 ![Operating System in 1,000 Lines](./screenshot.png)
 
-This repository contains the source code for the website [Operating System in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/), and a reference implementation.
+This repository contains the source code for the website [Operating System in 1,000 Lines](https://1000os.seiya.me/), and a reference implementation.
 
 ## More interesting implementations
 

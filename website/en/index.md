@@ -16,3 +16,7 @@ The tougher the debugging, the more satisfying it is when it works. Let's dive i
 - This book was originally written as an appendix of my book *[Design and Implementation of Microkernels](https://www.shuwasystem.co.jp/book/9784798068718.html)* (written in Japanese).
 
 Happy OS hacking!
+
+> [!TIP]
+>
+> Visit [Hypervisor in 1,000 Lines](https://1000hv.seiya.me/) if you want to build a hypervisor, or if you want to try this tutorial with Rust programming language.
