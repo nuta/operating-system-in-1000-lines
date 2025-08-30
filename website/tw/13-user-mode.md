@@ -180,6 +180,10 @@ __attribute__((naked)) void user_entry(void) {
 
 從 S-Mode 切換到 U-Mode 是透過 `sret` 指令完成的。但在實際切換模式之前，需要對兩個 CSR（控制暫存器）進行寫入：
 
+> [!NOTE]
+>
+> 精確地說，`sret` 指令會在 `sstatus` 的 SPP 位元為 0 時轉換到使用者模式。詳細資訊請參閱 RISC-V 規格書中的 [12.1.1. Supervisor Status Register (`sstatus`)](https://riscv.github.io/riscv-isa-manual/snapshot/privileged/#sstatus:~:text=When%20an%20SRET%20instruction%20(see%20Section%203.3.2)%20is%20executed%20to%20return%20from%20the%20trap%20handler%2C%20the%20privilege%20level%20is%20set%20to%20user%20mode%20if%20the%20SPP%20bit%20is%200)。
+
 - 設定 `sepc` 暫存器，指定切換到 U-Mode 時的程式計數器（program counter）位置。也就是說，這是 `sret` 執行後會跳躍到的位址。
 - 設定 `sstatus` 暫存器中的 `SPIE` 位元。啟用這個位元表示進入 U-Mode 時會允許硬體中斷，並在發生中斷時跳躍到 `stvec` 中指定的中斷處理函式（handler）。
 

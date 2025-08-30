@@ -191,6 +191,9 @@ __attribute__((naked)) void user_entry(void) {
 
 S-Mode에서 U-Mode로의 전환은 `sret` 명령어를 사용하여 이루어집니다. 다만, 모드를 변경하기 전에 두 개의 CSR에 값을 기록합니다:
 
+> [!NOTE]
+>
+> 정확히 말하면, `sret` 명령어는 `sstatus`의 SPP 비트가 0일 때 사용자 모드로 전환합니다. 자세한 내용은 RISC-V 사양의 [12.1.1. Supervisor Status Register (`sstatus`)](https://riscv.github.io/riscv-isa-manual/snapshot/privileged/#sstatus:~:text=When%20an%20SRET%20instruction%20(see%20Section%203.3.2)%20is%20executed%20to%20return%20from%20the%20trap%20handler%2C%20the%20privilege%20level%20is%20set%20to%20user%20mode%20if%20the%20SPP%20bit%20is%200)을 참조하세요.
 
 - `sepc` 레지스터: U-Mode로 전환 시 실행할 프로그램 카운터를 설정합니다. 즉, sret 명령어가 점프할 위치입니다.
 - `sstatus` 레지스터의 `SPIE` 비트: 이 비트를 설정하면 U-Mode로 진입할 때 하드웨어 인터럽트가 활성화되며, `stvec` 레지스터에 설정된 핸들러가 호출됩니다.

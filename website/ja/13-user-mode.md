@@ -189,6 +189,10 @@ __attribute__((naked)) void user_entry(void) {
 
 S-ModeからU-Modeへの切り替えは、`sret`命令で行います。ただし、動作モードを切り替える前に2つ下準備をしています。
 
+> [!NOTE]
+>
+> 厳密に言うと、`sret`命令は`sstatus`のSPPビットが0の場合にユーザーモードに移行します。詳細については、RISC-V仕様の[12.1.1. Supervisor Status Register (`sstatus`)](https://riscv.github.io/riscv-isa-manual/snapshot/privileged/#sstatus:~:text=When%20an%20SRET%20instruction%20(see%20Section%203.3.2)%20is%20executed%20to%20return%20from%20the%20trap%20handler%2C%20the%20privilege%20level%20is%20set%20to%20user%20mode%20if%20the%20SPP%20bit%20is%200)を参照してください。
+
 - `sepc`レジスタにU-Modeに移行した際のプログラムカウンタを設定する。
 - `sstatus`レジスタの`SPIE`ビットを立てる。これを設定しておくと、U-Modeに入った際に割り込みが有効化され、例外と同じように`stvec`レジスタに設定しているハンドラが呼ばれるようになる。
 

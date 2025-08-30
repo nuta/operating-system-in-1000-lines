@@ -180,6 +180,10 @@ __attribute__((naked)) void user_entry(void) {
 
 The switch from S-Mode to U-Mode is done with the `sret` instruction. However, before changing the operation mode, it does two writes to CSRs:
 
+> [!NOTE]
+>
+> To be precise, the `sret` instruction transitions to the user mode if the SPP bit in `sstatus` is 0. See [12.1.1. Supervisor Status Register (`sstatus`)](https://riscv.github.io/riscv-isa-manual/snapshot/privileged/#sstatus:~:text=When%20an%20SRET%20instruction%20(see%20Section%203.3.2)%20is%20executed%20to%20return%20from%20the%20trap%20handler%2C%20the%20privilege%20level%20is%20set%20to%20user%20mode%20if%20the%20SPP%20bit%20is%200) in the RISC-V spec for more details.
+
 - Set the program counter for when transitioning to U-Mode in the `sepc` register. That is, where `sret` jumps to.
 - Set the `SPIE` bit in the `sstatus` register. Setting this enables hardware interrupts when entering U-Mode, and the handler set in the `stvec` register will be called.
 
