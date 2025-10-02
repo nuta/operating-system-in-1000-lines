@@ -224,7 +224,7 @@ QEMU=qemu-system-riscv32
 # clangのパス (Ubuntuの場合は CC=clang)
 CC=/opt/homebrew/opt/llvm/bin/clang
 
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fuse-ld=lld -fno-stack-protector -ffreestanding -nostdlib"
 
 # カーネルをビルド
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
@@ -252,8 +252,9 @@ clangに指定しているオプション (`CFLAGS`変数) は次のとおりで
 - `-Wall`: 主要な警告を有効にする。
 - `-Wextra`: さらに追加の警告を有効にする。
 - `--target=riscv32-unknown-elf`: 32ビットRISC-V用にコンパイルする。
-- `-fno-stack-protector`: スタック保護機能を無効にする。[#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)を参照。
 - `-ffreestanding`: ホスト環境 (開発環境) の標準ライブラリを使用しない。
+- `-fuse-ld=lld`: LLVMリンカー (`ld.lld`) を使用する。
+- `-fno-stack-protector`: スタック保護機能を無効にする。[#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)を参照。
 - `-nostdlib`: 標準ライブラリをリンクしない。
 - `-Wl,-Tkernel.ld`: リンカスクリプトを指定する。
 - `-Wl,-Map=kernel.map`: マップファイル (リンカーによる配置結果) を出力する。

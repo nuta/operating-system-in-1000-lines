@@ -244,7 +244,7 @@ QEMU=qemu-system-riscv32
 
 # clang 경로와 컴파일 옵션
 CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu 등 환경에 따라 경로 조정: CC=clang
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fuse-ld=lld -fno-stack-protector -ffreestanding -nostdlib"
 
 # 커널 빌드
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
@@ -274,8 +274,9 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 | `-Wall` | 핵심 경고 활성화                                     |                                                                             
 | `-Wextra` | 추가 경고 활성화                                     |
 | `--target=riscv32-unknown-elf` | 32비트 RISC-V 대상 아키텍처로 컴파일                      |
-| `-fno-stack-protector` | 스택 보호 기능 비활성화 ([#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393) 참고) |
 | `-ffreestanding` | 호스트(개발 환경) 표준 라이브러리를 사용하지 않음                  |
+| `-fuse-ld=lld` | LLVM 링커 (`ld.lld`) 사용                             |
+| `-fno-stack-protector` | 스택 보호 기능 비활성화 ([#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393) 참고) |
 | `-nostdlib` | 표준 라이브러리를 링크하지 않음                             |
 | `-Wl,-Tkernel.ld` | 링커 스크립트(`kernel.ld`) 지정                         |
 | `-Wl,-Map=kernel.map` | 맵 파일(`kernel.map`) 생성 (링킹 결과와 섹션 배치를 확인할 수 있음) |

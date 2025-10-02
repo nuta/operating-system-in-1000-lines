@@ -233,7 +233,7 @@ QEMU=qemu-system-riscv32
 
 # Path to clang and compiler flags
 CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu users: use CC=clang
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fuse-ld=lld -fno-stack-protector -ffreestanding -nostdlib"
 
 # Build the kernel
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
@@ -264,6 +264,7 @@ The specified clang options (`CFLAGS` variable) are as follows:
 | `-Wextra` | Enable additional warnings. |
 | `--target=riscv32-unknown-elf` | Compile for 32-bit RISC-V. |
 | `-ffreestanding` | Do not use the standard library of the host environment (your development environment). |
+| `-fuse-ld=lld` | Use LLVM linker (`ld.lld`). |
 | `-fno-stack-protector` | Disable unnecessary [stack protection](https://wiki.osdev.org/Stack_Smashing_Protector) to avoid unexpected behavior in stack manipulation (see [#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)). |
 | `-nostdlib` | Do not link the standard library. |
 | `-Wl,-Tkernel.ld` | Specify the linker script. |

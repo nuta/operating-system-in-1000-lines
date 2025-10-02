@@ -5,7 +5,7 @@ QEMU=qemu-system-riscv32
 CC=/opt/homebrew/opt/llvm/bin/clang
 OBJCOPY=/opt/homebrew/opt/llvm/bin/llvm-objcopy
 
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fuse-ld=lld -fno-stack-protector -ffreestanding -nostdlib"
 
 # Build the shell.
 $CC $CFLAGS -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf shell.c user.c common.c

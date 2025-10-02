@@ -235,7 +235,7 @@ QEMU=qemu-system-riscv32
 
 # Path to clang and compiler flags
 CC=/opt/homebrew/opt/llvm/bin/clang  # Ubuntu users: use CC=clang
-CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fno-stack-protector -ffreestanding -nostdlib"
+CFLAGS="-std=c11 -O2 -g3 -Wall -Wextra --target=riscv32-unknown-elf -fuse-ld=lld -fno-stack-protector -ffreestanding -nostdlib"
 
 # Build the kernel
 $CC $CFLAGS -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
@@ -266,6 +266,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 | `-Wextra` | 開啟額外警告訊息 |
 | `--target=riscv32-unknown-elf` | 目標平台為 32-bit RISC-V |
 | `-ffreestanding` | 不使用主機環境（開發環境）的標準函式庫 |
+| `-fuse-ld=lld` | 使用 LLVM linker （`ld.lld`） |
 | `-fno-stack-protector` | 關閉 [stack protection](https://wiki.osdev.org/Stack_Smashing_Protector)，避免影響底層堆疊操作（詳見 [#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)） |
 | `-nostdlib` | 不連結標準函式庫 |
 | `-Wl,-Tkernel.ld` | 使用指定的 linker script |
