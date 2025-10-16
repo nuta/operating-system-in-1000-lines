@@ -497,13 +497,100 @@ void handle_syscall(struct trap_frame *f) {
                 yield();
             }
             break;
+	case SYS_READF: {
+    const char *filename = (const char *) f->a0;
+    struct file *file = fs_lookup(filename);
+    if (!file) {
+        f->a0 = -1;  // dosya yok
+        break;
+    }
+
+    // Dosya içeriğini console’a yaz
+    for (int i = 0; i < file->size; i++)
+        putchar(file->data[i]);
+
+    f->a0 = file->size;
+    break;
+
+}
+case SYS_LS: {
+    printf("Files:\n");
+    for (int i = 0; i < FILES_MAX; i++) {
+        if (files[i].in_use) {
+            printf("  %s (size: %d)\n", files[i].name, files[i].size);
+        }
+    }
+    f->a0 = 0;
+    break;
+}
+
+case SYS_ADDF: {
+    const char *filename = (const char *) f->a0;
+    struct file *file = NULL;
+    for (int i = 0; i < FILES_MAX; i++) {
+        if (!files[i].in_use) {
+            file = &files[i];
+            break;
+        }
+    }
+    if (!file) { f->a0 = -1; break; }
+    file->in_use = true;
+    strcpy(file->name, filename);
+    file->size = 0;
+    fs_flush();
+    f->a0 = 0;
+    break;
+}
+
+case SYS_WRITEF: {
+    const char *filename = (const char *) f->a0;
+    struct file *file = fs_lookup(filename);
+    if (!file) { f->a0 = -1; break; }
+
+    char *buf = (char *) f->a1;
+    int len = f->a2;
+    if (len > (int) sizeof(file->data))
+        len = sizeof(file->data);
+    memcpy(file->data, buf, len);
+    file->size = len;
+    fs_flush();
+    f->a0 = len;
+    break;
+}
+
+	
+	case SYS_ADDFILE: {
+    		const char *filename = (const char *) f->a0;
+
+    // find free slot
+    		struct file *file = NULL;
+    		for (int i = 0; i < FILES_MAX; i++) {
+        		if (!files[i].in_use) {
+            	file = &files[i];
+            	break;
+        	}
+    	}
+
+    	if (!file) {
+        	f->a0 = -1; // fail
+        	break;
+    	}
+
+    	file->in_use = true;
+    	strcpy(file->name, filename);
+    	file->size = 0;          // boş dosya
+    	fs_flush();              // diske yaz
+    	f->a0 = 0;               // success
+    	break;
+			}
+    
         case SYS_EXIT:
             printf("process %d exited\n", current_proc->pid);
             current_proc->state = PROC_EXITED;
             yield();
             PANIC("unreachable");
         case SYS_READFILE:
-        case SYS_WRITEFILE: {
+	case SYS_WRITEFILE: {
             const char *filename = (const char *) f->a0;
             char *buf = (char *) f->a1;
             int len = f->a2;

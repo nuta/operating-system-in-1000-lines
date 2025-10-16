@@ -25,9 +25,14 @@ typedef uint32_t vaddr_t;
 #define SYS_EXIT    3
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
-
+#define SYS_ADDFILE 6
+#define SYS_READF 7
+#define SYS_ADDF 8
+#define SYS_WRITEF 9
+#define SYS_LS 10
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, const void *src, size_t n);
 char *strcpy(char *dst, const char *src);
 int strcmp(const char *s1, const char *s2);
+int strncmp(const char *s1, const char *s2, int n);
 void printf(const char *fmt, ...);

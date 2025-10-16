@@ -14,4 +14,12 @@ The book only covers the basics of an operating system. You can do more with the
 | --- | --- |
 | [Shutdown command](https://github.com/nuta/operating-system-in-1000-lines/pull/59/files) | [@calvera](https://github.com/calvera) |
 
-Let me know if you have implemented something interesting!
+
+
+I added 
+
+addf <filename> 
+readf <filename>
+writef <filename>
+
+commands and syscalls needed
