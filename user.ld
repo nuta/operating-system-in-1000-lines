@@ -19,8 +19,13 @@ SECTIONS {
     .bss : ALIGN(4) {
         *(.bss .bss.* .sbss .sbss.*);
 
-        . = ALIGN(16); /* https://github.com/nuta/operating-system-in-1000-lines/pull/23 */
-        . += 64 * 1024; /* 64KB */
+        /*
+         * RISC-V ABI requires 16-byte alignment for the stack.
+         *
+         * https://github.com/nuta/operating-system-in-1000-lines/pull/23
+         */
+        . = ALIGN(16);
+        . += 64 * 1024; /* 64KB stack space */
         __stack_top = .;
 
        ASSERT(. < 0x1800000, "too large executable");
