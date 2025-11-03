@@ -212,7 +212,7 @@ The first column shows the physical address, and the subsequent columns show the
 >
 > Using the `x` command instead of `xp` allows you to view the memory dump for a specified **virtual** address. This is useful when examining user space (application) memory, where virtual addresses do not match physical addresses, unlike in our kernel space.
 
-According to the specification, the second-level page table is located at `(0x20095000 >> 10) * 4096 = 0x80254000`. We again dump its 512th entry because `VPN[0] = (0x80200000 >> 12) & 0x3ff = 512`:
+According to the specification, the second-level page table is located at `(0x20095001 >> 10) * 4096 = 0x80254000`. We again dump its 512th entry because `VPN[0] = (0x80200000 >> 12) & 0x3ff = 512`:
 
 ```
 (qemu) xp /x 0x80254000+512*4
@@ -222,10 +222,10 @@ According to the specification, the second-level page table is located at `(0x20
 The value `0x200800cf` corresponds to the physical page number `0x200800cf >> 10 = 0x80200` (according to the specification, we ignore the lowest 10 bits, which contain permission flags).
 This means that the virtual address `0x80200000` is mapped to the physical address `0x80200000`, as we wanted!
 
-Let's also dump the entire first-level table (1024 entries):
+Let's also dump the entire second-level table (1024 entries):
 
 ```
-(qemu) xp /1024x 0x80253000
+(qemu) xp /1024x 0x80254000
 0000000080254000: 0x00000000 0x00000000 0x00000000 0x00000000
 0000000080254010: 0x00000000 0x00000000 0x00000000 0x00000000
 0000000080254020: 0x00000000 0x00000000 0x00000000 0x00000000
