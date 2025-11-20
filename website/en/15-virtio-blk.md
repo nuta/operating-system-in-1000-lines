@@ -224,7 +224,7 @@ void virtio_blk_init(void) {
 
     // Get the disk capacity.
     blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+    printf("virtio-blk: capacity is %d bytes\n", (int)blk_capacity);
 
     // Allocate a region to store requests to the device.
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);

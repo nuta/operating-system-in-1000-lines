@@ -232,7 +232,7 @@ void virtio_blk_init(void) {
 
     // 디스크 용량을 가져옵니다.
     blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+    printf("virtio-blk: capacity is %d bytes\n", (int)blk_capacity);
 
     // 장치에 요청(request)을 저장할 영역을 할당합니다.
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
