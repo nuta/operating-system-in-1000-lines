@@ -8,10 +8,21 @@ In this chapter, let's make it more obvious by outputting a string from the kern
 
 In the previous chapter, we learned that SBI is an "API for OS". To call the SBI to use its function, we use the `ecall` instruction:
 
-```c [kernel.c] {1, 5-26, 29-32}
+```c [kernel.c] {1, 16-48}
 #include "kernel.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
+
+__attribute__((section(".text.boot")))
+__attribute__((naked))
+void boot(void) {
+    __asm__ __volatile__(
+        "mv sp, %[stack_top]\n" // Set the stack pointer
+        "j kernel_main\n"       // Jump to the kernel main function
+        :
+        : [stack_top] "r" (__stack_top) // Pass the stack top address as %[stack_top]
+    );
+}
 
 struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
                        long arg5, long fid, long eid) {
