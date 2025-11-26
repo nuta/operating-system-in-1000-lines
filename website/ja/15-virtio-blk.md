@@ -198,7 +198,7 @@ void virtio_blk_init(void) {
 
     // ディスクの容量を取得
     blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+    printf("virtio-blk: capacity is %d bytes\n", (int)blk_capacity);
 
     // デバイスへの処理要求を格納する領域を確保
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);

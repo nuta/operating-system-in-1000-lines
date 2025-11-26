@@ -228,7 +228,7 @@ void virtio_blk_init(void) {
 
     // 获取磁盘容量。
     blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-    printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+    printf("virtio-blk: capacity is %d bytes\n", (int)blk_capacity);
 
     // 分配一个区域来存储对设备的请求。
     blk_req_paddr = alloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
