@@ -101,7 +101,7 @@ struct virtio_virtq *virtq_init(unsigned index) {
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
     virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 
@@ -114,6 +114,7 @@ void virtio_blk_init(void) {
         PANIC("virtio: invalid device id");
 
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
+    virtio_reg_write32(VIRTIO_REG_GUEST_PAGE_SIZE, PAGE_SIZE);
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
