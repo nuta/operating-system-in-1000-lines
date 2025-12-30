@@ -8,11 +8,17 @@ title: ディスク読み書き
 
 Virtioは、仮想マシンとホストOS間でデータをやり取りするための仕組みです。各virtioデバイスは1つ以上のvirtqueueを持ちます。virtqueueは次の3つのメモリ領域から構成されます。
 
-| 名前                 | 誰が書き込むか | 内容                               | 各エントリの内容                                         |
-| -------------------- | -------------- | ---------------------------------- | -------------------------------------------------------- |
-| ディスクリプタエリア | ドライバ          | ディスクリプタ表 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
-| availableリング      | ドライバ       | デバイスへの処理要求               | ディスクリプタチェーンの先頭インデックス                 |
-| usedリング           | デバイス       | デバイスによって処理済みの処理要求 | ディスクリプタチェーンの先頭インデックス                 |
+> [!NOTE]
+>
+> [最新のVirtio仕様書](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html) ではLegacyとModernの2つのインターフェースが定義されています。この実装では**Legacyインターフェース**を使用します。Modernとの違いは少なく、若干シンプルなためです。
+>
+> 詳細は[Legacy仕様書 (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)を参照するか、[最新のHTML仕様書](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)で*Legacy Interface:*から始まるセクションを検索してください。
+
+| 名前                   | 誰が書き込むか | 内容                               | 各エントリの内容                                         |
+| ---------------------- | -------------- | ---------------------------------- | -------------------------------------------------------- |
+| ディスクリプタテーブル | ドライバ          | ディスクリプタ表 | メモリアドレス、長さ、続きのディスクリプタのインデックス |
+| availableリング        | ドライバ       | デバイスへの処理要求               | ディスクリプタチェーンの先頭インデックス                 |
+| usedリング             | デバイス       | デバイスによって処理済みの処理要求 | ディスクリプタチェーンの先頭インデックス                 |
 
 ![virtqueue diagram](../images/virtio.svg)
 
@@ -55,10 +61,10 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_REG_MAGIC         0x00
 #define VIRTIO_REG_VERSION       0x04
 #define VIRTIO_REG_DEVICE_ID     0x08
+#define VIRTIO_REG_PAGE_SIZE     0x28
 #define VIRTIO_REG_QUEUE_SEL     0x30
 #define VIRTIO_REG_QUEUE_NUM_MAX 0x34
 #define VIRTIO_REG_QUEUE_NUM     0x38
-#define VIRTIO_REG_QUEUE_ALIGN   0x3c
 #define VIRTIO_REG_QUEUE_PFN     0x40
 #define VIRTIO_REG_QUEUE_READY   0x44
 #define VIRTIO_REG_QUEUE_NOTIFY  0x50
@@ -67,7 +73,6 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_STATUS_ACK       1
 #define VIRTIO_STATUS_DRIVER    2
 #define VIRTIO_STATUS_DRIVER_OK 4
-#define VIRTIO_STATUS_FEAT_OK   8
 #define VIRTQ_DESC_F_NEXT          1
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
@@ -153,21 +158,18 @@ struct process *create_process(const void *image, size_t image_size) {
 
 ## Virtioデバイスの初期化
 
-virtioデバイスの初期化処理は、 [virtioの仕様書](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003) に載っています。
+初期化手順は仕様書に以下のように記載されています:
 
-> 3.1.1 Driver Requirements: Device Initialization
-> The driver MUST follow this sequence to initialize a device:
+> 1. Reset the device. This is not required on initial start up.
+> 2. The ACKNOWLEDGE status bit is set: we have noticed the device.
+> 3. The DRIVER status bit is set: we know how to drive the device.
+> 4. Device-specific setup, including reading the Device Feature Bits, discovery of virtqueues for the device, optional MSI-X setup, and reading and possibly writing the virtio configuration space.
+> 5. The subset of Device Feature Bits understood by the driver is written to the device.
+> 6. The DRIVER_OK status bit is set.
 >
-> 1. Reset the device.
-> 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
-> 3. Set the DRIVER status bit: the guest OS knows how to drive the device.
-> 4. Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
-> 5. Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
-> 6. Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
-> 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
-> 8. Set the DRIVER_OK status bit. At this point the device is “live”.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
-以下がvirtioデバイスの初期化処理の実装です。いくつかの処理を省いている行儀の悪い実装ですが一応動きます。
+長いステップに圧倒されるかもしれませんが、心配無用です。シンプルな実装は非常に簡単です:
 
 ```c [kernel.c]
 struct virtio_virtq *blk_request_vq;
@@ -183,17 +185,17 @@ void virtio_blk_init(void) {
     if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
         PANIC("virtio: invalid device id");
 
-    // 1. Reset the device.
+    // 1. デバイスをリセット
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    // 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+    // 2. ACKNOWLEDGEステータスビットを設定: デバイスを認識した
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    // 3. Set the DRIVER status bit.
+    // 3. DRIVERステータスビットを設定: デバイスの使い方を知っている
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    // 5. Set the FEATURES_OK status bit.
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    // 7. Perform device-specific setup, including discovery of virtqueues for the device
+    // ページサイズを設定: 4KBページを使用。PFN (ページフレーム番号) の計算に使われる
+    virtio_reg_write32(VIRTIO_REG_PAGE_SIZE, PAGE_SIZE);
+    // ディスク読み書き用のキューを初期化
     blk_request_vq = virtq_init(0);
-    // 8. Set the DRIVER_OK status bit.
+    // 6. DRIVER_OKステータスビットを設定: デバイスが使用可能になった
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
     // ディスクの容量を取得
@@ -214,19 +216,17 @@ void kernel_main(void) {
     virtio_blk_init();
 ```
 
+これはデバイスドライバの典型的な初期化パターンです。デバイスをリセットし、パラメータを設定し、デバイスを有効化します。OS側はデバイス内部で何が起こっているかを気にする必要はありません。上記のようなメモリ読み書き操作を行うだけです。
+
 ## Virtqueueの初期化
 
-virtqueueも初期化する必要があります。以下が仕様書に載っているvirtqueueの初期化処理です。
+virtqueueも以下のように初期化する必要があります:
 
-> The virtual queue is configured as follows:
+> 1. Write the virtqueue index (first queue is 0) to the Queue Select field.
+> 2. Read the virtqueue size from the Queue Size field, which is always a power of 2. This controls how big the virtqueue is (see below). If this field is 0, the virtqueue does not exist.
+> 3. Allocate and zero virtqueue in contiguous physical memory, on a 4096 byte alignment. Write the physical address, divided by 4096 to the Queue Address field.
 >
-> 1. Select the queue writing its index (first queue is 0) to QueueSel.
-> 2. Check if the queue is not already in use: read QueuePFN, expecting a returned value of zero (0x0).
-> 3. Read maximum queue size (number of elements) from QueueNumMax. If the returned value is zero (0x0) the queue is not available.
-> 4. Allocate and zero the queue pages in contiguous virtual memory, aligning the Used Ring to an optimal boundary (usually page size). The driver should choose a queue size smaller than or equal to QueueNumMax.
-> 5. Notify the device about the queue size by writing the size to QueueNum.
-> 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
-> 7. Write the physical number of the first page of the queue to the QueuePFN register.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 ```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
@@ -234,19 +234,17 @@ struct virtio_virtq *virtq_init(unsigned index) {
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
-    // 1. Select the queue writing its index (first queue is 0) to QueueSel.
+    // キューを選択: virtqueueのインデックスを書き込む (最初のキューは0)
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
-    // 5. Notify the device about the queue size by writing the size to QueueNum.
+    // キューサイズを指定: 使用するディスクリプタの数を書き込む
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    // 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    // 7. Write the physical number of the first page of the queue to the QueuePFN register.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    // キューのページフレーム番号 (物理アドレスではない!) を書き込む
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 ```
 
-ここで指定しているアドレスは、割り当てた `struct virtio_virtq` の領域です。この中にディスクリプタリング、availableリング、usedリングが格納されます。
+ここで指定しているアドレスは、割り当てた `struct virtio_virtq` の領域のページフレーム番号 (物理アドレスではなく!) です。この中にディスクリプタテーブル、availableリング、usedリングが格納されます。
 
 ## IOリクエストの送信
 

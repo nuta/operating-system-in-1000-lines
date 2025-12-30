@@ -10,17 +10,23 @@ title: 磁盘 I/O
 
 Virtio 是一个用于虚拟设备(virtio devices)的设备接口标准。换句话说，它是设备驱动程序控制设备的 API 之一。就像使用 HTTP 访问 web 服务器一样，你使用 virtio 来访问 virtio 设备。Virtio 在 QEMU 和 Firecracker 等虚拟化环境中被广泛使用。
 
+> [!NOTE]
+>
+> [最新的 Virtio 规范](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)定义了两种接口：Legacy 和 Modern。在本实现中，**我们使用 Legacy 接口**，因为它稍微简单一些，与 Modern 版本差异不大。
+>
+> 请参考[旧版 PDF](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)，或在[最新的 HTML 版本](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)中搜索以 *Legacy Interface:* 开头的章节。
+
 ### Virtqueue
 
 Virtio 设备具有一个称为 virtqueue 的结构。顾名思义，它是驱动程序和设备之间共享的队列。简而言之：
 
 Virtqueue 由以下三个区域组成：
 
-| 名称            | 写入者    | 内容                                                           | 具体内容                                   |
-| --------------- | --------- | -------------------------------------------------------------- | ------------------------------------------ |
-| Descriptor Area | 驱动程序  | 描述符表：请求的地址和大小                                     | 内存地址、长度、下一个描述符的索引        |
-| Available Ring  | 驱动程序  | 向设备发送处理请求                                             | 描述符链的头索引                           |
-| Used Ring       | 设备      | 设备处理完成的请求                                             | 描述符链的头索引                           |
+| 名称             | 写入者    | 内容                                                           | 具体内容                                   |
+| ---------------- | --------- | -------------------------------------------------------------- | ------------------------------------------ |
+| Descriptor Table | 驱动程序  | 描述符表：请求的地址和大小                                     | 内存地址、长度、下一个描述符的索引        |
+| Available Ring   | 驱动程序  | 向设备发送处理请求                                             | 描述符链的头索引                           |
+| Used Ring        | 设备      | 设备处理完成的请求                                             | 描述符链的头索引                           |
 
 ![virtqueue diagram](../images/virtio.svg)
 
@@ -28,7 +34,7 @@ Virtqueue 由以下三个区域组成：
 
 例如，在写入磁盘时，virtqueue 将按以下方式使用：
 
-1. 驱动程序在 Descriptor 区域写入读/写请求。
+1. 驱动程序在 Descriptor Table 写入读/写请求。
 2. 驱动程序将头描述符的索引添加到 Available Ring。
 3. 驱动程序通知设备有新的请求。
 4. 设备从 Available Ring 读取请求并处理它。
@@ -71,10 +77,10 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_REG_MAGIC         0x00
 #define VIRTIO_REG_VERSION       0x04
 #define VIRTIO_REG_DEVICE_ID     0x08
+#define VIRTIO_REG_PAGE_SIZE     0x28
 #define VIRTIO_REG_QUEUE_SEL     0x30
 #define VIRTIO_REG_QUEUE_NUM_MAX 0x34
 #define VIRTIO_REG_QUEUE_NUM     0x38
-#define VIRTIO_REG_QUEUE_ALIGN   0x3c
 #define VIRTIO_REG_QUEUE_PFN     0x40
 #define VIRTIO_REG_QUEUE_READY   0x44
 #define VIRTIO_REG_QUEUE_NOTIFY  0x50
@@ -83,14 +89,13 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_STATUS_ACK       1
 #define VIRTIO_STATUS_DRIVER    2
 #define VIRTIO_STATUS_DRIVER_OK 4
-#define VIRTIO_STATUS_FEAT_OK   8
 #define VIRTQ_DESC_F_NEXT          1
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
-// Virtqueue Descriptor 区域条目。
+// Virtqueue Descriptor Table entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
@@ -183,19 +188,16 @@ struct process *create_process(const void *image, size_t image_size) {
 
 ## Virtio 设备初始化
 
-初始化过程在 [virtio 规范](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003)中有详细说明：
+初始化过程在规范中描述如下：
 
-> 3.1.1 驱动程序要求：设备初始化
-> 驱动程序必须按照以下顺序初始化设备：
+> 1. Reset the device. This is not required on initial start up.
+> 2. The ACKNOWLEDGE status bit is set: we have noticed the device.
+> 3. The DRIVER status bit is set: we know how to drive the device.
+> 4. Device-specific setup, including reading the Device Feature Bits, discovery of virtqueues for the device, optional MSI-X setup, and reading and possibly writing the virtio configuration space.
+> 5. The subset of Device Feature Bits understood by the driver is written to the device.
+> 6. The DRIVER_OK status bit is set.
 >
-> 1. 重置设备。
-> 2. 设置 ACKNOWLEDGE 状态位：表示客户操作系统已注意到该设备。
-> 3. 设置 DRIVER 状态位：表示客户操作系统知道如何驱动该设备。
-> 4. 读取设备特性位，并将操作系统和驱动程序理解的特性位子集写入设备。在此步骤中，驱动程序可以读取(但不能写入)设备特定的配置字段，以在接受设备之前检查它是否可以支持该设备。
-> 5. 设置 FEATURES_OK 状态位。驱动程序在此步骤之后不得接受新的特性位。
-> 6. 重新读取设备状态以确保 FEATURES_OK 位仍然设置：否则，设备不支持我们的特性子集，该设备不可用。
-> 7. 执行设备特定的设置，包括发现设备的 virtqueues、可选的每总线设置、读取和可能写入设备的 virtio 配置空间，以及填充 virtqueues。
-> 8. 设置 DRIVER_OK 状态位。此时设备处于“活动”状态。
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 你可能会被冗长的步骤吓到，但别担心。一个简单的实现非常简单：
 
@@ -213,17 +215,17 @@ void virtio_blk_init(void) {
     if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
         PANIC("virtio: invalid device id");
 
-    // 1. 重置设备。
+    // 1. 重置设备
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    // 2. 设置 ACKNOWLEDGE 状态位：表示客户操作系统已注意到该设备。
+    // 2. 设置 ACKNOWLEDGE 状态位：已发现设备
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    // 3. 设置 DRIVER 状态位。
+    // 3. 设置 DRIVER 状态位：知道如何使用此设备
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    // 5. 设置 FEATURES_OK 状态位。
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    // 7. 执行设备特定的设置，包括发现设备的 virtqueues
+    // 设置页面大小：使用 4KB 页面。这用于 PFN（页框编号）的计算
+    virtio_reg_write32(VIRTIO_REG_PAGE_SIZE, PAGE_SIZE);
+    // 初始化磁盘读写请求用的队列
     blk_request_vq = virtq_init(0);
-    // 8. 设置 DRIVER_OK 状态位。
+    // 6. 设置 DRIVER_OK 状态位：现在可以使用设备了
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
     // 获取磁盘容量。
@@ -244,42 +246,37 @@ void kernel_main(void) {
     virtio_blk_init(); // new
 ```
 
+这是设备驱动程序的典型初始化模式。重置设备、设置参数，然后启用设备。作为操作系统，我们不需要关心设备内部发生了什么。只需像上面那样执行一些内存读写操作即可。
+
 ## Virtqueue 初始化
 
-Virtqueues 也需要初始化。让我们看看规范：
+Virtqueue 应按以下方式初始化：
 
-> 虚拟队列配置如下：
+> 1. Write the virtqueue index (first queue is 0) to the Queue Select field.
+> 2. Read the virtqueue size from the Queue Size field, which is always a power of 2. This controls how big the virtqueue is (see below). If this field is 0, the virtqueue does not exist.
+> 3. Allocate and zero virtqueue in contiguous physical memory, on a 4096 byte alignment. Write the physical address, divided by 4096 to the Queue Address field.
 >
-> 1. 通过写入队列的索引(第一个队列为 0)到 QueueSel 来选择队列。
-> 2. 检查队列是否已被使用：读取 QueuePFN，预期返回值为零(0x0)。 
-> 3. 从 QueueNumMax 读取最大队列大小(元素数)。如果返回值为零(0x0)，则该队列不可用。
-> 4. 在连续的虚拟内存中分配并清零队列页面，将 Used Ring 对齐到最优边界(通常是页面大小)。驱动程序应选择小于或等于 QueueNumMax 的队列大小。
-> 5. 通过写入大小到 QueueNum 来通知设备队列大小。
-> 6. 通过写入其字节值到 QueueAlign 来通知设备已使用的对齐方式。
-> 7. 将队列第一页的物理编号写入 QueuePFN 寄存器。
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 下面是一个简单的实现：
 
 ```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
-    // 为 virtqueue 分配一个区域。
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
-    // 1. 通过写入队列的索引(第一个队列为 0)到 QueueSel 来选择队列。
+    // 选择队列：写入 virtqueue 索引（第一个队列为 0）
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
-    // 5. 通过写入大小到 QueueNum 来通知设备队列大小。
+    // 指定队列大小：写入要使用的描述符数量
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    // 6. 通过写入其字节值到 QueueAlign 来通知设备已使用的对齐方式。
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    // 7. 将队列第一页的物理编号写入 QueuePFN 寄存器。
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    // 写入队列的页框编号（不是物理地址！）
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 ```
 
-这个函数为 virtqueue 分配一个内存区域，并告诉设备其物理地址。设备将使用这个内存区域来读写请求。
+这个函数为 virtqueue 分配一个内存区域，并告诉设备其页框编号（不是物理地址！）。设备将使用这个内存区域来读写请求。
 
 > [!TIP]
 >

@@ -11,17 +11,23 @@ title: 디스크 I/O
 
 Virtio는 가상 장치(virtio devices)를 위한 디바이스 인터페이스 표준입니다. 즉, 디바이스 드라이버가 장치를 제어하기 위한 API 중 하나입니다. 웹 서버에 접근하기 위해 HTTP를 사용하는 것처럼, virtio를 사용하여 virtio 장치에 접근합니다. Virtio는 QEMU, Firecracker와 같은 가상화 환경에서 널리 사용됩니다.
 
+> [!NOTE]
+>
+> [최신 Virtio 사양](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)에서는 Legacy와 Modern 두 가지 인터페이스를 정의합니다. 이 구현에서는 **Legacy 인터페이스**를 사용합니다. 약간 더 단순하고 Modern과 크게 다르지 않기 때문입니다.
+>
+> [Legacy PDF](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)를 참조하거나, [최신 HTML](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)에서 *Legacy Interface:*로 시작하는 섹션을 검색하세요.
+
 ### Virtqueue
 
 Virtio 장치는 virtqueue라는 구조체를 가지고 있습니다. 이름에서 알 수 있듯이, 이는 드라이버와 장치가 공유하는 큐입니다. 간단히 말하면:
 
 Virtqueue는 다음 세 영역으로 구성됩니다:
 
-| 이름             | 주체  | 내용                                 | 세부 내용                      |
-|----------------|-----|------------------------------------|----------------------------|
-| Descriptor Area | 드라이버 | 요청(request)의 주소와 크기를 기록한 디스크립터 테이블	 | 메모리 주소, 길이, 다음 디스크립터의 인덱스 등 |
-| Available Ring | 드라이버 | 장치에 처리할 요청들을 등록함	                  | 디스크립터 체인의 헤드 인덱스           |
-| Used Ring      | 드라이버 | 장치가 처리한 요청들을 기록함                   | 디스크립터 체인의 헤드 인덱스           |
+| 이름              | 주체  | 내용                                 | 세부 내용                      |
+|-----------------|-----|------------------------------------|----------------------------|
+| Descriptor Table | 드라이버 | 요청(request)의 주소와 크기를 기록한 디스크립터 테이블	 | 메모리 주소, 길이, 다음 디스크립터의 인덱스 등 |
+| Available Ring  | 드라이버 | 장치에 처리할 요청들을 등록함	                  | 디스크립터 체인의 헤드 인덱스           |
+| Used Ring       | 드라이버 | 장치가 처리한 요청들을 기록함                   | 디스크립터 체인의 헤드 인덱스           |
 
 ![virtqueue diagram](../images/virtio.svg)
 
@@ -29,7 +35,7 @@ Virtqueue는 다음 세 영역으로 구성됩니다:
 
 예를 들어, 디스크에 쓰기 요청을 할 때 virtqueue는 다음과 같이 사용됩니다:
 
-1. 드라이버는 Descriptor Area에 읽기/쓰기 요청을 작성합니다. 
+1. 드라이버는 Descriptor Table에 읽기/쓰기 요청을 작성합니다. 
 2. 드라이버는 디스크립터 체인의 헤드 디스크립터 인덱스를 Available Ring에 추가합니다. 
 3. 드라이버는 장치에 새 요청이 있음을 알립니다. 
 4. 장치는 Available Ring에서 요청을 읽어 처리합니다. 
@@ -74,10 +80,10 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_REG_MAGIC         0x00
 #define VIRTIO_REG_VERSION       0x04
 #define VIRTIO_REG_DEVICE_ID     0x08
+#define VIRTIO_REG_PAGE_SIZE     0x28
 #define VIRTIO_REG_QUEUE_SEL     0x30
 #define VIRTIO_REG_QUEUE_NUM_MAX 0x34
 #define VIRTIO_REG_QUEUE_NUM     0x38
-#define VIRTIO_REG_QUEUE_ALIGN   0x3c
 #define VIRTIO_REG_QUEUE_PFN     0x40
 #define VIRTIO_REG_QUEUE_READY   0x44
 #define VIRTIO_REG_QUEUE_NOTIFY  0x50
@@ -86,14 +92,13 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_STATUS_ACK       1
 #define VIRTIO_STATUS_DRIVER    2
 #define VIRTIO_STATUS_DRIVER_OK 4
-#define VIRTIO_STATUS_FEAT_OK   8
 #define VIRTQ_DESC_F_NEXT          1
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
-// Virtqueue Descriptor area entry.
+// Virtqueue Descriptor Table entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
@@ -187,21 +192,18 @@ struct process *create_process(const void *image, size_t image_size) {
 
 ## Virtio 장치 초기화
 
-초기화 과정은 [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003)에 자세히 설명되어 있습니다:
+초기화 과정은 사양에 다음과 같이 설명되어 있습니다:
 
-> 3.1.1 드라이버 요구사항: 장치 초기화
-> 드라이버는 장치를 초기화하기 위해 아래의 순서를 반드시 따라야 합니다:
+> 1. Reset the device. This is not required on initial start up.
+> 2. The ACKNOWLEDGE status bit is set: we have noticed the device.
+> 3. The DRIVER status bit is set: we know how to drive the device.
+> 4. Device-specific setup, including reading the Device Feature Bits, discovery of virtqueues for the device, optional MSI-X setup, and reading and possibly writing the virtio configuration space.
+> 5. The subset of Device Feature Bits understood by the driver is written to the device.
+> 6. The DRIVER_OK status bit is set.
 >
-> 1. 장치를 리셋합니다. 
-> 2. ACKNOWLEDGE 상태 비트를 설정합니다: 게스트 OS가 장치를 인식했음을 나타냅니다. 
-> 3. DRIVER 상태 비트를 설정합니다: 게스트 OS가 장치를 제어할 줄 안다는 것을 나타냅니다. 
-> 4. 장치의 기능(feature) 비트를 읽고, OS 및 드라이버가 이해하는 기능 비트의 집합을 장치에 기록합니다. 이 단계에서는 드라이버가 장치별 설정 필드를 읽어 자신이 장치를 지원할 수 있는지 확인할 수 있지만, 기록하면 안 됩니다. 
-> 5. FEATURES_OK 상태 비트를 설정합니다. 이 단계 이후로 드라이버는 새로운 기능 비트를 받아들이면 안 됩니다. 
-> 6. FEATURES_OK 비트가 여전히 설정되어 있는지 장치 상태를 재확인합니다. 그렇지 않다면, 장치는 드라이버가 지원하는 기능 집합을 지원하지 않는 것이므로 사용 불가능한 장치입니다. 
-> 7. virtqueue 검색, 버스별 추가 설정, 장치의 virtio 구성 공간 읽기(및 필요 시 쓰기), virtqueue 초기화 등 장치별 설정을 수행합니다. 
-> 8. DRIVER_OK 상태 비트를 설정합니다. 이 시점에서 장치는 "사용 가능한 상태(live)"가 됩니다.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
-길게 느껴질 수 있지만, 여기서는 단순한 구현을 사용합니다:
+길게 느껴질 수 있지만, 걱정하지 마세요. 단순한 구현은 매우 간단합니다:
 
 ```c [kernel.c]
 struct virtio_virtq *blk_request_vq;
@@ -217,17 +219,17 @@ void virtio_blk_init(void) {
     if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
         PANIC("virtio: invalid device id");
 
-    // 1. 장치를 리셋합니다.
+    // 1. 장치를 리셋
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    // 2. ACKNOWLEDGE 상태 비트를 설정합니다: 게스트 OS가 장치를 인식했음을 알림.
+    // 2. ACKNOWLEDGE 상태 비트 설정: 장치를 발견함
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    // 3. DRIVER 상태 비트를 설정합니다.
+    // 3. DRIVER 상태 비트 설정: 장치 사용 방법을 알고 있음
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    // 5. FEATURES_OK 상태 비트를 설정합니다.
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    // 7. 장치별 설정 수행 (예, virtqueue 검색)
+    // 페이지 크기 설정: 4KB 페이지 사용. PFN (페이지 프레임 번호) 계산에 사용됨
+    virtio_reg_write32(VIRTIO_REG_PAGE_SIZE, PAGE_SIZE);
+    // 디스크 읽기/쓰기 요청용 큐 초기화
     blk_request_vq = virtq_init(0);
-    // 8. DRIVER_OK 상태 비트를 설정합니다.
+    // 6. DRIVER_OK 상태 비트 설정: 이제 장치를 사용할 수 있음
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
     // 디스크 용량을 가져옵니다.
@@ -250,42 +252,37 @@ void kernel_main(void) {
     virtio_blk_init(); // new
 ```
 
+이것은 디바이스 드라이버의 일반적인 초기화 패턴입니다. 장치를 리셋하고, 파라미터를 설정한 다음, 장치를 활성화합니다. OS는 장치 내부에서 실제로 어떤 일이 일어나는지 신경 쓸 필요가 없습니다. 위와 같이 몇 가지 메모리 읽기/쓰기 작업만 수행하면 됩니다.
+
 ## Virtqueue 초기화
 
-Virtqueue 역시 초기화가 필요합니다. 스펙을 참고하면 다음과 같습니다:
+Virtqueue는 다음과 같이 초기화해야 합니다:
 
-> Virtqueue의 구성은 다음과 같이 진행됩니다:
+> 1. Write the virtqueue index (first queue is 0) to the Queue Select field.
+> 2. Read the virtqueue size from the Queue Size field, which is always a power of 2. This controls how big the virtqueue is (see below). If this field is 0, the virtqueue does not exist.
+> 3. Allocate and zero virtqueue in contiguous physical memory, on a 4096 byte alignment. Write the physical address, divided by 4096 to the Queue Address field.
 >
-> 1. QueueSel 레지스터에 인덱스(첫 번째 큐는 0)를 쓰며 큐를 선택합니다. 
-> 2. 큐가 이미 사용 중이지 않은지 확인합니다: QueuePFN 레지스터를 읽어 0(0x0)이 반환되는지 확인합니다. 
-> 3. QueueNumMax 레지스터에서 큐의 최대 크기(엔트리 수)를 읽습니다. 만약 0(0x0)이 반환된다면 해당 큐는 사용 불가능합니다. 
-> 4. 연속적인 가상 메모리 영역에 큐 페이지를 할당하고 0으로 초기화합니다. (Used Ring은 보통 페이지 크기에 맞춰 정렬됩니다.) 드라이버는 QueueNumMax보다 작거나 같은 큐 크기를 선택해야 합니다. 
-> 5. QueueNum 레지스터에 큐 크기를 기록하여 장치에 알립니다. 
-> 6. QueueAlign 레지스터에 Used Ring의 정렬값(바이트 단위)을 기록합니다. 
-> 7. 할당된 큐의 첫 페이지의 물리적 번호를 QueuePFN 레지스터에 기록합니다.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 간단한 구현 예제는 다음과 같습니다:
 
 ```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
-    // virtqueue를 위한 메모리 영역을 할당합니다.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
-    // 1. QueueSel 레지스터에 인덱스를 기록하여 큐 선택.
+    // 큐 선택: virtqueue 인덱스를 기록 (첫 번째 큐는 0)
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
-    // 5. QueueNum 레지스터에 큐의 크기를 기록하여 장치에 알림.
+    // 큐 크기 지정: 사용할 디스크립터 개수를 기록
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    // 6. QueueAlign 레지스터에 정렬값(바이트 단위)을 기록.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    // 7. 할당한 큐 메모리의 첫 페이지의 물리적 번호를 QueuePFN 레지스터에 기록.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    // 큐의 페이지 프레임 번호 (물리 주소가 아님!) 를 기록
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 ```
 
-이 함수는 virtqueue를 위한 메모리 영역을 할당하고, 그 물리적 주소를 장치에 알려줍니다. 장치는 이 메모리 영역을 사용하여 요청을 읽거나 씁니다.
+이 함수는 virtqueue를 위한 메모리 영역을 할당하고, 그 페이지 프레임 번호(물리적 주소가 아님!)를 장치에 알려줍니다. 장치는 이 메모리 영역을 사용하여 요청을 읽거나 씁니다.
 
 > [!TIP]
 >

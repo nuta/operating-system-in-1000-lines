@@ -6,15 +6,21 @@
 
 Virtio 是一種用於虛擬裝置（virtio devices）的裝置介面標準。換句話說，它是驅動程式用來控制裝置的一種 API 標準。就像你使用 HTTP 來存取網頁伺服器一樣，你可以使用 Virtio 來存取 virtio 裝置。Virtio 廣泛應用於虛擬化環境中，例如 QEMU 和 Firecracker。
 
+> [!NOTE]
+>
+> [最新的 Virtio 規格](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)定義了兩種介面：Legacy 和 Modern。在這個實作中，**我們使用 Legacy 介面**，因為它稍微簡單一些，且與 Modern 版本差異不大。
+>
+> 請參考[舊版 PDF](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)，或在[最新的 HTML 版本](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html)中搜尋以 *Legacy Interface:* 開頭的章節。
+
 ### Virtqueue
 
 Virtio 裝置中有一種稱為 virtqueue 的結構，顧名思義，它是一個由驅動程式與裝置共享的佇列。簡單來說，一個 virtqueue 包含以下三個區域：
 
-| 名稱            | 撰寫者 | 內容                                                                | 具體內容                                 |
-| --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
-| Descriptor Area | 驅動程式     | 一個描述項（descriptor）表格：儲存請求的位址與大小            | 記憶體位址、長度、下一個描述項的索引 |
-| Available Ring  | 驅動程式     | 通知裝置有哪些請求可以開始處理                                     | descriptor 鏈的起始索引（head index）           |
-| Used Ring       | 裝置     | 裝置已經處理完成的請求                             | descriptor 鏈的起始索引（head index）            |
+| 名稱             | 撰寫者 | 內容                                                                | 具體內容                                 |
+| ---------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| Descriptor Table | 驅動程式     | 一個描述項（descriptor）表格：儲存請求的位址與大小            | 記憶體位址、長度、下一個描述項的索引 |
+| Available Ring   | 驅動程式     | 通知裝置有哪些請求可以開始處理                                     | descriptor 鏈的起始索引（head index）           |
+| Used Ring        | 裝置     | 裝置已經處理完成的請求                             | descriptor 鏈的起始索引（head index）            |
 
 ![virtqueue diagram](../images/virtio.svg)
 
@@ -22,7 +28,7 @@ Virtio 裝置中有一種稱為 virtqueue 的結構，顧名思義，它是一�
 
 例如在寫入磁碟時，virtqueue 的使用流程如下：
 
-1. 驅動程式在 Descriptor 區域中撰寫讀寫請求。
+1. 驅動程式在 Descriptor Table 中撰寫讀寫請求。
 2. 驅動程式將該 descriptor chain 的起始索引加入 Available Ring。
 3. 驅動程式通知裝置有新的請求。
 4. 裝置從 Available Ring 中讀取請求並處理。
@@ -65,10 +71,10 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_REG_MAGIC         0x00
 #define VIRTIO_REG_VERSION       0x04
 #define VIRTIO_REG_DEVICE_ID     0x08
+#define VIRTIO_REG_PAGE_SIZE     0x28
 #define VIRTIO_REG_QUEUE_SEL     0x30
 #define VIRTIO_REG_QUEUE_NUM_MAX 0x34
 #define VIRTIO_REG_QUEUE_NUM     0x38
-#define VIRTIO_REG_QUEUE_ALIGN   0x3c
 #define VIRTIO_REG_QUEUE_PFN     0x40
 #define VIRTIO_REG_QUEUE_READY   0x44
 #define VIRTIO_REG_QUEUE_NOTIFY  0x50
@@ -77,14 +83,13 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 #define VIRTIO_STATUS_ACK       1
 #define VIRTIO_STATUS_DRIVER    2
 #define VIRTIO_STATUS_DRIVER_OK 4
-#define VIRTIO_STATUS_FEAT_OK   8
 #define VIRTQ_DESC_F_NEXT          1
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
-// Virtqueue Descriptor area entry.
+// Virtqueue Descriptor Table entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
@@ -177,19 +182,16 @@ struct process *create_process(const void *image, size_t image_size) {
 
 ## Virtio 裝置初始化
 
-初始化流程詳見 [virtio 規範](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003)：
+初始化流程在規格中描述如下：
 
-> 3.1.1 驅動程式的要求：裝置初始化
-> 驅動程式 必須 依照以下順序初始化裝置：
+> 1. Reset the device. This is not required on initial start up.
+> 2. The ACKNOWLEDGE status bit is set: we have noticed the device.
+> 3. The DRIVER status bit is set: we know how to drive the device.
+> 4. Device-specific setup, including reading the Device Feature Bits, discovery of virtqueues for the device, optional MSI-X setup, and reading and possibly writing the virtio configuration space.
+> 5. The subset of Device Feature Bits understood by the driver is written to the device.
+> 6. The DRIVER_OK status bit is set.
 >
-> 1. 重設（reset）裝置。
-> 2. 設定 ACKNOWLEDGE 狀態位元：表示客體作業系統已經察覺到該裝置。
-> 3. 設定 DRIVER 狀態位元：表示客體作業系統知道如何驅動這個裝置。
-> 4. 讀取裝置的 feature 位元，然後將作業系統與驅動程式能支援的子集合寫入裝置。在此步驟中，驅動程式可以讀（但不得寫入）裝置特定的設定欄位，以確認是否能支援此裝置。
-> 5. 設定 FEATURES_OK 狀態位元。該步驟之後，驅動程式不得再接受新的 feature 位元。
-> 6. 再次讀取裝置狀態，確保 FEATURES_OK 仍然被設為 1。否則代表裝置不支援我們指定的 feature 子集合，裝置將無法使用。
-> 7. 進行裝置特定的初始化，包括：發現（discover）該裝置的 virtqueue、進行必要的 bus 設定、讀取（必要時也寫入）裝置的 virtio 設定空間、建立 virtqueue。
-> 8. 設定 DRIVER_OK 狀態位元。從這一刻起，裝置就算是「啟用」了。
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 你可能會被這些冗長的步驟搞得眼花撩亂，但別擔心，一個最簡單版本的實作其實非常簡單：
 
@@ -207,17 +209,17 @@ void virtio_blk_init(void) {
     if (virtio_reg_read32(VIRTIO_REG_DEVICE_ID) != VIRTIO_DEVICE_BLK)
         PANIC("virtio: invalid device id");
 
-    // 1. Reset the device.
+    // 1. 重設裝置
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    // 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+    // 2. 設定 ACKNOWLEDGE 狀態位元：已發現裝置
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    // 3. Set the DRIVER status bit.
+    // 3. 設定 DRIVER 狀態位元：知道如何使用此裝置
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    // 5. Set the FEATURES_OK status bit.
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    // 7. Perform device-specific setup, including discovery of virtqueues for the device
+    // 設定頁面大小：使用 4KB 頁面。這用於 PFN（頁框編號）的計算
+    virtio_reg_write32(VIRTIO_REG_PAGE_SIZE, PAGE_SIZE);
+    // 初始化磁碟讀寫請求用的佇列
     blk_request_vq = virtq_init(0);
-    // 8. Set the DRIVER_OK status bit.
+    // 6. 設定 DRIVER_OK 狀態位元：現在可以使用裝置了
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
     // Get the disk capacity.
@@ -238,42 +240,37 @@ void kernel_main(void) {
     virtio_blk_init(); // new
 ```
 
+這是裝置驅動程式的典型初始化模式。重設裝置、設定參數，然後啟用裝置。作為作業系統，我們不需要關心裝置內部發生了什麼。只需像上面那樣執行一些記憶體讀寫操作即可。
+
 ##  Virtqueue 初始化
 
-Virtqueue 也需要初始化。我們來閱讀規範內容：
+Virtqueue 應按以下方式初始化：
 
-> 虛擬佇列的設定方式如下：
+> 1. Write the virtqueue index (first queue is 0) to the Queue Select field.
+> 2. Read the virtqueue size from the Queue Size field, which is always a power of 2. This controls how big the virtqueue is (see below). If this field is 0, the virtqueue does not exist.
+> 3. Allocate and zero virtqueue in contiguous physical memory, on a 4096 byte alignment. Write the physical address, divided by 4096 to the Queue Address field.
 >
-> 1. 選擇要使用的佇列，將其索引寫入 QueueSel（第一個佇列為索引 0）。
-> 2. 確認該佇列尚未被使用：讀取 QueuePFN，期望回傳值為 0（0x0）。
-> 3. 從 QueueNumMax 讀取最大佇列大小（元素數量）。如果回傳值為 0（0x0），表示該佇列無法使用。
-> 4. 在一段連續的虛擬記憶體中分配並清除佇列用的頁面，並將 Used Ring 對齊到最佳邊界（通常為頁大小）。驅動程式應選擇小於或等於 QueueNumMax 的佇列大小。
-> 5. 將選定的佇列大小寫入 QueueNum，以通知裝置。
-> 6. 將 Used Ring 的對齊位元數（以位元組為單位）寫入 QueueAlign，通知裝置。
-> 7. 將佇列第一頁的實體頁框編號（PFN）寫入 QueuePFN 暫存器。
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 以下是一個簡單的實作：
 
 ```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
-    // Allocate a region for the virtqueue.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
-    // 1. Select the queue writing its index (first queue is 0) to QueueSel.
+    // 選擇佇列：寫入 virtqueue 索引（第一個佇列為 0）
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
-    // 5. Notify the device about the queue size by writing the size to QueueNum.
+    // 指定佇列大小：寫入要使用的描述項數量
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    // 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    // 7. Write the physical number of the first page of the queue to the QueuePFN register.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    // 寫入佇列的頁框編號（不是實體位址！）
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 ```
 
-這個函式會為 virtqueue 分配一段記憶體區域，並將其實體位址告訴裝置。裝置將使用這段記憶體來讀寫請求資料。
+這個函式會為 virtqueue 分配一段記憶體區域，並將其頁框編號（不是實體位址！）告訴裝置。裝置將使用這段記憶體來讀寫請求資料。
 
 > [!TIP]
 >
