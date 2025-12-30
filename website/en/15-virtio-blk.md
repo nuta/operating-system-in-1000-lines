@@ -6,17 +6,23 @@ In this chapter, we will implement a device driver for the virtio-blk, a virtual
 
 Virtio is a device interface standard for virtual devices (virtio devices). In other words, it is one of the APIs for device drivers to control devices. Like you use HTTP to access web servers, you use virtio to access virtio devices. Virtio is widely used in virtualization environments such as QEMU and Firecracker.
 
+> [!NOTE]
+>
+> [The latest Virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html) defines 2 interfaces: Legacy and Modern. In this implementation, **we use the legacy interface** because it's slightly simpler and is not significantly different from the modern one.
+>
+> Refer to [the legacy PDF](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf), search for sections starting with *Legacy Interface:* in [the latest HTML](https://docs.oasis-open.org/virtio/virtio/v1.3/csd01/virtio-v1.3-csd01.html).
+
 ### Virtqueue
 
 Virtio devices have a structure called a virtqueue. As the name suggests, it is a queue shared between the driver and the device. In a nutshell:
 
 A virtqueue consists of the following three areas:
 
-| Name            | Written by | Content                                                                | Contents                                 |
-| --------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
-| Descriptor Area | Driver     | A table of descriptors: the address and size of the request            | Memory address, length, index of the next descriptor |
-| Available Ring  | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
-| Used Ring       | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
+| Name             | Written by | Content                                                                | Contents                                 |
+| ---------------- | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| Descriptor Table | Driver     | A table of descriptors: the address and size of the request            | Memory address, length, index of the next descriptor |
+| Available Ring   | Driver     | Processing requests to the device                                      | The head index of the descriptor chain            |
+| Used Ring        | Device     | Processing requests handled by the device                              | The head index of the descriptor chain            |
 
 ![virtqueue diagram](../images/virtio.svg)
 
@@ -24,7 +30,7 @@ Each request (e.g., a write to disk) consists of multiple descriptors, called a 
 
 For example, when writing to a disk, virtqueue will be used as follows:
 
-1. The driver writes a read/write request in the Descriptor area.
+1. The driver writes a read/write request in the Descriptor Table.
 2. The driver adds the index of the head descriptor to the Available Ring.
 3. The driver notifies the device that there is a new request.
 4. The device reads a request from the Available Ring and processes it.
@@ -67,10 +73,10 @@ First, let's add some virtio-related definitions to `kernel.h`:
 #define VIRTIO_REG_MAGIC         0x00
 #define VIRTIO_REG_VERSION       0x04
 #define VIRTIO_REG_DEVICE_ID     0x08
+#define VIRTIO_REG_PAGE_SIZE     0x28
 #define VIRTIO_REG_QUEUE_SEL     0x30
 #define VIRTIO_REG_QUEUE_NUM_MAX 0x34
 #define VIRTIO_REG_QUEUE_NUM     0x38
-#define VIRTIO_REG_QUEUE_ALIGN   0x3c
 #define VIRTIO_REG_QUEUE_PFN     0x40
 #define VIRTIO_REG_QUEUE_READY   0x44
 #define VIRTIO_REG_QUEUE_NOTIFY  0x50
@@ -79,14 +85,13 @@ First, let's add some virtio-related definitions to `kernel.h`:
 #define VIRTIO_STATUS_ACK       1
 #define VIRTIO_STATUS_DRIVER    2
 #define VIRTIO_STATUS_DRIVER_OK 4
-#define VIRTIO_STATUS_FEAT_OK   8
 #define VIRTQ_DESC_F_NEXT          1
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 #define VIRTIO_BLK_T_IN  0
 #define VIRTIO_BLK_T_OUT 1
 
-// Virtqueue Descriptor area entry.
+// Virtqueue Descriptor Table entry.
 struct virtq_desc {
     uint64_t addr;
     uint32_t len;
@@ -179,19 +184,16 @@ struct process *create_process(const void *image, size_t image_size) {
 
 ## Virtio device initialization
 
-The initialization process is detailed in the [virtio specification](https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003):
+The initialization process is described in the spec as follows:
 
-> 3.1.1 Driver Requirements: Device Initialization
-> The driver MUST follow this sequence to initialize a device:
+> 1. Reset the device. This is not required on initial start up.
+> 2. The ACKNOWLEDGE status bit is set: we have noticed the device.
+> 3. The DRIVER status bit is set: we know how to drive the device.
+> 4. Device-specific setup, including reading the Device Feature Bits, discovery of virtqueues for the device, optional MSI-X setup, and reading and possibly writing the virtio configuration space.
+> 5. The subset of Device Feature Bits understood by the driver is written to the device.
+> 6. The DRIVER_OK status bit is set.
 >
-> 1. Reset the device.
-> 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
-> 3. Set the DRIVER status bit: the guest OS knows how to drive the device.
-> 4. Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
-> 5. Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
-> 6. Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
-> 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
-> 8. Set the DRIVER_OK status bit. At this point the device is “live”.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 You might be overwhelmed by lengthy steps, but don't worry. A naive implementation is very simple:
 
@@ -211,15 +213,15 @@ void virtio_blk_init(void) {
 
     // 1. Reset the device.
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
-    // 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+    // 2. Set the ACKNOWLEDGE status bit: We found the device.
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
-    // 3. Set the DRIVER status bit.
+    // 3. Set the DRIVER status bit: We know how to use the device.
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
-    // 5. Set the FEATURES_OK status bit.
-    virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
-    // 7. Perform device-specific setup, including discovery of virtqueues for the device
+    // Set our page size: We use 4KB pages. This defines PFN (page frame number) calculation.
+    virtio_reg_write32(VIRTIO_REG_PAGE_SIZE, PAGE_SIZE);
+    // Initialize a queue for disk read/write requests.
     blk_request_vq = virtq_init(0);
-    // 8. Set the DRIVER_OK status bit.
+    // 6. Set the DRIVER_OK status bit: We can now use the device!
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
     // Get the disk capacity.
@@ -240,19 +242,17 @@ void kernel_main(void) {
     virtio_blk_init(); // new
 ```
 
+This is a typical initialization pattern for device drivers. Reset the device, set parameters, then enable the device. We, operating systems, do not have to care about what actually happens inside the device. Just do few memory read/write operations like above.
+
 ## Virtqueue initialization
 
-Virtqueues also need to be initialized. Let's read the specification:
+A virtqueue should be initialized as follows:
 
-> The virtual queue is configured as follows:
+> 1. Write the virtqueue index (first queue is 0) to the Queue Select field.
+> 2. Read the virtqueue size from the Queue Size field, which is always a power of 2. This controls how big the virtqueue is (see below). If this field is 0, the virtqueue does not exist.
+> 3. Allocate and zero virtqueue in contiguous physical memory, on a 4096 byte alignment. Write the physical address, divided by 4096 to the Queue Address field.
 >
-> 1. Select the queue writing its index (first queue is 0) to QueueSel.
-> 2. Check if the queue is not already in use: read QueuePFN, expecting a returned value of zero (0x0).
-> 3. Read maximum queue size (number of elements) from QueueNumMax. If the returned value is zero (0x0) the queue is not available.
-> 4. Allocate and zero the queue pages in contiguous virtual memory, aligning the Used Ring to an optimal boundary (usually page size). The driver should choose a queue size smaller than or equal to QueueNumMax.
-> 5. Notify the device about the queue size by writing the size to QueueNum.
-> 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
-> 7. Write the physical number of the first page of the queue to the QueuePFN register.
+> [Virtio 0.9.5 Specification (PDF)](https://ozlabs.org/~rusty/virtio-spec/virtio-0.9.5.pdf)
 
 Here's a simple implementation:
 
@@ -263,14 +263,12 @@ struct virtio_virtq *virtq_init(unsigned index) {
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
     vq->used_index = (volatile uint16_t *) &vq->used.index;
-    // 1. Select the queue writing its index (first queue is 0) to QueueSel.
+    // Select the queue: Write the virtqueue index (first queue is 0).
     virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
-    // 5. Notify the device about the queue size by writing the size to QueueNum.
+    // Specify the queue size: Write the # of descriptors we'll use.
     virtio_reg_write32(VIRTIO_REG_QUEUE_NUM, VIRTQ_ENTRY_NUM);
-    // 6. Notify the device about the used alignment by writing its value in bytes to QueueAlign.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_ALIGN, 0);
-    // 7. Write the physical number of the first page of the queue to the QueuePFN register.
-    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr);
+    // Write the physical page frame number (not physical address!) of the queue.
+    virtio_reg_write32(VIRTIO_REG_QUEUE_PFN, virtq_paddr / PAGE_SIZE);
     return vq;
 }
 ```
