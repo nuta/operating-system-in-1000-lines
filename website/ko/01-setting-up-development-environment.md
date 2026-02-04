@@ -17,6 +17,14 @@ title: 환경설정
 brew install llvm lld qemu
 ```
 
+또한, LLVM 유틸리티를 사용할 수 있도록 `PATH`를 설정합니다.
+
+```
+$ export PATH="$PATH:$(brew --prefix)/opt/llvm/bin"
+$ which llvm-objcopy
+/opt/homebrew/opt/llvm/bin/llvm-objcopy
+```
+
 ### Ubuntu
 
 1. apt 패키지 관리자 업데이트 후, 필요한 패키지들을 설치합니다.
