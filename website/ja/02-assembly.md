@@ -105,7 +105,7 @@ __asm__ __volatile__("csrr %0, sepc" : "=r"(value));
 上記のインラインアセンブリは、`csrr` 命令で `sepc` レジスタの値を読み出し、`value` 変数に代入します。`%0` が `value` 変数に対応しています。
 
 ```c
-__asm__ __volatile__("csrw sscratch, %0" : : "r"(123));
+__asm__ __volatile__("csrw sscratch, %0" : "r"(123));
 ```
 
 上記のインラインアセンブリは、`csrw` 命令で `sscratch` レジスタに `123` を書き込みます。`%0` が `123` が入ったレジスタ (`r` 制約) に対応し、次のように展開されます。
