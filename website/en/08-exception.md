@@ -35,7 +35,7 @@ __attribute__((aligned(4)))
 void kernel_entry(void) {
     __asm__ __volatile__(
         "csrw sscratch, sp\n"
-        "addi sp, sp, -4 * 31\n"
+        "addi sp, sp, -4 * 31\n" // Allocate space for the trap_frame struct
         "sw ra,  4 * 0(sp)\n"
         "sw gp,  4 * 1(sp)\n"
         "sw tp,  4 * 2(sp)\n"
@@ -113,8 +113,8 @@ Here are some key points:
 
 - `sscratch` register is used as a temporary storage to save the stack pointer at the time of exception occurrence, which is later restored.
 - Floating-point registers are not used within the kernel, and thus there's no need to save them here. Generally, they are saved and restored during thread switching.
-- The stack pointer is set in the `a0` register, and the `handle_trap` function is called. At this point, the address pointed to by the stack pointer contains register values stored in the same structure as the `trap_frame` structure described later.
-- Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary. This is because the `stvec` register not only holds the address of the exception handler but also has flags representing the mode in its lower 2 bits.
+- `handle_trap` is called with a parameter in `a0`, copied from `sp`. `a0` is a pointer to the `trap_frame` struct, which references the register values saved on the stack.
+- Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary; the lower 2 bits of the `stvec` encode its mode ([documentation](https://docs.riscv.org/reference/isa/priv/supervisor.html#12-1-1-2-supervisor-trap-vector-base-address-stvec-register)).
 
 > [!NOTE]
 >
