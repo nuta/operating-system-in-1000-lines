@@ -527,8 +527,8 @@ void handle_syscall(struct trap_frame *f) {
             f->a0 = len;
             break;
         }
-        case SYS_SHUTDOWN: { printf("shutting down...\n"); sbi_call(0, 0, 0, 0, 0, 0, 0, 0x02); printf("shutdown failed (not supported)\n"); for (;;) {} }
-        case SYS_REBOOT: { printf("rebooting...\n"); sbi_call(0, 0, 0, 0, 0, 0, 0, 0x01); printf("reboot failed (not supported)\n"); for (;;) {} }
+        case SYS_SHUTDOWN: { printf("shutting down...\n"); sbi_call(0, 0, 0, 0, 0, 0, 0, 0x08); printf("shutdown failed (not supported)\n"); for (;;) {} }
+        case SYS_REBOOT: { printf("rebooting...\n"); sbi_call(0, 0, 0, 0, 0, 0, 0, 0x08); printf("reboot failed (not supported)\n"); for (;;) {} }
         case SYS_MKDIR: { const char *path = (const char *) f->a0; int ret = fs_mkdir(path); if (ret == 0) fs_flush(); f->a0 = ret; break; }
         case SYS_LISTDIR: {
             const char *path = (const char *) f->a0;
