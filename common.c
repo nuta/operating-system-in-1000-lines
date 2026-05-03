@@ -7,6 +7,9 @@ int strncmp(const char *s1, const char *s2, size_t n) { while (n && *s1 && *s2) 
 size_t strlen(const char *s) { size_t len = 0; while (*s++) len++; return len; }
 char *strchr(const char *s, int c) { while (*s) { if (*s == c) return (char *)s; s++; } return NULL; }
 char *strrchr(const char *s, int c) { const char *last = NULL; while (*s) { if (*s == c) last = s; s++; } return (char *) last; }
+static unsigned int next_rand=1;
+int rand(void){next_rand=next_rand*1103515245+12345;return(unsigned int)(next_rand/65536)%32768;}
+void srand(unsigned int seed){next_rand=seed;}
 void putchar(char ch);
 void printf(const char *fmt, ...) {
     va_list vargs;

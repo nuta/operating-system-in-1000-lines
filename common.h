@@ -37,3 +37,5 @@ size_t strlen(const char *s);
 char *strchr(const char *s, int c);
 char *strrchr(const char *s, int c);
 void printf(const char *fmt, ...);
+int rand(void);
+void srand(unsigned int seed);
