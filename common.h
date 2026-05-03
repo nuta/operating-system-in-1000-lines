@@ -1,5 +1,4 @@
 #pragma once
-
 typedef int bool;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -8,7 +7,6 @@ typedef unsigned long long uint64_t;
 typedef uint32_t size_t;
 typedef uint32_t paddr_t;
 typedef uint32_t vaddr_t;
-
 #define true  1
 #define false 0
 #define NULL  ((void *) 0)
@@ -25,9 +23,17 @@ typedef uint32_t vaddr_t;
 #define SYS_EXIT    3
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
-
+#define SYS_SHUTDOWN  6
+#define SYS_REBOOT    7
+#define SYS_MKDIR     8
+#define SYS_LISTDIR   9
+#define SYS_REMOVE   10
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, const void *src, size_t n);
 char *strcpy(char *dst, const char *src);
 int strcmp(const char *s1, const char *s2);
+int strncmp(const char *s1, const char *s2, size_t n);
+size_t strlen(const char *s);
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
 void printf(const char *fmt, ...);
