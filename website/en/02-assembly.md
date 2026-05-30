@@ -57,10 +57,11 @@ Here are some common registers in RISC-V:
 | `x1` |`ra`         | Return address |
 | `x2` |`sp`         | Stack pointer |
 | `x5` - `x7` | `t0` - `t2` | Temporary registers |
-| `x8` | `fp`      | Stack frame pointer |
+| `x8` | `fp/s0`      | Stack frame pointer |
+| `x9` | `s1`      | Temporary registers saved across calls |
 | `x10` - `x11` | `a0` - `a1`  | Function arguments/return values |
 | `x12` - `x17` | `a2` - `a7`  | Function arguments |
-| `x18` - `x27` | `s0` - `s11` | Temporary registers saved across calls |
+| `x18` - `x27` | `s2` - `s11` | Temporary registers saved across calls |
 | `x28` - `x31` | `t3` - `t6` | Temporary registers |
 
 > [!TIP]
@@ -89,7 +90,7 @@ You can consider `(...)` as a pointer dereference in C language. In this case, `
 
 ### Branch instructions
 
-Branch instructions change the control flow of the program. They are used to implement `if`, `for`, and `while` statements, 
+Branch instructions change the control flow of the program. They are used to implement `if`, `for`, and `while` statements,
 
 
 ```asm
