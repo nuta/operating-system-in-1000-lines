@@ -1,0 +1,17 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Force LF for source files (Unix-style, common for C projects)
+*.c text eol=lf
+*.h text eol=lf
+*.ld text eol=lf
+*.sh text eol=lf
+
+# Binary files
+*.bin binary
+*.elf binary
+*.tar binary
+*.png binary
+*.ico binary
+*.svg binary
+
