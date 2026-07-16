@@ -11,8 +11,8 @@ Exception can also be triggered in kernel mode and mostly they are fatal kernel 
 In RISC-V, an exception will be handled as follows:
 
 1. CPU checks the `medeleg` register to determine which operation mode should handle the exception. In our case, OpenSBI has already configured to handle U-Mode/S-mode exceptions in S-Mode's handler.
-2. CPU saves its state (registers) into various CSRs (see below).
-3. The value of the `stvec` register is set to the program counter, jumping to the kernel's exception handler.
+2. The CPU saves information about the exception in various CSRs (see below).
+3. The program counter is set to the address stored in `stvec`, transferring control to the kernel's exception handler.
 4. The exception handler saves general-purpose registers (i.e. the program state), and handles the exception.
 5. Once it's done, the exception handler restores the saved execution state and calls the `sret` instruction to resume execution from the point where the exception occurred.
 
@@ -113,7 +113,7 @@ Here are some key points:
 
 - `sscratch` register is used as a temporary storage to save the stack pointer at the time of exception occurrence, which is later restored.
 - Floating-point registers are not used within the kernel, and thus there's no need to save them here. Generally, they are saved and restored during thread switching.
-- `handle_trap` is called with a parameter in `a0`, copied from `sp`. `a0` is a pointer to the `trap_frame` struct, which references the register values saved on the stack.
+- The `sw` instructions save the registers on the stack in the same layout as `struct trap_frame`. Since `sp` grows downward, it will point to the beginning of the trap frame. `mv a0, sp` puts the address in `a0`. In RISC-V calling convention, `a0` holds the first function argument, so `handle_trap` receives a pointer to the saved registers.
 - Adding `__attribute__((aligned(4)))` aligns the function's starting address to a 4-byte boundary; the lower 2 bits of the `stvec` encode its mode ([documentation](https://docs.riscv.org/reference/isa/priv/supervisor.html#12-1-1-2-supervisor-trap-vector-base-address-stvec-register)).
 
 > [!NOTE]
