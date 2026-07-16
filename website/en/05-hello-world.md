@@ -125,7 +125,7 @@ Hello World!
 >
 > When SBI is called, characters will be displayed as follows:
 >
-> 1. The kernel executes `ecall` instruction. The CPU jumps to the M-mode trap handler (`mtvec` register), which is set by OpenSBI during startup.
+> 1. The kernel (in S-mode) executes `ecall` instruction. The CPU jumps to the M-mode trap handler (`mtvec` register), which is set by OpenSBI during startup.
 > 2. After saving registers, the [trap handler written in C](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263) is called.
 > 3. Based on the `eid`, the [corresponding SBI processing function is called](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65).
 > 4. The [device driver](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77) for the 8250 UART ([Wikipedia](https://en.wikipedia.org/wiki/8250_UART)) sends the character to QEMU.
