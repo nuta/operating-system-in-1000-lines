@@ -10,13 +10,13 @@ title: 開始
 
 ### macOS
 
-透過 [Homebrew](https://brew.sh) 安裝並執行此命令以取得你需要的所有工具：
+安裝 [Homebrew](https://brew.sh) 並執行此命令以取得你需要的所有工具：
 
 ```
 brew install llvm lld qemu
 ```
 
-此外，你需要將 LLVM binutils 添加到 PATH 中：
+此外，你需要將 LLVM binutils 加到 `PATH` 中：
 
 ```
 $ export PATH="$PATH:$(brew --prefix)/opt/llvm/bin"
@@ -50,14 +50,14 @@ curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic
 
 如果你使用的是其他作業系統，請取得以下工具：
 
-- `bash`: shell。通常它是預設安裝的。
-- `tar`: 通常是預設安裝的。請使用 GNU 而不是 BSD 版本。
-- `clang`: C 編譯器。請確保它支援 32 位 RISC-V CPU（見下文）。
-- `lld`: LLVM 連結器（linker），是用來將已編譯的目標檔（object files）整合成一個可執行檔的工具。
-- `llvm-objcopy`: 目標檔編輯器（Object file editor），隨 LLVM 套件一同提供（通常在 `llvm` 套件中）。
-- `llvm-objdump`: 一個反組譯器（Disassembler），功能類似於 `llvm-objcopy`。
-- `llvm-readelf`: 一個 ELF 檔案讀取工具，功能也類似於 `llvm-objcopy`。
-- `qemu-system-riscv32`: 32 位元 RISC-V 處理器模擬器，是 QEMU 套件的一部分（通常包含在 `qemu` 套件中）。
+- `bash`：命令列 shell。通常它是預設安裝的。
+- `tar`：通常是預設安裝的。請使用 GNU 而不是 BSD 版本。
+- `clang`：C 編譯器。請確保它支援 32 位元 RISC-V CPU（見下文）。
+- `lld`：LLVM 連結器（linker），是用來將已編譯的目標檔（object files）整合成一個可執行檔的工具。
+- `llvm-objcopy`：目標檔編輯器（Object file editor），隨 LLVM 套件一同提供（通常在 `llvm` 套件中）。
+- `llvm-objdump`：一個反組譯器（Disassembler），取得方式與 `llvm-objcopy` 相同。
+- `llvm-readelf`：一個 ELF 檔案讀取工具，取得方式也與 `llvm-objcopy` 相同。
+- `qemu-system-riscv32`：32 位元 RISC-V 處理器模擬器，是 QEMU 套件的一部分（通常包含在 `qemu` 套件中）。
 
 > [!TIP]
 >

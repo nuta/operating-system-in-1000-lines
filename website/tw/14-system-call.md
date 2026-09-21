@@ -4,7 +4,7 @@
 
 ## 使用者函式庫
 
-呼叫系統呼叫的方式，其實與我們之前看到的 [SBI 呼叫實作](/en/05-hello-world#say-hello-to-sbi)非常類似：
+呼叫系統呼叫的方式，其實與我們之前看到的 [SBI 呼叫實作](/tw/05-hello-world)非常類似：
 
 ```c [user.c]
 int syscall(int sysno, int arg0, int arg1, int arg2) {
@@ -60,7 +60,7 @@ void handle_trap(struct trap_frame *f) {
 }
 ```
 
-是否執行了 `ecall` 指令，可以透過檢查 `scause` 的值來判斷。除了呼叫 `handle_syscall` 函式外，我們還需要將 `sepc` 的值加上 4（即 `ecall` 指令的大小）。這是因為 `sepc` 指向的是觸發例外的那條指令的程式計數器，也就是那一條 `ecall` 指令本身。如果我們不更新它，核心回到使用者模式時會再次執行 `ecall`，導致陷入無限次的陷入（exception loop）。
+是否執行了 `ecall` 指令，可以透過檢查 `scause` 的值來判斷。除了呼叫 `handle_syscall` 函式外，我們還需要將 `sepc` 的值加上 4（即 `ecall` 指令的大小）。這是因為 `sepc` 指向的是觸發例外的那條指令的程式計數器，也就是那一條 `ecall` 指令本身。如果我們不更新它，核心會回到同一個位置，導致 `ecall` 指令被不斷重複執行。
 
 ## 系統呼叫處理函式
 
@@ -84,7 +84,7 @@ void handle_syscall(struct trap_frame *f) {
 
 你已經完成了系統呼叫的實作，現在來試跑看看吧！
 
-還記得 `common.c` 裡的 `printf` 實作嗎？它是透過呼叫 `putchar` 來顯示字元的。
+還記得 `common.c` 裡的 `printf` 實作嗎？它是透過呼叫 `putchar` 來顯示字元的。由於我們剛剛已經在使用者空間函式庫中實作了 `putchar`，所以可以直接使用它：
 
 ```c [shell.c] {2}
 void main(void) {
@@ -239,7 +239,7 @@ void handle_syscall(struct trap_frame *f) {
 
 > [!TIP]
 >
-> 為了簡化實作，我們目前只是標記行程為 `PROC_EXITED`。如果要開發一個實用的作業系統，就必須釋放該行程佔用的資源，例如頁表與記憶體區域等。
+> 為了簡化實作，我們目前只是標記行程為 `PROC_EXITED`。如果要開發一個實用的作業系統，就必須釋放該行程佔用的資源，例如頁表與已配置的記憶體區域等。
 
 接著，在 shell 中加入 `exit` 指令：
 
@@ -261,4 +261,5 @@ $ ./run.sh
 process 2 exited
 PANIC: kernel.c:333: switched to idle process
 ```
-當執行 `exit` 指令時，shell 行程會透過系統呼叫終止。此時，由於系統中沒有其他可執行的行程，排程器將進入 idle 狀態，最終觸發 panic（核心錯誤）。
+
+當執行 `exit` 指令時，shell 行程會透過系統呼叫終止。此時，由於系統中沒有其他可執行的行程，排程器會選擇 idle 行程，最終觸發 panic（核心錯誤）。

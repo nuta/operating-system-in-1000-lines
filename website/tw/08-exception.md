@@ -2,7 +2,7 @@
 
 例外（Exception）是 CPU 提供的一項功能，讓作業系統核心可以處理各種事件，例如無效的記憶體存取（又稱為分頁錯誤，原文為 page fault）、非法指令，以及系統呼叫。
 
-例外就像是 C++ 或 Java 中的 `try-catch` 機制，但它是由硬體輔助實現的。在 CPU 運行程式的過程中，除非遇到需要核心介入的情況，否則它會持續執行下去。和 `try-catch` 的主要差別在於：例外處理完畢後，核心可以讓程式從發生例外的那一點繼續執行，就好像什麼事都沒發生過一樣。這聽起來是不是很酷的 CPU 特性呢？
+例外就像是 C++ 或 Java 中的 `try-catch` 機制，但它是由硬體輔助實作的。在 CPU 執行程式的過程中，除非遇到需要核心介入的情況，否則它會持續執行下去。和 `try-catch` 的主要差別在於：例外處理完畢後，核心可以讓程式從發生例外的那一點繼續執行，就好像什麼事都沒發生過一樣。這聽起來是不是很酷的 CPU 特性呢？
 
 例外也可能在核心模式（kernel mode）下被觸發，而這通常代表是致命的核心錯誤（kernel bug）。如果你發現 QEMU 突然重開機，或是核心沒有如預期地執行，很可能就是發生了例外。我建議你一開始就實作一個例外處理器（exception handler），這樣即使發生錯誤，也能透過 kernel panic 優雅地當機。這就像在開發 JavaScript 時，會先加上一個 Unhandled Rejection 的處理器一樣，是基本容錯手段。
 
@@ -11,7 +11,7 @@
 在 RISC-V 架構中，例外處理（Exception）的處理流程如下：
 
 1. CPU 首先會檢查 `medeleg` 暫存器，以決定該由哪個操作模式（operation mode）來處理該例外。在我們的情境中，OpenSBI 已經設定好讓 S 模式（S-Mode）處理來自使用者模式（U-Mode）與 S 模式本身的例外。
-2. CPU 會將當前狀態（如暫存器）儲存到一些 CSR 中（見後方描述）。
+2. CPU 會將目前狀態（如暫存器）儲存到一些 CSR 中（見後方描述）。
 3. CPU 將 `stvec`（Supervisor Trap Vector）暫存器中的值設定為新的程式計數器（program counter），並跳躍到核心所定義的例外處理器。
 4. 例外處理器會進一步儲存所有通用暫存器（也就是目前的程式狀態），然後處理該例外。
 5. 處理完成後，例外處理器會還原原本儲存的執行狀態，並透過 `sret` 指令（Supervisor Return）讓 CPU 從發生例外的地方繼續執行。
@@ -35,7 +35,7 @@ __attribute__((aligned(4)))
 void kernel_entry(void) {
     __asm__ __volatile__(
         "csrw sscratch, sp\n"
-        "addi sp, sp, -4 * 31\n"
+        "addi sp, sp, -4 * 31\n" // Allocate space for the trap_frame struct
         "sw ra,  4 * 0(sp)\n"
         "sw gp,  4 * 1(sp)\n"
         "sw tp,  4 * 2(sp)\n"
@@ -113,8 +113,8 @@ void kernel_entry(void) {
 
 - `sscratch` 暫存器被用來暫存發生例外時的堆疊指標（stack pointer），稍後會被還原。
 - 核心中並不使用浮點暫存器，因此這裡不需要儲存它們。一般而言，它們會在執行緒切換（thread switching）時儲存與還原。
-- 堆疊指標會被存入 `a0` 暫存器中，接著呼叫 `handle_trap` 函式。在這個時間點，堆疊指標所指向的位址會包含一些暫存器的值，這些值的排列方式與後面會定義的 `trap_frame` 結構一致。
-- 加上 `__attribute__((aligned(4)))` 是為了讓函式起始位址對齊至 4-byte 邊界。這是因為 `stvec` 暫存器除了保存例外處理器的位址外，低兩個位元還會表示例外處理的模式（mode）。
+- `sw` 指令會依照 `struct trap_frame` 的排列方式將暫存器儲存到堆疊上。由於 `sp` 是往下成長的，它會指向 trap frame 的開頭。`mv a0, sp` 會把這個位址放進 `a0`。在 RISC-V 的呼叫慣例中，`a0` 用來存放函式的第一個參數，因此 `handle_trap` 會收到一個指向已儲存暫存器的指標。
+- 加上 `__attribute__((aligned(4)))` 是為了讓函式起始位址對齊至 4-byte 邊界。這是因為 `stvec` 暫存器除了保存例外處理器的位址外，低兩個位元還會表示例外處理的模式（mode）（[說明文件](https://docs.riscv.org/reference/isa/priv/supervisor.html#12-1-1-2-supervisor-trap-vector-base-address-stvec-register)）。
 
 > [!NOTE]
 >

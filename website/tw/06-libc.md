@@ -70,7 +70,7 @@ void *memcpy(void *dst, const void *src, size_t n) {
 }
 ```
 
-`memset` 函式會將 `buf` 開頭的前 `n` 個位元組填入字元 `c`。這個函式其實在第 4 章中就已經為了初始化 BSS 區段而實作過了。現在，我們要把它從 `kernel.c` 移動到` common.c` 中，以便共用：
+`memset` 函式會將 `buf` 開頭的前 `n` 個位元組填入字元 `c`。這個函式其實在第 4 章中就已經為了初始化 BSS 區段而實作過了。現在，我們要把它從 `kernel.c` 移動到 `common.c` 中，以便共用：
 
 ```c [common.c]
 void *memset(void *buf, char c, size_t n) {
@@ -112,13 +112,13 @@ char *strcpy(char *dst, const char *src) {
 >
 > 為了簡化學習，本書將暫時使用 `strcpy`，但如果你有餘裕，請嘗試實作並使用 `strcpy_s` 等替代函式。
 
-接下來是 `strcmp` 函式。它會比較 `s1` 和`s2`，並根據以下條件回傳對應的值：
+接下來是 `strcmp` 函式。它會比較 `s1` 和 `s2`，並根據以下條件回傳對應的值：
 
 | 條件 | 結果 |
 | --------- | ------ |
 | `s1` == `s2` | 0 |
-| `s1` > `s2` | Positive value |
-| `s1` < `s2` | Negative value |
+| `s1` > `s2` | 正值 |
+| `s1` < `s2` | 負值 |
 
 ```c [common.c]
 int strcmp(const char *s1, const char *s2) {
@@ -135,7 +135,7 @@ int strcmp(const char *s1, const char *s2) {
 
 > [!TIP]
 >
-> 將比較的字元轉型成 `unsigned char *` 是為了符合 [POSIX 規範](https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char)
+> 將比較的字元轉型成 `unsigned char *` 是為了符合 [POSIX 規範](https://www.man7.org/linux/man-pages/man3/strcmp.3.html#:~:text=both%20interpreted%20as%20type%20unsigned%20char)。
 
 > [!INFO]
 > 譯者補充：
