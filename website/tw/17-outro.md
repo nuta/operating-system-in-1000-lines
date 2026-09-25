@@ -21,7 +21,7 @@
 
 我最喜歡的是 [xv6 的 RISC-V 版本](https://github.com/mit-pdos/xv6-riscv)。這是一個為教育用途設計的類 UNIX 作業系統，並附有一份 [英文說明書](https://pdos.csail.mit.edu/6.828/2022/)。非常適合想學習 UNIX 特有功能（例如 `fork(2)`）的讀者。
 
-另一個是我自己的專案 [Starina](https://starina.dev)，一個以 Rust 撰寫的微核心作業系統。它仍處於實驗階段，但對於想了解微核心架構及 Rust 在 OS 開發中優勢的人來說，會是個很好的參考。
+另一個是我自己的專案 [FTL](https://github.com/nuta/ftl)，一個採用「userspace OS」設計的 Linux 相容核心，作業系統以函式庫的形式實作。它仍處於實驗階段，但對於想了解建構作業系統的另一種做法的人來說，會是個很好的參考。
 
 ## 非常歡迎回饋！
 

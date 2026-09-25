@@ -25,7 +25,7 @@ title: 结语
 
 我最喜欢的是 [RISC-V 版本的 xv6](https://github.com/mit-pdos/xv6-riscv)。这是一个用于教育目的的类 UNIX 操作系统，并附带一本[解释性教材（英文）](https://pdos.csail.mit.edu/6.828/2022/)。对于那些想要学习 UNIX 特定功能（如 `fork(2)`）的人来说，这是很推荐的资源。
 
-另一个是我的项目 [Starina](https://starina.dev)，一个用 Rust 编写的基于微内核的操作系统。这个项目仍然处于实验阶段，但对于那些想要了解微内核架构以及 Rust 在操作系统开发中的优势的人来说，这会是一个有趣的参考。
+另一个是我的项目 [FTL](https://github.com/nuta/ftl)，一个采用 “userspace OS” 设计的 Linux 兼容内核，操作系统以库的形式实现。这个项目仍然处于实验阶段，但对于那些想要了解构建操作系统的另一种方法的人来说，这会是一个有趣的参考。
 
 ## 欢迎反馈！
 

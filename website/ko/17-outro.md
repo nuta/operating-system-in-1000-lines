@@ -26,7 +26,7 @@ title: 끝내며
 
 제가 가장 좋아하는 구현체 중 하나는 [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv)입니다. 이 OS는 교육 목적으로 만들어진 UNIX-like 운영체제로, [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/)도 함께 제공됩니다. UNIX의 fork(2)와 같은 기능을 배우고자 하는 분들에게 추천합니다.
 
-또 다른 추천 프로젝트는 제 개인 프로젝트 [Starina](https://starina.dev)입니다. Rust로 작성된 마이크로커널 기반 OS로, 아직 실험적인 단계이지만 마이크로커널 아키텍처와 OS 개발에서 Rust가 어떻게 빛을 발하는지 배우고 싶은 분들에게 흥미로운 자료가 될 것입니다.
+또 다른 추천 프로젝트는 제 개인 프로젝트 [FTL](https://github.com/nuta/ftl)입니다. OS를 라이브러리로 구현하는 "userspace OS" 설계의 Linux 호환 커널로, 아직 실험적인 단계이지만 OS를 만드는 다른 접근 방식을 배우고 싶은 분들에게 흥미로운 자료가 될 것입니다.
 
 
 ## 피드백은 언제나 환영합니다!

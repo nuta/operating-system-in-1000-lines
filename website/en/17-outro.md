@@ -21,7 +21,7 @@ The most recommended next step is to read the implementation of existing OSes. C
 
 My favorite is this [RISC-V version of xv6](https://github.com/mit-pdos/xv6-riscv). This is a UNIX-like OS for educational purposes, and it comes with an [explanatory book (in English)](https://pdos.csail.mit.edu/6.828/2022/). It's recommended for those who want to learn about UNIX-specific features like `fork(2)`.
 
-Another one is my project [Starina](https://starina.dev), a microkernel-based OS written in Rust. This is still very experimental, but would be interesting for those who want to learn about microkernel architecture and how Rust shines in OS development.
+Another one is my project [FTL](https://github.com/nuta/ftl), a Linux-compatible kernel in "userspace OS" design, where OS is implemented as a library. This is still very experimental, but would be interesting for those who want to learn about a different approach to build an OS.
 
 ## Feedback is very welcome!
 
