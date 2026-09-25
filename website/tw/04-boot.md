@@ -2,7 +2,7 @@
 
 當電腦啟動時，CPU 首先會初始化自身，接著開始執行作業系統。作業系統會初始化硬體、啟動應用程式。這整個流程就叫做「開機（booting）」。
 
-那麼在作業系統開始前發生了什麼事呢？在 PC 中，BIOS（或較新的 UEFI）會初始化硬體、顯示開機畫面、並從磁碟載入 OS。而在 QEMU 的 `virt` 虛擬機中，OpenSBI 就扮演著 BIOS/UEFI 的角色。
+那麼在作業系統開始前發生了什麼事呢？在 PC 中，BIOS（或較新的 UEFI）會初始化硬體、顯示開機畫面、並從磁碟載入 OS。而在 QEMU 的 `virt` 虛擬機器中，OpenSBI 就扮演著 BIOS/UEFI 的角色。
 
 ## Supervisor Binary Interface (SBI)
 
@@ -34,13 +34,13 @@ QEMU=qemu-system-riscv32
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot
 ```
 
-這段命令會用 QEMU 啟動一台虛擬機，參數說明如下：
+這段命令會用 QEMU 啟動一台虛擬機器，參數說明如下：
 
-- `machine virt`：使用 `virt` 虛擬機（可用 `-machine '?'` 查詢支援的其他機種）
-- `bios default`：使用預設的 BIOS（在 QEMU 中就是 OpenSBI）
-- `nographic`：不開啟 GUI 視窗
-- `serial mon:stdio`：將 QEMU 標準輸入／輸出接到虛擬機的序列埠，可按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 再按 <kbd>C</kbd> 進入 QEMU monitor
-- `-no-reboot`：當虛擬機崩潰時不要自動重開（方便除錯）
+- `-machine virt`：使用 `virt` 虛擬機器（可用 `-machine '?'` 查詢支援的其他機種）
+- `-bios default`：使用預設的 BIOS（在 QEMU 中就是 OpenSBI）
+- `-nographic`：不開啟 GUI 視窗
+- `-serial mon:stdio`：將 QEMU 標準輸入／輸出接到虛擬機器的序列埠，可按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 再按 <kbd>C</kbd> 進入 QEMU monitor
+- `--no-reboot`：當虛擬機器崩潰時不要自動重開（方便除錯）
 
 > [!TIP]
 >
@@ -76,7 +76,7 @@ Platform Timer Device     : aclint-mtimer @ 10000000Hz
 
 OpenSBI 會顯示版本、平台名稱、支援功能、CPU 核心數（HART）、定時器裝置等資訊。
 
-這個階段下，你在鍵盤上按下任何鍵都不會有反應，因為 QEMU 的標準輸入／輸出被接到了虛擬機的序列埠，而你輸入的字元會被傳送到 OpenSBI，但目前沒有任何程式會去讀取這些輸入字元。
+這個階段下，你在鍵盤上按下任何鍵都不會有反應，因為 QEMU 的標準輸入／輸出被接到了虛擬機器的序列埠，而你輸入的字元會被傳送到 OpenSBI，但目前沒有任何程式會去讀取這些輸入字元。
 
 現在讓我們按下 <kbd>Ctrl</kbd>+<kbd>A</kbd> 再按 <kbd>C</kbd> 以進入 QEMU 的除錯監控介面（QEMU monitor）。你可以透過輸入 `q` 命令離開該介面：
 
@@ -209,9 +209,9 @@ void boot(void) {
 
 ### `boot` 函式的屬性（function attributes）
 
-`boot` 函式有兩個特殊屬性（attribute）。屬性 `__attribute__((naked))` 指示編譯器不要在函式本體的前後生成多餘的程式碼（例如 return 指令），這樣可以確保我們寫得內嵌組語就是函式的完整內容。
+`boot` 函式有兩個特殊屬性（attribute）。屬性 `__attribute__((naked))` 指示編譯器不要在函式本體的前後生成多餘的程式碼（例如 return 指令），這樣可以確保我們寫的內嵌組語就是函式的完整內容。
 
-`boot` 函式還有 `__attribute__((section(".text.boot")))` 屬性，用來控制函式在連結器腳本中的擺放位置。由於 OpenSBI 只會單純跳到 `0x80200000`，而不會知道實際的進入點，因此 `boot` 函式必須放在 `0x80200000`
+`boot` 函式還有 `__attribute__((section(".text.boot")))` 屬性，用來控制函式在連結器腳本中的擺放位置。由於 OpenSBI 只會單純跳到 `0x80200000`，而不會知道實際的進入點，因此 `boot` 函式必須放在 `0x80200000`。
 
 ### 使用 `extern char` 取得連結器腳本中的符號
 
@@ -221,7 +221,7 @@ void boot(void) {
 
 ### `.bss` 區段初始化
 
-在 `kernel_main()` 中，我們使用 `memset()` 將 `.bss` 區段清成 0。雖然有些 bootloader（開機載入器）會自動將 `.bss` 清 0，但我們還是自己做一次保險。最後，函式會進入無窮迴圈，表示核心初始化完成、進入穩定狀態。
+在 `kernel_main()` 中，我們使用 `memset()` 將 `.bss` 區段清成 0。雖然有些 bootloader（開機載入器）會自動將 `.bss` 清 0，但我們還是自己做一次保險。最後，函式會進入無窮迴圈，核心的執行就此結束。
 
 ## 執行核心！
 
@@ -248,7 +248,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 > [!TIP]
 >
-> macOS 用戶可使用以下命令確認 clang 的路徑：
+> macOS 使用者可使用以下命令確認 clang 的路徑：
 >
 > ```
 > $ ls $(brew --prefix)/opt/llvm/bin/clang
@@ -266,7 +266,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 | `-Wextra` | 開啟額外警告訊息 |
 | `--target=riscv32-unknown-elf` | 目標平台為 32-bit RISC-V |
 | `-ffreestanding` | 不使用主機環境（開發環境）的標準函式庫 |
-| `-fuse-ld=lld` | 使用 LLVM linker （`ld.lld`） |
+| `-fuse-ld=lld` | 使用 LLVM linker（`ld.lld`） |
 | `-fno-stack-protector` | 關閉 [stack protection](https://wiki.osdev.org/Stack_Smashing_Protector)，避免影響底層堆疊操作（詳見 [#31](https://github.com/nuta/operating-system-in-1000-lines/issues/31#issuecomment-2613219393)） |
 | `-nostdlib` | 不連結標準函式庫 |
 | `-Wl,-Tkernel.ld` | 使用指定的 linker script |
@@ -276,7 +276,7 @@ $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
 
 ## 初次核心除錯（Your first kernel debugging）
 
-當你執行 `run.sh` 時，核心會進入無窮迴圈，畫面上不會有任何輸出以讓你知道核心正在正確地執行。但別擔心，這在較低階的開發中非常常見！這時就輪到 QEMU 的偵錯功能派上用場了。
+當你執行 `run.sh` 時，核心會進入無窮迴圈，畫面上不會有任何輸出以讓你知道核心正在正確地執行。但別擔心，這在較低階的開發中非常常見！這時就輪到 QEMU 的除錯功能派上用場了。
 
 要查看更多 CPU 暫存器的資訊，你可以開啟 QEMU monitor，並執行 `info registers` 命令：
 

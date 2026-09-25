@@ -12,7 +12,7 @@
 
 ## QEMU virt machine
 
-一台電腦是由各種裝置組成的：CPU、記憶體、網卡、磁碟等等。例如，iPhone 和 Raspberry Pi 雖然都使用 Arm CPU，但我們會認為它們是不同的電腦。
+一台電腦是由各種裝置組成的：CPU、記憶體、網路卡、磁碟等等。例如，iPhone 和 Raspberry Pi 雖然都使用 Arm CPU，但我們會認為它們是不同的電腦。
 
 在這本書中，我們選擇支援 QEMU 的 `virt` 機器（[documentation](https://www.qemu.org/docs/master/system/riscv/virt.html)），原因如下：
 
@@ -26,7 +26,7 @@ RISC-V，或稱 RISC-V ISA（指令集架構）定義了 CPU 可以執行哪些�
 
 > [!TIP]
 >
-> **試試看 Compiler Explorer!**
+> **試試看 Compiler Explorer！**
 >
 > 一個很好學組合語言的工具是 [Compiler Explorer](https://godbolt.org/)，它是一個線上編譯器。你撰寫 C 程式碼時，它就會顯示對應的組合語言。
 >
@@ -36,13 +36,13 @@ RISC-V，或稱 RISC-V ISA（指令集架構）定義了 CPU 可以執行哪些�
 
 ### 組合語言的基本語法
 
-組合語言（Assembly）大致上是機器碼的直接表示。先個簡單的例子：
+組合語言（Assembly）大致上是機器碼的直接表示。先看個簡單的例子：
 
 ```asm
 addi a0, a1, 123
 ```
 
-每一行組合語言通常對應一條指令。第一欄（addi）是指令名稱（**opcode**），後面的欄位（`a0, a1, 123`）是操作元（**operands**），也就是指令的參數。這行意思是：把暫存器 `a1` 的值加上常數 `123`，並將結果存入 `a0` 暫存器。
+每一行組合語言通常對應一條指令。第一欄（`addi`）是指令名稱（**opcode**），後面的欄位（`a0, a1, 123`）是操作元（**operands**），也就是指令的參數。這行意思是：把暫存器 `a1` 的值加上常數 `123`，並將結果存入 `a0` 暫存器。
 
 ### 暫存器
 
@@ -56,7 +56,7 @@ addi a0, a1, 123
 | `x0` |`zero`     | 永遠是 0 的暫存器 |
 | `x1` |`ra`         | return address（函式回傳位址） |
 | `x2` |`sp`         | stack pointer（堆疊指標） |
-| `x5` - `x7` | `t0` - `t2` | Temporary registers |
+| `x5` - `x7` | `t0` - `t2` | 臨時暫存器 |
 | `x8` | `fp/s0`      | 堆疊框架指標（frame pointer） |
 | `x9` | `s1`      | 跨呼叫儲存的臨時暫存器 |
 | `x10` - `x11` | `a0` - `a1`  | 函式引數／回傳值 |
@@ -66,7 +66,7 @@ addi a0, a1, 123
 
 > [!TIP]
 >
-> **呼叫慣例（Calling Convention）:**
+> **呼叫慣例（Calling Convention）：**
 >
 > 一般來說，雖然你可以自由地使用暫存器，但為了跟其他軟體互通，使用暫存器的方法是有規定的 ― 這被稱為「呼叫慣例」。
 >
@@ -165,7 +165,7 @@ CPU 有多種運作模式，每種模式擁有不同的權限。在 RISC-V 架�
 
 在所有 CPU 指令中，有一類稱為「特權指令」的指令只能在 S-mode 或 M-mode 下執行，U-mode（使用者模式）無法執行它們。本書中會使用以下幾個常見的特權指令：
 
-| 指令與操作元（Opcode and operands） | 概要                                                                   | 對應的偽代碼（Pseudocode）                       |
+| 指令與操作元（Opcode and operands） | 概要                                                                   | 對應的虛擬碼（Pseudocode）                       |
 | ------------------------ | -------------------------------------------------------------------------- | -------------------------------- |
 | `csrr rd, csr`           | 從 CSR 讀取資料                                                            | `rd = csr;`                      |
 | `csrw csr, rs`           | 將資料寫入 CSR                                                               | `csr = rs;`                      |
@@ -179,7 +179,7 @@ CPU 有多種運作模式，每種模式擁有不同的權限。在 RISC-V 架�
 >
 > 有些特權指令（例如 `sret`）會進行較複雜的系統狀態還原操作。若你想更深入了解其實際行為，可參考 RISC-V 模擬器的原始碼。特別推薦 [rvemu](https://github.com/d0iasm/rvemu)，它的設計直觀易讀（如這段 [sret 的實作](https://github.com/d0iasm/rvemu/blob/f55eb5b376f22a73c0cf2630848c03f8d5c93922/src/cpu.rs#L3357-L3400)）。
 
-##  嵌入式組合語言（Inline assembly）
+## 內嵌組合語言（Inline assembly）
 
 在後續章節中，你會看到一些特殊的 C 語言語法，例如：
 
@@ -217,7 +217,7 @@ __asm__ __volatile__("assembly" : output operands : input operands : clobbered r
 
 組合語言中的 `%0`、`%1`、`%2` 等對應到上述操作元的順序（先輸出再輸入）。
 
-### Examples
+### 範例
 
 ```c
 uint32_t value;

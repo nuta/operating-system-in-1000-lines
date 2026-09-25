@@ -1,8 +1,8 @@
 # Hello World!
 
-在前一章，我們成功啟動了第一個 kernel。雖然透過暫存器的傾印可以確認它有在執行，但這樣的驗證仍然有點不夠直觀。
+在前一章，我們成功啟動了第一個核心。雖然透過暫存器的傾印可以確認它有在執行，但這樣的驗證仍然有點不夠直觀。
 
-在本章中，我們要讓它更「有感」― 直接讓 kernel 輸出一段字串！
+在本章中，我們要讓它更「有感」― 直接讓核心輸出一段字串！
 
 ## 向 SBI 說聲「哈囉」
 
@@ -82,7 +82,7 @@ struct sbiret {
 
 > [!TIP]
 >
-> 「除了 `a0` 和 `a1` 之外，所有暫存器都必須由被呼叫方保留其值」的意思是被呼叫端（例如 OpenSBI）只能改動 `a0` 和 `a1`，不可更動其他暫存器的值。換句話說，對於 kernel 來說，可以保證在呼叫結束後，`a2` 到 `a7` 的值仍會維持不變。
+> 「除了 `a0` 和 `a1` 之外，所有暫存器都必須由被呼叫方保留其值」的意思是被呼叫端（例如 OpenSBI）只能改動 `a0` 和 `a1`，不可更動其他暫存器的值。換句話說，對於核心來說，可以保證在呼叫結束後，`a2` 到 `a7` 的值仍會維持不變。
 
 在每個區域變數的宣告中使用 `register` 和 `__asm__("register name")`，用於要求編譯器將該變數的值放入指定的暫存器中。這是一種在系統呼叫實作中常見的寫法（例如 [Linux 的 system call 呼叫流程](https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h)）。
 
@@ -106,7 +106,7 @@ struct sbiret {
 >
 > -- 摘自《RISC-V Supervisor Binary Interface Specification》v2.0-rc1
 
-`Console Putchar` 是一個將傳入字元輸出到偵錯主控台的函式。
+`Console Putchar` 是一個將傳入字元輸出到除錯主控台的函式。
 
 ### 試著執行看看
 
@@ -128,7 +128,7 @@ Hello World!
 > 1. 核心執行 `ecall` 指令，此時 CPU 跳躍至由 OpenSBI 在啟動時設定的 M-mode 陷阱處理函式（trap handler），該處理函式的位址保存在 `mtvec` 暫存器中。
 > 2. 儲存暫存器內容後，會呼叫[以 C 語言撰寫的陷阱處理函式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_trap.c#L263)。
 > 3. 根據 `eid`，呼叫[對應的 SBI 處理函式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/sbi/sbi_ecall_legacy.c#L63C2-L65)。
-> 4. [8250 UART 的裝置驅動程式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77)（[Wikipedia](https://en.wikipedia.org/wiki/8250_UAR)）將字元送給 QEMU。
+> 4. [8250 UART 的裝置驅動程式](https://github.com/riscv-software-src/opensbi/blob/0ad866067d7853683d88c10ea9269ae6001bcf6f/lib/utils/serial/uart8250.c#L77)（[Wikipedia](https://en.wikipedia.org/wiki/8250_UART)）將字元送給 QEMU。
 > 5. QEMU 的 8250 UART 模擬器收到這個字元，並將它送到標準輸出（stdout）。
 > 6. 最終，終端機模擬器顯示該字元。
 >
@@ -138,15 +138,15 @@ Hello World!
 
 我們已經成功印出了一些字元，下一步要做的是實作 `printf` 函式。
 
-`printf` 可以接收格式字串和數個參數，並將其嵌入於輸出中。例如 `printf("1 + 2 = %d", 1 + 2);` 會輸出 `1 + 2 = 3`
+`printf` 可以接收格式字串和數個參數，並將其嵌入於輸出中。例如 `printf("1 + 2 = %d", 1 + 2);` 會輸出 `1 + 2 = 3`。
 
-雖然 C 標準函式庫中的 `printf` 功能非常完整，但我們先從一個最小版本開始。 具體來說，我們要實作一個支援以下三種格式指定符（format specifier）的 `printf`：
+雖然 C 標準函式庫中的 `printf` 功能非常完整，但我們先從一個最小版本開始。具體來說，我們要實作一個支援以下三種格式指定符（format specifier）的 `printf`：
 
 - `%d`：十進位整數
 - `%x`：十六進位整數
 - `%s`：字串
 
-由於我們之後在應用程式（application）中也會用到 `printf`，所以這邊就新建一個 `common.c` 檔案，放置核心與 user space 之間共用的程式碼。
+由於我們之後在應用程式（application）中也會用到 `printf`，所以這邊就新增一個 `common.c` 檔案，放置核心與 user space 之間共用的程式碼。
 
 以下為 `printf` 的實作：
 
@@ -223,7 +223,7 @@ end:
 
 對於十六進位整數（`%x`），我們從最高位的 *nibble*（4 位元，也就是一個十六進位數字）輸出到最低位。這裡 `nibble` 的值介於 0 到 15，所以我們把它當成字串 `"0123456789abcdef"` 的索引來取得對應字元。
 
-`va_list` 及其相關的 marco 本來定義在 C 標準函式庫的 `<stdarg.h>`。但在本書中，我們直接使用編譯器提供的內建版本，避免依賴標準函式庫。具體來說，我們會在 `common.h` 中如下定義它們：
+`va_list` 及其相關的巨集（macro）本來定義在 C 標準函式庫的 `<stdarg.h>`。但在本書中，我們直接使用編譯器提供的內建版本，避免依賴標準函式庫。具體來說，我們會在 `common.h` 中如下定義它們：
 
 ```c [common.h]
 #pragma once

@@ -158,7 +158,7 @@ Disassembly of section .text:
 
 ## 切換到使用者模式
 
-為了執行應用程式，我們需要使用一種 CPU 模式稱為使用者模式（*user mode*），在 RISC-V 中則稱為 *U-Mode*。
+為了執行應用程式，我們需要使用一種 CPU 模式稱為使用者模式（*user mode*），在 RISC-V 中則稱為 *U-Mode*。切換到 U-Mode 出乎意料地簡單，做法如下：
 
 ```c [kernel.h]
 #define SSTATUS_SPIE (1 << 5)
@@ -189,7 +189,7 @@ __attribute__((naked)) void user_entry(void) {
 
 > [!TIP]
 >
-> 在本書中，我們並不使用硬體中斷，而是改用輪詢（polling）方式，所以其實不需要設 `SPIE` 位元。不過，明確地關閉中斷會比默默忽略來得更清楚，是比較好的做法。
+> 在本書中，我們並不使用硬體中斷，而是改用輪詢（polling）方式，所以其實不需要設 `SPIE` 位元。不過，明確地設定會比默默忽略中斷來得更清楚，是比較好的做法。
 
 ## 嘗試進入使用者模式
 
@@ -222,7 +222,7 @@ $ ./run.sh
 PANIC: kernel.c:71: unexpected trap scause=0000000f, stval=80200000, sepc=0100001a
 ```
 
-第 15 號例外（`scause = 0xf = 15`）對應的是「Store/AMO 頁面錯誤（Store/AMO page fault）」。而且 `sepc` 中的程式計數器（program counter）也正好指向我們在 `shell.c` 中加上的那一行：
+第 15 號例外（`scause = 0xf = 15`）對應的是「Store/AMO 頁面錯誤（Store/AMO page fault）」。看來預期中的例外確實發生了！而且 `sepc` 中的程式計數器（program counter）也正好指向我們在 `shell.c` 中加上的那一行：
 
 ```
 $ llvm-addr2line -e shell.elf 0x100001a

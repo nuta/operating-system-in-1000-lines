@@ -1,6 +1,6 @@
 # 磁碟輸入/輸出（Disk I/O）
 
-在本章中，我們將實作一個虛擬磁碟裝置的驅動程式：virtio-blk。儘管 virtio-blk 並不存在於實體硬體中，但它使用的介面與真實的磁碟裝置幾乎完全相同。
+在本章中，我們將實作一個虛擬磁碟裝置的驅動程式：virtio-blk。儘管 virtio-blk 並不存在於實體硬體中，但它使用的介面與真實的磁碟裝置完全相同。
 
 ## Virtio
 
@@ -139,7 +139,7 @@ struct virtio_blk_req {
 
 > [!NOTE]
 >
-> `__attribute__((packed))` 是一種編譯器擴充語法，用來告訴編譯器「不要在結構成員之間加入*填充位元（padding）*」。否則，編譯器可能會為了對齊效能，在成員之間自動插入隱藏的填充位元，導致驅動程式與裝置看到的資料格式不一致，進而發生錯誤。
+> `__attribute__((packed))` 是一種編譯器擴充語法，用來告訴編譯器「不要在結構成員之間加入*填充位元組（padding）*」。否則，編譯器可能會為了對齊效能，在成員之間自動插入隱藏的填充位元組，導致驅動程式與裝置看到的資料格式不一致，進而發生錯誤。
 
 接下來，在 `kernel.c` 中加入存取 MMIO（記憶體對映 I/O）暫存器的輔助函式：
 
@@ -163,7 +163,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 
 > [!WARNING]
 >
-> 存取 MMIO（Memory-Mapped I/O）暫存器與存取一般記憶體不同。你應該使用 `volatile` 關鍵字，以防止編譯器將讀寫操作優化掉。在 MMIO 中，對記憶體的存取可能會觸發副作用（例如：向裝置發送指令）。
+> 存取 MMIO（Memory-Mapped I/O）暫存器與存取一般記憶體不同。你應該使用 `volatile` 關鍵字，以防止編譯器將讀寫操作最佳化掉。在 MMIO 中，對記憶體的存取可能會觸發副作用（例如：向裝置傳送指令）。
 
 ## 映射 MMIO 區域
 
@@ -242,7 +242,7 @@ void kernel_main(void) {
 
 這是裝置驅動程式的典型初始化模式。重設裝置、設定參數，然後啟用裝置。作為作業系統，我們不需要關心裝置內部發生了什麼。只需像上面那樣執行一些記憶體讀寫操作即可。
 
-##  Virtqueue 初始化
+## Virtqueue 初始化
 
 Virtqueue 應按以下方式初始化：
 
@@ -256,6 +256,7 @@ Virtqueue 應按以下方式初始化：
 
 ```c [kernel.c]
 struct virtio_virtq *virtq_init(unsigned index) {
+    // Allocate a region for the virtqueue.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
     vq->queue_index = index;
@@ -270,11 +271,11 @@ struct virtio_virtq *virtq_init(unsigned index) {
 }
 ```
 
-這個函式會為 virtqueue 分配一段記憶體區域，並將其頁框編號（不是實體位址！）告訴裝置。裝置將使用這段記憶體來讀寫請求資料。
+這個函式會為 virtqueue 配置一段記憶體區域，並將其頁框編號（不是實體位址！）告訴裝置。裝置將使用這段記憶體來讀寫請求資料。
 
 > [!TIP]
 >
-> 驅動程式在初始化流程中所做的事，通常包括：檢查裝置能力與功能、分配作業系統資源（如記憶體區段）、以及設定參數。這過程是不是很像網路協定中的握手（handshake）機制呢？
+> 驅動程式在初始化流程中所做的事，通常包括：檢查裝置能力與功能、配置作業系統資源（如記憶體區段）、以及設定參數。這過程是不是很像網路協定中的交握（handshake）機制呢？
 
 ## 傳送 I/O 請求
 
@@ -349,13 +350,13 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 傳送一筆請求的步驟如下：
 
 1. 在 `blk_req` 中建立一筆請求。指定你要存取的磁區號（sector number）以及讀取或寫入的類型。
-2. 建立一組描述元鏈（descriptor chain），指向 `blk_req` 中的每個區域（見後方描述）。
-3. 將描述元鏈（descriptor chain）中第一個描述元的索引值加入 Available Ring 中。
+2. 建立一組描述項鏈（descriptor chain），指向 `blk_req` 中的每個區域（見後方描述）。
+3. 將描述項鏈（descriptor chain）中第一個描述項的索引值加入 Available Ring 中。
 4. 通知裝置：有一筆新的待處理請求。
 5. 等待裝置處理完成（這個過程稱為 *busy-waiting* 或 *polling*）。
 6. 檢查裝置的回應結果。
 
-在這裡，我們建立了一組由三個描述元組成的描述元鏈。我們需要三個描述元，因為每個描述元具有不同的屬性（`flags`），如下所示：
+在這裡，我們建立了一組由三個描述項組成的描述項鏈。我們需要三個描述項，因為每個描述項具有不同的屬性（`flags`），如下所示：
 
 ```c
 struct virtio_blk_req {
@@ -372,7 +373,7 @@ struct virtio_blk_req {
 } __attribute__((packed));
 ```
 
-因為我們每次都會忙等（busy-wait）直到裝置處理完成，所以可以簡單地每次都使用環形緩衝區（ring）中的「前」三個描述元（descriptor）。然而，在實務中，若要同時處理多筆請求，就需要追蹤哪些描述元是「可用的」與「已使用的」。
+因為我們每次都會忙等（busy-wait）直到裝置處理完成，所以可以簡單地每次都使用環形緩衝區（ring）中的「前」三個描述項（descriptor）。然而，在實務中，若要同時處理多筆請求，就需要追蹤哪些描述項是「可用的」與「已使用的」。
 
 ## 實際試用看看
 
@@ -398,7 +399,7 @@ virtio-blk: capacity is 1024 bytes
 first sector: Lorem ipsum dolor sit amet, consectetur adipiscing elit ...
 ```
 
-接著，我們將第一個區段（sector）覆寫為字串 "hello from kernel!!!"。
+此外，第一個磁區（sector）也被覆寫成字串「hello from kernel!!!」了：
 
 ```
 $ head lorem.txt
@@ -409,4 +410,4 @@ amet, consectetur adipiscing elit ...
 恭喜你！你已成功實作一個磁碟 I/O 驅動程式！
 
 > [!TIP]
-> 正如你可能已經注意到的，裝置驅動程式其實只是作業系統與硬體之間的「膠水」。驅動程式本身不直接控制硬體；它們是透過與硬體上運行的其他軟體（例如：韌體）來進行溝通的。真正負責「出力工作」的是裝置與它們內部的軟體，而不是作業系統的驅動程式。例如像移動磁碟的讀寫磁頭這類工作。
+> 正如你可能已經注意到的，裝置驅動程式其實只是作業系統與硬體之間的「膠水」。驅動程式本身不直接控制硬體；它們是透過與硬體上執行的其他軟體（例如：韌體）來溝通的。真正負責「出力工作」的是裝置與它們內部的軟體，而不是作業系統的驅動程式。例如像移動磁碟的讀寫磁頭這類工作。

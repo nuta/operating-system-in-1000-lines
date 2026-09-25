@@ -6,22 +6,22 @@
 
 我們將實作以下主要功能：
 
-- **多工（Multitasking）**: 實作行程切換，讓多個應用程式可以共用 CPU。
-- **例外處理器（Exception handler）**: 處理像非法指令這類需要作業系統介入的事件。
-- **分頁機制（Paging）**: 為每個應用程式提供獨立的記憶體位址空間。
-- **系統呼叫（System calls）**: 讓應用程式能夠呼叫核心功能。
-- **裝置驅動程式（Device drivers）**: 抽象化硬體功能，例如磁碟的讀寫。
-- **檔案系統（File system）**: 管理磁碟上的檔案內容。
-- **命令列 Shell**: 提供人類操作的使用者介面。
+- **多工（Multitasking）**：實作行程切換，讓多個應用程式可以共用 CPU。
+- **例外處理器（Exception handler）**：處理像非法指令這類需要作業系統介入的事件。
+- **分頁機制（Paging）**：為每個應用程式提供獨立的記憶體位址空間。
+- **系統呼叫（System calls）**：讓應用程式能夠呼叫核心功能。
+- **裝置驅動程式（Device drivers）**：抽象化硬體功能，例如磁碟的讀寫。
+- **檔案系統（File system）**：管理磁碟上的檔案內容。
+- **命令列 Shell**：提供人類操作的使用者介面。
 
 ## 本書中未實作的功能
 
 以下是本書不會實作的功能：
 
-- **中斷處理（Interrupt handling）**: 改用輪詢（polling）方式，也就是忙碌等待（busy waiting），定期檢查裝置是否有新資料。
-- **定時器處理（Timer processing）**: 不實作「搶佔式多工」，而是採用「合作式多工」，每個行程自行決定何時讓出 CPU。
-- **行程間通訊（Inter-process communication, IPC）**: 例如管線（pipe）、UNIX domain socket、共享記憶體等功能將不包含在內。
-- **多處理器支援（Multi-processor support）**: 本系統僅支援單一處理器。
+- **中斷處理（Interrupt handling）**：改用輪詢（polling）方式，也就是忙碌等待（busy waiting），定期檢查裝置是否有新資料。
+- **定時器處理（Timer processing）**：不實作「搶佔式多工」，而是採用「合作式多工」，每個行程自行決定何時讓出 CPU。
+- **行程間通訊（Inter-process communication, IPC）**：例如管線（pipe）、UNIX domain socket、共享記憶體等功能將不包含在內。
+- **多處理器支援（Multi-processor support）**：本系統僅支援單一處理器。
 
 ## 原始碼結構
 
