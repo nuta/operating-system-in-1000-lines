@@ -32,8 +32,30 @@ int writefile(const char *filename, const char *buf, int len) {
     return syscall(SYS_WRITEFILE, (int) filename, (int) buf, len);
 }
 
+int mkdir(const char *pathname) {
+    return syscall(SYS_MKDIR, (int) pathname, 0, 0);
+}
+int listdir(const char *path, char *buf, int len) {
+    return syscall(SYS_LISTDIR, (int) path, (int) buf, len);
+}
+int remove(const char *pathname) {
+    return syscall(SYS_REMOVE, (int) pathname, 0, 0);
+}
+int remove_r(const char *pathname) {
+    return syscall(SYS_REMOVE, (int) pathname, 1, 0);
+}
 __attribute__((noreturn)) void exit(void) {
     syscall(SYS_EXIT, 0, 0, 0);
+    for (;;);
+}
+
+__attribute__((noreturn)) void shutdown(void) {
+    syscall(SYS_SHUTDOWN, 0, 0, 0);
+    for (;;);
+}
+
+__attribute__((noreturn)) void reboot(void) {
+    syscall(SYS_REBOOT, 0, 0, 0);
     for (;;);
 }
 
