@@ -14,7 +14,7 @@ title: 进程
 
 以下`process`结构定义了一个进程对象。它也被称为 _"Process Control Block (PCB)"_。
 
-```c [kernel.c]
+```c [kernel.h]
 #define PROCS_MAX 8       // 最大进程数量
 
 #define PROC_UNUSED   0   // 未使用的进程控制结构
