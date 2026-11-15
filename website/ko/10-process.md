@@ -105,7 +105,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 
 다음은 프로세스 초기화 함수 `create_process`입니다. 프로세스의 엔트리 포인터(시작 함수 주소)를 매개변수로 받아, 생성된 프로세스 구조체의 포인터를 반환합니다:
 
-```c
+```c [kernel.c]
 struct process procs[PROCS_MAX]; // 모든 프로세스 제어 구조체 배열
 
 struct process *create_process(uint32_t pc) {

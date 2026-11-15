@@ -92,7 +92,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 
 接下來，我們來實作建立行程的初始化函式 `create_process`。它會接收一個進入點（entry point）作為參數，並回傳一個指向建立後的 `process` 結構體的指標：
 
-```c
+```c [kernel.c]
 struct process procs[PROCS_MAX]; // All process control structures.
 
 struct process *create_process(uint32_t pc) {

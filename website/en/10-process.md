@@ -92,7 +92,7 @@ The `naked` attribute tells the compiler not to generate any other code than the
 
 Next, let's implement the process initialization function, `create_process`. It takes the entry point as a parameter, and returns a pointer to the created `process` struct:
 
-```c
+```c [kernel.c]
 struct process procs[PROCS_MAX]; // All process control structures.
 
 struct process *create_process(uint32_t pc) {
