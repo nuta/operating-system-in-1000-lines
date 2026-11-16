@@ -272,7 +272,7 @@ __attribute__((aligned(4)))
 void kernel_entry(void) {
     __asm__ __volatile__(
         "csrrw sp, sscratch, sp\n"
-        "addi sp, sp, -4 * 31\n"
+        "addi sp, sp, -4 * 32\n"
         "sw ra,  4 * 0(sp)\n"
         "sw gp,  4 * 1(sp)\n"
         "sw tp,  4 * 2(sp)\n"
