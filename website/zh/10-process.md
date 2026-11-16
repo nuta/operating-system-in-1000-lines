@@ -14,7 +14,7 @@ title: 进程
 
 以下`process`结构定义了一个进程对象。它也被称为 _"Process Control Block (PCB)"_。
 
-```c [kernel.c]
+```c [kernel.h]
 #define PROCS_MAX 8       // 最大进程数量
 
 #define PROC_UNUSED   0   // 未使用的进程控制结构
@@ -96,7 +96,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 
 接下来，让我们实现进程初始化函数`create_process`。它以入口点为参数，并返回指向创建的`process`结构的指针：
 
-```c
+```c [kernel.c]
 struct process procs[PROCS_MAX]; // 所有进程控制结构
 
 struct process *create_process(uint32_t pc) {
